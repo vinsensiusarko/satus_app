@@ -21,7 +21,9 @@ jobs:
         run: npm install -g @google/clasp
 
       - name: Authenticate Clasp
-        run: echo '${{ secrets.CLASPRC_JSON }}' > ~/.clasprc.json
+        env:
+            CLASP_TOKEN: ${{ secrets.CLASPRC_JSON }}
+        run: echo "$CLASP_TOKEN" > ~/.clasprc.json
 
       - name: Push to GAS
         run: clasp push -f
