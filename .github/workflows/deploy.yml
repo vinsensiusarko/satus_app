@@ -1,27 +1,29 @@
-name: Deploy to Google Apps Script
+name: Deploy Google Apps Script
 
 on:
   push:
     branches:
-      - main # Workflow akan jalan otomatis setiap ada push ke branch main
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Code
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18.20.8'
+          node-index: '20'
 
       - name: Install Clasp
         run: npm install -g @google/clasp
 
       - name: Authenticate Clasp
-        run: echo "${{ secrets.CLASPRC_JSON }}" > ~/.clasprc.json
+        run: |
+          echo '${{ secrets.CLASPRC_JSON }}' > ~/.clasprc.json
 
-      - name: Push to GAS
+      - name: Push Code to GAS
         run: clasp push -f
