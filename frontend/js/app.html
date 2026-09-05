@@ -2831,7 +2831,7 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
         app.rawMembers = res.data;
         let html = '';
         res.data.forEach(m => {
-          let statusClass = m.status === 'AKTIF' ? 'text-green-600 font-extrabold' : (m.status === 'MENUNGGU' ? 'text-yellow-600 font-extrabold' : 'text-red-600');
+          let statusClass = m.status === 'AKTIF' ? 'text-green-600 font-extrabold' : (m.status === 'MENUNGGU' ? 'text-yellow-600 font-extrabold' : 'text-red-600 font-extrabold');
           let actionBtn = '';
           if (m.status === 'MENUNGGU') {
             actionBtn = `<button onclick="app.approveMember('${m.member_id}')" class="bg-green-600 hover:bg-green-700 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm">Setujui</button>`;
