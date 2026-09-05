@@ -1,0 +1,121 @@
+<!-- frontend/pages/waste-price.html -->
+<template id="tpl-waste-price">
+  <div class="space-y-6 max-w-7xl mx-auto pb-10">
+    <!-- Header -->
+    <div class="flex items-center space-x-3 border-b border-slate-200 pb-4">
+      <button onclick="app.renderPage('tpl-dashboard-manager')" class="w-10 h-10 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-green-700 flex items-center justify-center shadow-sm transition active:scale-95">
+        <i data-lucide="arrow-left" class="w-5 h-5"></i>
+      </button>
+      <div>
+        <h2 class="text-xl font-black text-slate-800 flex items-center gap-2">
+          <i data-lucide="tags" class="w-6 h-6 text-yellow-500"></i>
+          Pengaturan Harga Sampah
+        </h2>
+        <p class="text-xs text-slate-500 font-medium">Tentukan harga beli sampah plastik dan minyak jelantah dari siswa</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- Form Update Harga -->
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 h-fit">
+        <h3 class="text-sm font-extrabold text-slate-800 mb-4 pb-2 border-b flex items-center gap-2">
+          <i data-lucide="plus-circle" class="w-4 h-4 text-green-600"></i>
+          Tetapkan Tarif Harga Baru
+        </h3>
+        <form onsubmit="app.submitWastePrice(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">Jenis Sampah Ekonomis</label>
+            <select id="wp-type" class="w-full border rounded-xl p-2.5 text-xs bg-white font-medium" required onchange="app.updateUnitLabel()">
+              <option value="PLASTIK">Botol / Sampah Plastik (per Kg)</option>
+              <option value="JELANTAH">Minyak Jelantah (per Liter)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">Harga Beli Satuan (Rp)</label>
+            <div class="flex items-center">
+              <span class="bg-slate-100 border border-r-0 border-slate-200 rounded-l-xl p-2.5 text-xs font-bold text-slate-500">Rp</span>
+              <input type="number" id="wp-price" class="w-full border border-slate-200 rounded-none p-2.5 text-sm font-extrabold" required min="0" step="100" placeholder="2000">
+              <span class="bg-slate-100 border border-l-0 border-slate-200 rounded-r-xl p-2.5 text-xs font-bold text-slate-500" id="wp-unit">/ Kg</span>
+            </div>
+          </div>
+          <div class="flex justify-end pt-2">
+            <button type="submit" class="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold text-xs shadow-sm flex items-center gap-1.5 active:scale-95">
+              <i data-lucide="save" class="w-4 h-4"></i>
+              Simpan Tarif Baru
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Tabel Histori Harga -->
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80">
+        <h3 class="text-sm font-extrabold text-slate-800 mb-4 pb-2 border-b flex items-center gap-2">
+          <i data-lucide="history" class="w-4 h-4 text-blue-600"></i>
+          Riwayat Tarif & Status Aktif
+        </h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left">
+            <thead class="bg-slate-50 text-slate-600 border-b uppercase font-bold text-[11px]">
+              <tr>
+                <th class="py-2.5 px-3">Tanggal</th>
+                <th class="py-2.5 px-3">Jenis</th>
+                <th class="py-2.5 px-3">Harga</th>
+                <th class="py-2.5 px-3">Status</th>
+                <th class="py-2.5 px-3 text-center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="m-waste-price-body" class="divide-y divide-slate-100">
+              <tr><td colspan="5" class="py-6 text-center text-slate-400 font-medium">Memuat riwayat tarif...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Form: Edit Harga Sampah -->
+    <div id="modal-edit-waste-price" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl animate-scale-in">
+        <div class="flex justify-between items-center border-b pb-3 mb-4">
+          <h3 class="text-base font-bold text-slate-800 flex items-center gap-1.5">
+            <i data-lucide="edit-3" class="w-5 h-5 text-yellow-600"></i>
+            Edit Tarif Sampah
+          </h3>
+          <button onclick="document.getElementById('modal-edit-waste-price').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <form onsubmit="app.submitEditWastePrice(event)" class="space-y-3">
+          <input type="hidden" id="ewp-date">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Jenis Sampah</label>
+            <input type="text" id="ewp-type" class="w-full border rounded-xl p-2.5 text-xs bg-slate-100 font-bold text-slate-600" readonly>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Harga Beli Satuan (Rp)</label>
+            <input type="number" id="ewp-price" class="w-full border rounded-xl p-2.5 text-xs font-extrabold" required min="0">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Status Keaktifan</label>
+            <select id="ewp-status" class="w-full border rounded-xl p-2.5 text-xs bg-white font-medium" required>
+              <option value="AKTIF">AKTIF (Digunakan untuk transaksi)</option>
+              <option value="NONAKTIF">NONAKTIF (Arsip)</option>
+            </select>
+          </div>
+          <div class="flex justify-between items-center pt-3 border-t">
+            <button type="button" onclick="app.deleteWastePrice()" class="px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl font-bold text-xs flex items-center gap-1">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              Hapus
+            </button>
+            <div class="space-x-2">
+              <button type="button" onclick="document.getElementById('modal-edit-waste-price').classList.add('hidden')" class="px-4 py-2 text-xs text-slate-600 hover:bg-slate-100 rounded-xl font-semibold">Batal</button>
+              <button type="submit" class="px-5 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl font-bold text-xs shadow-sm flex items-center gap-1.5">
+                <i data-lucide="check" class="w-4 h-4"></i>
+                Update
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</template>

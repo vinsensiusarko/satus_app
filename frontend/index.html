@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SATUS - Satu Tabungan untuk Siswa | Kantong Hijau Sekolah</title>
+  
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+          },
+          colors: {
+            primary: '#16a34a',   /* Hijau Utama */
+            secondary: '#eab308', /* Kuning Aksen */
+            accent: '#3b82f6'     /* Biru Aksen */
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.25s ease-out',
+            'slide-up': 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+            'scale-in': 'scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+          },
+          keyframes: {
+            fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+            slideUp: { '0%': { opacity: '0', transform: 'translateY(12px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+            scaleIn: { '0%': { opacity: '0', transform: 'scale(0.96)' }, '100%': { opacity: '1', transform: 'scale(1)' } },
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Global Reset & Base */
+    .hidden { display: none !important; }
+    
+    /* Custom Modern Scrollbar */
+    .custom-scrollbar::-webkit-scrollbar,
+    body::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track,
+    body::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb,
+    body::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover,
+    body::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    /* Print styling */
+    @media print {
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      body * { visibility: hidden; }
+      
+      #modal-kwitansi:not(.hidden), #modal-kwitansi:not(.hidden) * { visibility: visible; }
+      #modal-kwitansi:not(.hidden) { position: absolute; left: 0; top: 0; width: 100%; }
+      #modal-kwitansi .no-print, #modal-kwitansi .no-print * { display: none !important; visibility: hidden !important; }
+      
+      #modal-laporan:not(.hidden), #modal-laporan:not(.hidden) * { visibility: visible; }
+      #modal-laporan:not(.hidden) { position: absolute; left: 0; top: 0; width: 100%; }
+      #modal-laporan .no-print, #modal-laporan .no-print * { display: none !important; visibility: hidden !important; }
+
+      #modal-impact:not(.hidden), #modal-impact:not(.hidden) * { visibility: visible; }
+      #modal-impact:not(.hidden) { 
+        position: absolute !important; 
+        left: 0 !important; 
+        top: 0 !important; 
+        width: 100% !important; 
+        margin: 0 !important; 
+        padding: 0 !important; 
+        background: #ffffff !important; 
+      }
+      #modal-impact:not(.hidden) > div {
+        box-shadow: none !important;
+        border: none !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        border-radius: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      #modal-impact .no-print, #modal-impact .no-print * { display: none !important; visibility: hidden !important; }
+
+      .no-print, .no-print * { display: none !important; visibility: hidden !important; }
+    }
+    
+    /* Modern Toast Notifications */
+    #toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .toast {
+      padding: 12px 18px;
+      border-radius: 16px;
+      color: white;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      backdrop-filter: blur(12px);
+      animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      max-width: 400px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+    .toast.success { background: linear-gradient(135deg, #16a34a, #15803d); }
+    .toast.error { background: linear-gradient(135deg, #ef4444, #dc2626); }
+    .toast.info { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+    
+    /* Loading overlay */
+    #loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(6px);
+      z-index: 10000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+    .spinner {
+      width: 44px;
+      height: 44px;
+      border: 4px solid #e2e8f0;
+      border-top-color: #16a34a;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    /* Interactive Elements Smoothing */
+    button, a, input, select {
+      transition: all 0.15s ease-in-out;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
+      border-color: #16a34a !important;
+    }
+    
+    /* Lucide Icon Default Alignment */
+    i[data-lucide] {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      vertical-align: middle;
+    }
+  </style>
+
+  <!-- HTML5 QR Code library -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen flex flex-col selection:bg-green-100 selection:text-green-800">
+
+  <!-- Loading Indicator -->
+  <div id="loading" class="hidden">
+    <div class="spinner"></div>
+    <div class="mt-4 text-green-700 font-bold text-sm tracking-wide">Memuat data...</div>
+  </div>
+
+  <!-- Main Navbar (Hidden on Login) -->
+  <nav id="navbar" class="bg-gradient-to-r from-green-700 via-green-600 to-emerald-600 text-white shadow-md shadow-green-900/10 hidden sticky top-0 z-40 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between h-16 items-center">
+        <!-- Brand Logo -->
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/20 shadow-inner">
+            <i data-lucide="leaf" class="w-5 h-5 text-yellow-300"></i>
+          </div>
+          <div>
+            <div class="flex items-center space-x-1.5">
+              <span class="font-black text-xl tracking-tight text-white">SATUS</span>
+            </div>
+            <p class="text-[11px] text-green-100 font-medium tracking-wide -mt-0.5">Satu Tabungan untuk Siswa &bull; Kantong Hijau</p>
+          </div>
+        </div>
+
+        <!-- Right Session Profile & Logout -->
+        <div class="flex items-center space-x-2.5">
+          <button onclick="app.openProfileModal()" class="flex items-center space-x-2.5 bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-xl border border-white/20 backdrop-blur-sm transition active:scale-95 text-left" title="Kelola Profil & Ganti Password">
+            <img id="nav-user-avatar" src="https://ui-avatars.com/api/?name=User&background=10b981&color=fff&bold=true" class="w-7 h-7 rounded-full border border-white/40 object-cover shadow-sm">
+            <div class="hidden sm:block">
+              <span id="nav-username" class="text-xs font-bold text-white tracking-wide block leading-tight">Nama User</span>
+              <span id="nav-user-role" class="text-[10px] text-green-200 font-medium block leading-tight">ROLE</span>
+            </div>
+            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-green-200 hidden sm:block"></i>
+          </button>
+          <button onclick="app.confirmLogout()" class="flex items-center space-x-1.5 text-xs bg-white/15 hover:bg-red-500 hover:border-red-400 text-white px-3.5 py-2 rounded-xl transition font-bold border border-white/20 shadow-sm active:scale-95" title="Keluar">
+            <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+            <span class="hidden sm:inline">Logout</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Container for Pages -->
+  <main id="app-content" class="flex-grow flex flex-col w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 animate-fade-in">
+    <!-- Pages will be injected here via JS (SPA) -->
+  </main>
+
+  <!-- Footer: Copyright & Identitas Sekolah Muhasama -->
+  <footer id="main-footer" class="border-t border-slate-200/80 bg-white/80 backdrop-blur-sm mt-auto py-5 text-slate-500 text-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-center sm:text-left">
+      <div class="flex items-center space-x-2">
+        <div class="w-6 h-6 rounded-lg bg-green-100 text-green-700 flex items-center justify-center font-bold">
+          <i data-lucide="leaf" class="w-3.5 h-3.5"></i>
+        </div>
+        <p class="font-semibold text-slate-700">
+          &copy; <span id="footer-year">2026</span> <b>SATUS</b> — Satu Tabungan untuk Siswa
+        </p>
+      </div>
+      <p class="text-slate-600 font-medium">
+        Muhammadiyah 1 Magetan (<span class="text-green-700 font-bold">Muhasama</span>) &bull; Kantong Hijau Sekolah
+      </p>
+    </div>
+  </footer>
+
+  <div id="toast-container"></div>
+
+  <!-- Modal: Edit Profil & Ganti Password (Manager, Kasir, Siswa) -->
+  <div id="modal-profile" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center z-[70] p-4">
+    <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-slate-100 animate-scale-in">
+      <div class="flex justify-between items-center border-b pb-3 mb-4">
+        <div class="flex items-center space-x-2">
+          <div class="w-8 h-8 rounded-xl bg-green-100 text-green-700 flex items-center justify-center font-bold">
+            <i data-lucide="user" class="w-4 h-4"></i>
+          </div>
+          <h3 class="text-base font-black text-slate-800">Profil & Keamanan Akun</h3>
+        </div>
+        <button onclick="app.closeProfileModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Tab Buttons: Foto Profil & Ganti Password -->
+      <div class="flex border-b border-slate-200 mb-4">
+        <button type="button" onclick="app.switchProfileTab('photo')" id="tab-btn-profile-photo" class="flex-1 py-2 text-xs font-bold text-green-600 border-b-2 border-green-600 flex items-center justify-center gap-1.5">
+          <i data-lucide="image" class="w-4 h-4"></i>
+          Foto Profil
+        </button>
+        <button type="button" onclick="app.switchProfileTab('password')" id="tab-btn-profile-pass" class="flex-1 py-2 text-xs font-bold text-slate-400 hover:text-slate-600 flex items-center justify-center gap-1.5">
+          <i data-lucide="key-round" class="w-4 h-4"></i>
+          Ganti Password
+        </button>
+      </div>
+
+      <!-- Tab Content 1: Foto Profil -->
+      <div id="tab-content-profile-photo" class="space-y-4">
+        <div class="flex flex-col items-center justify-center py-2">
+          <div class="relative group">
+            <img id="profile-modal-avatar-preview" src="https://ui-avatars.com/api/?name=User&background=10b981&color=fff&bold=true" class="w-24 h-24 rounded-full border-4 border-green-100 shadow-md object-cover">
+            <label for="profile-photo-file" class="absolute bottom-0 right-0 bg-green-600 text-white p-2 rounded-full cursor-pointer shadow hover:bg-green-700 transition">
+              <i data-lucide="camera" class="w-4 h-4"></i>
+            </label>
+          </div>
+          <input type="file" id="profile-photo-file" accept="image/*" class="hidden" onchange="app.handleProfilePhotoSelect(this)">
+          <p class="text-xs text-slate-500 font-medium mt-2.5">Klik ikon kamera untuk memilih foto dari perangkat</p>
+          <span class="text-[10px] text-slate-400">Otomatis dioptimalkan &amp; dikompres</span>
+        </div>
+
+        <div class="flex gap-2 pt-2 border-t">
+          <button type="button" onclick="app.resetAvatarToInitial()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+            Gunakan Inisial
+          </button>
+          <button type="button" onclick="app.saveProfilePhoto()" class="flex-1 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold shadow-sm flex items-center justify-center gap-1">
+            <i data-lucide="check" class="w-3.5 h-3.5"></i>
+            Simpan Foto
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab Content 2: Ganti Password -->
+      <form id="tab-content-profile-password" onsubmit="app.submitChangePassword(event)" class="hidden space-y-3.5">
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">Password Lama</label>
+          <input type="password" id="cp-old-pass" required class="w-full border rounded-xl p-2.5 text-xs" placeholder="Masukkan password saat ini">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">Password Baru</label>
+          <input type="password" id="cp-new-pass" required minlength="4" class="w-full border rounded-xl p-2.5 text-xs" placeholder="Minimal 4 karakter">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">Konfirmasi Password Baru</label>
+          <input type="password" id="cp-confirm-pass" required minlength="4" class="w-full border rounded-xl p-2.5 text-xs" placeholder="Ulangi password baru">
+        </div>
+        
+        <div class="flex justify-end space-x-2 pt-3 border-t">
+          <button type="button" onclick="app.closeProfileModal()" class="px-4 py-2 text-xs text-slate-600 hover:bg-slate-100 rounded-xl font-semibold">Batal</button>
+          <button type="submit" class="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold shadow-sm flex items-center gap-1.5">
+            <i data-lucide="save" class="w-4 h-4"></i>
+            Simpan Password
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Konfirmasi Logout -->
+  <div id="modal-logout-confirm" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center z-[75] p-4" onclick="if(event.target === this) app.closeLogoutModal()">
+    <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl border border-slate-100 animate-scale-in text-center">
+      <div class="w-14 h-14 mx-auto mb-4 rounded-2xl bg-red-50 text-red-500 border border-red-100 flex items-center justify-center shadow-inner">
+        <i data-lucide="log-out" class="w-7 h-7"></i>
+      </div>
+      <h3 class="text-base font-black text-slate-800 mb-1.5">Konfirmasi Logout</h3>
+      <p class="text-xs text-slate-500 mb-6 leading-relaxed">
+        Apakah Anda yakin ingin keluar dari akun <span id="logout-user-name" class="font-bold text-slate-700"></span>? Anda harus login kembali untuk mengakses sistem.
+      </p>
+      <div class="flex gap-2.5">
+        <button type="button" onclick="app.closeLogoutModal()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition active:scale-95">
+          Batal
+        </button>
+        <button type="button" onclick="app.proceedLogout()" class="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-md shadow-red-600/20 transition active:scale-95 flex items-center justify-center gap-1.5">
+          <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+          Ya, Keluar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Page Templates -->
+  <?!= include('frontend/pages/login'); ?>
+  <?!= include('frontend/pages/dashboard-manager'); ?>
+  <?!= include('frontend/pages/dashboard-kasir'); ?>
+  <?!= include('frontend/pages/dashboard-siswa'); ?>
+  <?!= include('frontend/pages/member-list'); ?>
+  <?!= include('frontend/pages/waste-price'); ?>
+  <?!= include('frontend/pages/product-list'); ?>
+  <?!= include('frontend/pages/audit-log'); ?>
+  <?!= include('frontend/pages/placeholder'); ?>
+
+  <!-- Scripts -->
+  <?!= include('frontend/js/app'); ?>
+
+</body>
+</html>

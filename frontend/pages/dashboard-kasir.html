@@ -1,0 +1,517 @@
+<!-- frontend/pages/dashboard-kasir.html -->
+<template id="tpl-dashboard-kasir">
+  <div class="space-y-6 max-w-7xl mx-auto pb-10">
+    
+    <!-- Top Scanner & Search Card -->
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80">
+      <div class="flex items-center space-x-2.5 mb-4">
+        <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
+          <i data-lucide="scan-line" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h2 class="text-lg font-black text-slate-800">Kasir: Mulai Transaksi</h2>
+          <p class="text-xs text-slate-500">Cari nomor anggota / scan kartu QR siswa untuk memulai transaksi</p>
+        </div>
+      </div>
+      
+      <!-- QR Scanner / Search -->
+      <div class="flex flex-col md:flex-row gap-3 mb-6">
+        <div class="flex-grow">
+          <label class="block text-xs font-bold text-slate-700 mb-1">Cari Member ID / NIS Siswa</label>
+          <form onsubmit="app.searchMemberKasir(event)" class="flex">
+            <div class="relative flex-grow">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <i data-lucide="search" class="w-4 h-4"></i>
+              </div>
+              <input type="text" id="k-search-input" class="w-full border-slate-200 rounded-l-xl border p-2.5 pl-9 text-xs font-medium focus:ring-2 focus:ring-green-500/20" placeholder="Contoh: KH-2026-001 atau NIS">
+            </div>
+            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-5 rounded-r-xl transition text-xs font-bold flex items-center gap-1.5 active:scale-95">
+              <span>Cari</span>
+            </button>
+          </form>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1 opacity-0 hidden md:block">Scan QR</label>
+          <button id="btn-scan-qr" onclick="app.toggleScanner()" class="w-full md:w-auto bg-blue-600 text-white px-4 py-2.5 rounded-xl hover:bg-blue-700 transition flex items-center justify-center space-x-2 text-xs font-bold shadow-sm active:scale-95">
+            <i data-lucide="camera" class="w-4 h-4"></i>
+            <span id="scan-btn-text">Buka Kamera Scan</span>
+          </button>
+        </div>
+      </div>
+      
+      <div id="qr-reader" class="w-full max-w-sm mx-auto mb-4 overflow-hidden rounded-2xl"></div>
+      
+      <div id="camera-helper" class="hidden max-w-sm mx-auto mb-4 bg-yellow-50 text-yellow-800 text-xs p-3.5 rounded-2xl border border-yellow-200">
+        <p class="font-bold mb-1 flex items-center gap-1.5"><i data-lucide="alert-triangle" class="w-4 h-4 text-yellow-600"></i> Terdeteksi Pembatasan Iframe</p>
+        <p class="text-[11px] leading-relaxed">Akses kamera langsung dibatasi di lingkungan Google Script iframe.</p>
+        <button onclick="window.top.location.href = window.location.href" class="mt-2 block text-center bg-yellow-600 text-white px-3 py-2 rounded-xl hover:bg-yellow-700 w-full font-bold shadow-sm flex items-center justify-center gap-1.5">
+          <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+          Buka Mode Full-Kamera
+        </button>
+        
+        <p class="mt-3 font-bold border-t border-yellow-200 pt-2 text-[11px]">Atau gunakan kamera bawaan HP / Upload:</p>
+        <input type="file" id="qr-file-upload" accept="image/*" capture="environment" class="hidden" onchange="app.scanImageFile(this)">
+        <button onclick="document.getElementById('qr-file-upload').click()" class="mt-1.5 bg-blue-600 text-white px-3 py-2 rounded-xl hover:bg-blue-700 w-full font-bold text-xs shadow-sm flex items-center justify-center gap-1.5">
+          <i data-lucide="camera" class="w-3.5 h-3.5"></i>
+          Ambil Foto QR / Upload
+        </button>
+      </div>
+      
+      <div id="qr-file-reader" class="hidden"></div>
+
+      <!-- Member Visual Identity Profile Card (Enhanced with Large Avatar & Verification) -->
+      <div id="k-member-profile" class="hidden bg-gradient-to-r from-slate-50 via-emerald-50/30 to-green-50/40 border border-green-200/80 p-5 rounded-3xl mb-6 flex flex-col md:flex-row justify-between items-center gap-5 animate-scale-in shadow-sm">
+        <div class="flex items-center space-x-4 w-full md:w-auto">
+          <div class="relative">
+            <img id="k-m-avatar" src="https://ui-avatars.com/api/?name=Siswa&background=10b981&color=fff&bold=true" class="w-16 h-16 rounded-2xl border-2 border-white shadow-md object-cover">
+            <div class="absolute -bottom-1 -right-1 bg-green-600 text-white p-1 rounded-full border border-white">
+              <i data-lucide="check" class="w-2.5 h-2.5"></i>
+            </div>
+          </div>
+          <div>
+            <div class="flex items-center space-x-2 mb-1">
+              <span id="k-m-status" class="text-[10px] bg-green-100 text-green-800 font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider border border-green-200">Member Aktif</span>
+              <span class="text-[10px] text-slate-400 font-medium">Verifikasi Visual</span>
+            </div>
+            <h3 class="text-xl font-black text-slate-800 tracking-tight" id="k-m-nama">Nama Siswa</h3>
+            <p class="text-xs text-slate-500 font-medium" id="k-m-info">ID: -- | NIS: -- | Kelas: --</p>
+          </div>
+        </div>
+        
+        <div class="flex items-center space-x-3 w-full md:w-auto">
+          <!-- Saldo Tabungan -->
+          <div class="flex-1 md:flex-none bg-white px-4 py-3 rounded-2xl shadow-sm border border-green-200 text-center min-w-[135px]">
+            <p class="text-[10px] text-slate-500 font-extrabold uppercase tracking-wide">💰 Saldo Tabungan</p>
+            <p class="text-lg font-black text-green-700 mt-0.5" id="k-m-saldo-tabungan">Rp 0</p>
+          </div>
+          <!-- Saldo Hijau -->
+          <div class="flex-1 md:flex-none bg-emerald-950 px-4 py-3 rounded-2xl shadow-sm border border-emerald-800 text-center text-white min-w-[135px]">
+            <p class="text-[10px] text-emerald-300 font-extrabold uppercase tracking-wide">🌱 Saldo Hijau</p>
+            <p class="text-lg font-black text-emerald-200 mt-0.5" id="k-m-saldo-hijau">Rp 0</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mini Riwayat Transaksi Siswa Terpilih (Recent History + Void Button) -->
+      <div id="k-member-recent-container" class="hidden mb-6 bg-slate-50 border border-slate-200 rounded-2xl p-4">
+        <div class="flex justify-between items-center mb-2.5">
+          <h4 class="text-xs font-black text-slate-700 flex items-center gap-1.5">
+            <i data-lucide="history" class="w-3.5 h-3.5 text-blue-600"></i>
+            Mutasi Terakhir Siswa Ini
+          </h4>
+          <span class="text-[10px] text-slate-400">Klik 'Ajukan Batal' jika ada salah ketik</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-[11px] text-left">
+            <thead class="bg-slate-100 text-slate-600 uppercase font-bold text-[10px]">
+              <tr>
+                <th class="py-1.5 px-2.5">Waktu &amp; Tanggal</th>
+                <th class="py-1.5 px-2">Jenis Transaksi</th>
+                <th class="py-1.5 px-2 text-right">Nilai</th>
+                <th class="py-1.5 px-2.5 text-right">Status / Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="k-member-recent-tbody" class="divide-y divide-slate-200 font-mono">
+              <tr><td colspan="4" class="py-2 text-center text-slate-400">Memuat mutasi...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Quick Action Buttons -->
+      <div>
+        <div class="flex items-center justify-between mb-2.5">
+          <p class="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+            <i data-lucide="sparkles" class="w-4 h-4 text-yellow-500"></i>
+            Pilih Jenis Transaksi
+          </p>
+          <span id="k-tx-hint" class="text-[11px] font-medium text-slate-400">Cari anggota terlebih dahulu</span>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3" id="k-action-buttons">
+          
+          <!-- 1. Setor Tunai -->
+          <button onclick="app.openTxModal('SETOR_TUNAI')" id="btn-setor-tunai" class="group bg-green-100/90 hover:bg-green-200 text-green-950 border-2 border-green-400 p-3.5 rounded-2xl text-center font-black text-xs flex flex-col items-center justify-center space-y-2 shadow-sm hover:shadow-md transition-all duration-200 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+            <div class="w-10 h-10 rounded-xl bg-green-200 text-green-800 flex items-center justify-center font-bold shadow-inner group-hover:scale-110 transition-transform">
+              <i data-lucide="wallet" class="w-5 h-5"></i>
+            </div>
+            <span class="tracking-wide">Setor Tunai</span>
+          </button>
+          
+          <!-- 2. Setor Plastik -->
+          <button onclick="app.openTxModal('SETOR_PLASTIK')" id="btn-setor-plastik" class="group bg-emerald-100/90 hover:bg-emerald-200 text-emerald-950 border-2 border-emerald-400 p-3.5 rounded-2xl text-center font-black text-xs flex flex-col items-center justify-center space-y-2 shadow-sm hover:shadow-md transition-all duration-200 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+            <div class="w-10 h-10 rounded-xl bg-emerald-200 text-emerald-800 flex items-center justify-center font-bold shadow-inner group-hover:scale-110 transition-transform">
+              <i data-lucide="flask-round" class="w-5 h-5"></i>
+            </div>
+            <span class="tracking-wide">Setor Plastik</span>
+          </button>
+          
+          <!-- 3. Setor Jelantah -->
+          <button onclick="app.openTxModal('SETOR_JELANTAH')" id="btn-setor-jelantah" class="group bg-amber-100/90 hover:bg-amber-200 text-amber-950 border-2 border-amber-400 p-3.5 rounded-2xl text-center font-black text-xs flex flex-col items-center justify-center space-y-2 shadow-sm hover:shadow-md transition-all duration-200 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+            <div class="w-10 h-10 rounded-xl bg-amber-200 text-amber-800 flex items-center justify-center font-bold shadow-inner group-hover:scale-110 transition-transform">
+              <i data-lucide="droplets" class="w-5 h-5"></i>
+            </div>
+            <span class="tracking-wide">Setor Jelantah</span>
+          </button>
+          
+          <!-- 4. Tarik Tunai -->
+          <button onclick="app.openTxModal('TARIK_TUNAI')" id="btn-tarik-tunai" class="group bg-blue-100/90 hover:bg-blue-200 text-blue-950 border-2 border-blue-400 p-3.5 rounded-2xl text-center font-black text-xs flex flex-col items-center justify-center space-y-2 shadow-sm hover:shadow-md transition-all duration-200 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+            <div class="w-10 h-10 rounded-xl bg-blue-200 text-blue-800 flex items-center justify-center font-bold shadow-inner group-hover:scale-110 transition-transform">
+              <i data-lucide="banknote" class="w-5 h-5"></i>
+            </div>
+            <span class="tracking-wide">Tarik Tunai</span>
+          </button>
+          
+          <!-- 5. Belanja Tabungan -->
+          <button onclick="app.openTxModal('BELANJA_TABUNGAN')" id="btn-belanja" class="group bg-purple-100/90 hover:bg-purple-200 text-purple-950 border-2 border-purple-400 p-3.5 rounded-2xl text-center font-black text-xs flex flex-col items-center justify-center space-y-2 shadow-sm hover:shadow-md transition-all duration-200 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+            <div class="w-10 h-10 rounded-xl bg-purple-200 text-purple-800 flex items-center justify-center font-bold shadow-inner group-hover:scale-110 transition-transform">
+              <i data-lucide="shopping-cart" class="w-5 h-5"></i>
+            </div>
+            <span class="tracking-wide">Belanja Tabungan</span>
+          </button>
+          
+          <!-- 6. Tukar ATK Hijau -->
+          <button onclick="app.openTxModal('TUKAR_HIJAU_ATK')" id="btn-tukar-hijau" class="group bg-teal-100/90 hover:bg-teal-200 text-teal-950 border-2 border-teal-400 p-3.5 rounded-2xl text-center font-black text-xs flex flex-col items-center justify-center space-y-2 shadow-sm hover:shadow-md transition-all duration-200 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+            <div class="w-10 h-10 rounded-xl bg-teal-200 text-teal-800 flex items-center justify-center font-bold shadow-inner group-hover:scale-110 transition-transform">
+              <i data-lucide="pencil" class="w-5 h-5"></i>
+            </div>
+            <span class="tracking-wide">Tukar ATK Hijau</span>
+          </button>
+
+        </div>
+      </div>
+    </div>
+    
+    <!-- Table: Riwayat & Seluruh Transaksi Kasir -->
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80">
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 pb-3 border-b border-slate-100">
+        <div>
+          <h3 class="font-extrabold text-slate-800 text-sm flex items-center gap-1.5">
+            <i data-lucide="history" class="w-4 h-4 text-blue-600"></i>
+            Riwayat &amp; Seluruh Transaksi Kasir
+          </h3>
+          <p class="text-xs text-slate-400">Pantau seluruh transaksi kasir secara real-time maupun histori sebelumnya</p>
+        </div>
+        
+        <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+          <!-- Filter Tabs: Hari Ini vs Semua -->
+          <div class="flex bg-slate-100 p-1 rounded-xl text-xs font-bold">
+            <button type="button" onclick="app.switchKasirTxFilter('TODAY')" id="ktx-tab-today" class="px-3 py-1.5 rounded-lg bg-white text-blue-800 shadow-sm transition">
+              Hari Ini (<span id="k-total-tx-hari-ini">0</span>)
+            </button>
+            <button type="button" onclick="app.switchKasirTxFilter('ALL')" id="ktx-tab-all" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-800 transition">
+              Semua Histori (<span id="k-total-tx-all">0</span>)
+            </button>
+          </div>
+
+          <!-- Quick Search -->
+          <div class="relative flex-grow sm:w-60">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+              <i data-lucide="search" class="w-3.5 h-3.5"></i>
+            </div>
+            <input type="text" id="k-tx-search" onkeyup="app.filterKasirTxList()" class="w-full border border-slate-200 rounded-xl py-1.5 pl-8 pr-3 text-xs bg-slate-50 focus:bg-white" placeholder="Cari No TRX / NIS / Jenis...">
+          </div>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs text-left">
+          <thead class="bg-slate-50 text-slate-600 border-b uppercase font-bold text-[11px]">
+            <tr>
+              <th class="py-2.5 px-3.5">Waktu &amp; Tanggal</th>
+              <th class="py-2.5 px-3.5">ID Transaksi</th>
+              <th class="py-2.5 px-3.5">Member ID</th>
+              <th class="py-2.5 px-3.5">Jenis &amp; Dompet</th>
+              <th class="py-2.5 px-3.5 text-right">Nilai Transaksi</th>
+              <th class="py-2.5 px-4 text-right whitespace-nowrap">Status / Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="k-tx-list" class="divide-y divide-slate-100 font-mono text-[11px]">
+            <tr><td colspan="6" class="py-6 text-center text-slate-400 font-sans font-medium">Memuat transaksi...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <!-- Modal: Pre-Flight Confirmation (Konfirmasi Sebelum Eksekusi) -->
+    <div id="modal-confirm-transaction" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center z-[70] p-4">
+      <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl animate-scale-in border border-slate-100">
+        <div class="text-center mb-4">
+          <div class="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto mb-2 font-black">
+            <i data-lucide="shield-alert" class="w-6 h-6"></i>
+          </div>
+          <h3 class="text-lg font-black text-slate-800">Konfirmasi Transaksi</h3>
+          <p class="text-xs text-slate-500">Periksa kembali rincian transaksi sebelum diproses</p>
+        </div>
+
+        <div class="bg-slate-50 p-4 rounded-2xl text-xs space-y-2.5 mb-5 border border-slate-200">
+          <div class="flex items-center space-x-3 pb-2.5 border-b border-slate-200">
+            <img id="conf-avatar" src="https://ui-avatars.com/api/?name=Siswa" class="w-10 h-10 rounded-xl object-cover border">
+            <div>
+              <p class="font-black text-slate-800" id="conf-nama">Nama Siswa</p>
+              <p class="text-[11px] text-slate-500" id="conf-info">NIS: -- | Kelas: --</p>
+            </div>
+          </div>
+
+          <div class="flex justify-between text-slate-600">
+            <span>Jenis Transaksi:</span>
+            <span class="font-bold text-slate-800" id="conf-type">--</span>
+          </div>
+
+          <div class="flex justify-between text-slate-600">
+            <span>Rincian / Keterangan:</span>
+            <span class="font-medium text-slate-800 text-right" id="conf-desc">--</span>
+          </div>
+
+          <div class="flex justify-between text-sm pt-1 border-t border-slate-200">
+            <span class="font-extrabold text-slate-800">Nilai Transaksi:</span>
+            <span class="font-black text-green-700 text-base" id="conf-amount">Rp 0</span>
+          </div>
+
+          <div class="bg-white p-2.5 rounded-xl border border-slate-200/80 space-y-1 text-[11px]">
+            <div class="flex justify-between text-slate-500">
+              <span>Saldo Saat Ini:</span>
+              <span class="font-bold" id="conf-curr-balance">Rp 0</span>
+            </div>
+            <div class="flex justify-between text-emerald-700 font-extrabold">
+              <span>Estimasi Saldo Baru:</span>
+              <span id="conf-next-balance">Rp 0</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-2">
+          <button type="button" onclick="app.closeConfirmModal()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold">Cek Kembali</button>
+          <button type="button" id="btn-execute-confirmed-tx" onclick="app.executeConfirmedTransaction()" class="flex-1 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold shadow-md flex items-center justify-center gap-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>Konfirmasi &amp; Proses</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Kwitansi Bukti Transaksi (Enhanced Modern Thermal & WA Share) -->
+    <div id="modal-kwitansi" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center z-[60] p-4" onclick="if(event.target === this) document.getElementById('modal-kwitansi').classList.add('hidden')">
+      <div class="bg-white rounded-3xl p-6 w-full max-w-sm text-center shadow-2xl animate-scale-in border border-slate-100">
+        <div id="kw-icon-container" class="w-14 h-14 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-3 text-green-600 text-2xl shadow-inner transition-colors">
+          <i id="kw-icon" data-lucide="check-circle-2" class="w-8 h-8"></i>
+        </div>
+        <h3 id="kw-title" class="text-lg font-black mb-0.5 text-slate-800">Transaksi Berhasil!</h3>
+        <div id="kw-status-badge" class="hidden my-1.5"></div>
+        <p class="text-xs text-slate-400 mb-4 font-mono font-bold">No: <span id="kw-id"></span></p>
+        
+        <div class="bg-slate-50 p-4 rounded-2xl text-left text-xs space-y-2 mb-4 border border-dashed border-slate-300">
+          <div class="flex justify-between border-b border-dashed border-slate-200 pb-1.5"><span class="text-slate-500">Jenis:</span><span id="kw-type" class="font-bold text-slate-800"></span></div>
+          <div class="flex justify-between border-b border-dashed border-slate-200 pb-1.5"><span class="text-slate-500">Dompet:</span><span id="kw-wallet" class="font-bold text-slate-800"></span></div>
+          <div class="flex justify-between border-b border-dashed border-slate-200 pb-1.5"><span class="text-slate-500">Anggota:</span><span id="kw-member" class="font-bold text-slate-800"></span></div>
+          <div class="flex justify-between border-b border-dashed border-slate-200 pb-1.5"><span class="text-slate-500">Keterangan:</span><span id="kw-desc" class="text-right text-slate-700 font-medium"></span></div>
+          <div class="flex justify-between text-sm pt-1"><span class="text-slate-800 font-bold">Total Nilai:</span><span id="kw-total" class="font-black text-green-700"></span></div>
+          <div id="kw-saldo-row" class="flex justify-between text-[11px] pt-1 text-slate-500 border-t border-slate-200"><span class="text-slate-500">Saldo Akhir:</span><span id="kw-saldo" class="font-bold text-slate-800"></span></div>
+        </div>
+        
+        <div class="space-y-2 no-print print:hidden">
+          <div class="flex gap-2">
+            <button type="button" onclick="app.copyReceiptWhatsApp()" class="flex-1 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm active:scale-95">
+              <i data-lucide="share-2" class="w-3.5 h-3.5"></i>
+              <span>Salin Teks WA</span>
+            </button>
+            <button type="button" onclick="window.print()" class="flex-1 py-2.5 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95">
+              <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+              <span>Cetak Struk</span>
+            </button>
+          </div>
+          <button type="button" onclick="document.getElementById('modal-kwitansi').classList.add('hidden')" class="w-full py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 text-xs font-bold shadow-sm active:scale-95">Selesai</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Modal: Setor / Tarik Tunai (With Quick Amount Preset Buttons) -->
+    <div id="modal-tunai" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl animate-scale-in">
+        <div class="flex justify-between items-center border-b pb-3 mb-4">
+          <h3 class="text-base font-black text-slate-800" id="modal-tunai-title">Setor Tunai</h3>
+          <button onclick="document.getElementById('modal-tunai').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <form onsubmit="app.prepareTunaiSubmit(event)" class="space-y-4">
+          <input type="hidden" id="tunai-type">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">Nominal Uang Tunai (Rp)</label>
+            <input type="number" id="tunai-amount" class="w-full border rounded-2xl p-3 text-2xl font-black text-right focus:ring-2 focus:ring-green-500/20" required min="100" step="100" placeholder="0">
+          </div>
+
+          <!-- Quick Amount Buttons -->
+          <div>
+            <label class="block text-[11px] font-bold text-slate-400 mb-1.5 uppercase">⚡ Pecahan Cepat</label>
+            <div class="grid grid-cols-4 gap-1.5 text-xs font-bold" id="tunai-quick-buttons">
+              <button type="button" onclick="app.addQuickAmount(2000)" class="py-2 bg-slate-100 hover:bg-green-100 hover:text-green-800 rounded-xl transition">+2.000</button>
+              <button type="button" onclick="app.addQuickAmount(5000)" class="py-2 bg-slate-100 hover:bg-green-100 hover:text-green-800 rounded-xl transition">+5.000</button>
+              <button type="button" onclick="app.addQuickAmount(10000)" class="py-2 bg-slate-100 hover:bg-green-100 hover:text-green-800 rounded-xl transition">+10.000</button>
+              <button type="button" onclick="app.addQuickAmount(20000)" class="py-2 bg-slate-100 hover:bg-green-100 hover:text-green-800 rounded-xl transition">+20.000</button>
+              <button type="button" onclick="app.addQuickAmount(50000)" class="py-2 bg-slate-100 hover:bg-green-100 hover:text-green-800 rounded-xl transition">+50.000</button>
+              <button type="button" onclick="app.addQuickAmount(100000)" class="py-2 bg-slate-100 hover:bg-green-100 hover:text-green-800 rounded-xl transition">+100.000</button>
+              <button type="button" id="btn-tarik-semua" onclick="app.setMaxWithdraw()" class="hidden py-2 bg-blue-100 text-blue-800 hover:bg-blue-200 rounded-xl transition col-span-2">Tarik Semua</button>
+              <button type="button" onclick="document.getElementById('tunai-amount').value = '';" class="py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl transition">Reset</button>
+            </div>
+          </div>
+
+          <div class="flex justify-end space-x-2 pt-2 border-t">
+            <button type="button" onclick="document.getElementById('modal-tunai').classList.add('hidden')" class="px-4 py-2 text-xs text-slate-600 hover:bg-slate-100 rounded-xl font-semibold">Batal</button>
+            <button type="submit" class="px-5 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 text-xs font-bold shadow-sm flex items-center gap-1.5">
+              <i data-lucide="arrow-right" class="w-4 h-4"></i>
+              Lanjut Konfirmasi
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal: Setor Sampah (With Live Subtotal Calculator) -->
+    <div id="modal-sampah" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl animate-scale-in">
+        <div class="flex justify-between items-center border-b pb-3 mb-4">
+          <h3 class="text-base font-black text-slate-800" id="modal-sampah-title">Setor Sampah</h3>
+          <button onclick="document.getElementById('modal-sampah').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <form onsubmit="app.prepareSampahSubmit(event)" class="space-y-4">
+          <input type="hidden" id="sampah-type">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">Harga Beli Satuan Saat Ini</label>
+            <p class="text-slate-800 bg-emerald-50 border border-emerald-200 p-2.5 rounded-xl font-extrabold text-xs" id="sampah-price-info">Memuat...</p>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1" id="sampah-qty-label">Berat / Kuantitas (Kg atau Liter)</label>
+            <input type="number" id="sampah-qty" oninput="app.updateLiveWasteSubtotal()" class="w-full border rounded-2xl p-3 text-2xl font-black text-center focus:ring-2 focus:ring-emerald-500/20" required min="0.01" step="0.01" placeholder="0.00">
+          </div>
+
+          <!-- Live Subtotal Calculation Card -->
+          <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl flex justify-between items-center">
+            <div>
+              <p class="text-[10px] text-emerald-800 font-extrabold uppercase">💰 Perkiraan Nilai Hijau</p>
+              <p class="text-[11px] text-emerald-600" id="sampah-calc-formula">0 x Rp 0</p>
+            </div>
+            <p class="text-lg font-black text-emerald-800" id="sampah-calc-total">Rp 0</p>
+          </div>
+
+          <div class="flex justify-end space-x-2 pt-2 border-t">
+            <button type="button" onclick="document.getElementById('modal-sampah').classList.add('hidden')" class="px-4 py-2 text-xs text-slate-600 hover:bg-slate-100 rounded-xl font-semibold">Batal</button>
+            <button type="submit" class="px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 text-xs font-bold shadow-sm flex items-center gap-1.5">
+              <i data-lucide="arrow-right" class="w-4 h-4"></i>
+              Lanjut Konfirmasi
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal: Belanja Koperasi & Tukar ATK -->
+    <div id="modal-belanja" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-3xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl animate-scale-in">
+        <div class="flex items-center justify-between mb-4 border-b pb-3">
+          <div>
+            <h3 class="text-base font-black text-slate-800" id="modal-belanja-title">Belanja Koperasi</h3>
+            <p class="text-xs text-slate-500" id="modal-belanja-subtitle">Pilih metode pembayaran (Saldo Tabungan / Saldo Hijau)</p>
+          </div>
+          <span id="modal-belanja-wallet-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800">Saldo Tabungan</span>
+        </div>
+
+        <input type="hidden" id="b-wallet-type" value="TABUNGAN">
+
+        <div class="flex flex-col md:flex-row gap-4">
+          <!-- Pilih Produk -->
+          <div class="w-full md:w-1/2 space-y-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">Pilih Produk ATK / Buku</label>
+              <select id="b-product-select" class="w-full border rounded-xl p-2.5 text-xs bg-white font-medium" onchange="app.onBelanjaProductSelect()">
+                <option value="">Memuat produk...</option>
+              </select>
+            </div>
+            
+            <div class="flex gap-2">
+              <div class="w-24">
+                <label class="block text-[11px] font-bold text-slate-500 mb-1">Jumlah</label>
+                <input type="number" id="b-qty" class="w-full border rounded-xl p-2 text-center text-sm font-black" value="1" min="1">
+              </div>
+              <div class="flex-grow flex items-end">
+                <button type="button" onclick="app.addCartItem()" class="bg-blue-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold w-full hover:bg-blue-700 shadow-sm flex items-center justify-center space-x-1">
+                  <i data-lucide="plus" class="w-4 h-4"></i>
+                  <span>Tambah Item</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Keranjang -->
+          <div class="w-full md:w-1/2 bg-slate-50 border border-slate-200 p-4 rounded-2xl flex flex-col justify-between">
+            <div>
+              <h4 class="font-bold border-b pb-1.5 mb-2 text-xs text-slate-700 flex justify-between">
+                <span>Daftar Keranjang</span>
+                <button type="button" onclick="app.clearCart()" class="text-red-500 hover:text-red-700 text-[11px] font-semibold">Kosongkan</button>
+              </h4>
+              <ul id="b-cart-list" class="text-xs space-y-1.5 mb-3 max-h-40 overflow-y-auto custom-scrollbar"></ul>
+            </div>
+            <div class="border-t pt-2.5 flex justify-between items-center">
+              <span class="text-xs font-bold text-slate-700">Total Tagihan:</span>
+              <span id="b-total" class="text-base font-black text-purple-700">Rp 0</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="flex justify-end space-x-2 mt-6 pt-3 border-t">
+          <button type="button" onclick="document.getElementById('modal-belanja').classList.add('hidden')" class="px-4 py-2 text-xs text-slate-600 hover:bg-slate-100 rounded-xl font-semibold">Batal</button>
+          <button type="button" id="btn-submit-belanja" onclick="app.prepareBelanjaSubmit()" class="px-6 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 font-bold text-xs shadow-sm flex items-center gap-1.5">
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            Lanjut Konfirmasi
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Ajukan Batal Transaksi (Void Request oleh Kasir) -->
+    <div id="modal-request-void" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl animate-scale-in">
+        <div class="flex justify-between items-center border-b pb-3 mb-4">
+          <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 rounded-xl bg-red-100 text-red-600 flex items-center justify-center font-bold">
+              <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+            </div>
+            <h3 class="text-base font-black text-slate-800">Ajukan Pembatalan Transaksi</h3>
+          </div>
+          <button onclick="document.getElementById('modal-request-void').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <form onsubmit="app.submitRequestVoid(event)" class="space-y-3.5">
+          <input type="hidden" id="vr-tx-id">
+          
+          <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs space-y-1">
+            <div class="flex justify-between"><span class="text-slate-500">ID Transaksi:</span><span class="font-mono font-bold text-slate-800" id="vr-tx-id-display">--</span></div>
+            <div class="flex justify-between"><span class="text-slate-500">Nilai:</span><span class="font-bold text-red-600" id="vr-tx-amount">--</span></div>
+            <div class="flex justify-between"><span class="text-slate-500">Keterangan:</span><span class="font-medium text-slate-700 text-right" id="vr-tx-desc">--</span></div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Alasan Pembatalan / Salah Input <span class="text-red-500">*</span></label>
+            <textarea id="vr-reason" required rows="3" class="w-full border rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-red-500/20" placeholder="Contoh: Salah ketik nominal setor tunai dari 10.000 menjadi 100.000"></textarea>
+          </div>
+
+          <div class="bg-amber-50 p-3 rounded-xl border border-amber-200 text-[11px] text-amber-800">
+            ⚠️ <b>Catatan:</b> Pengajuan ini akan dikirim ke <b>Manager</b> untuk ditinjau. Saldo dan stok barang akan otomatis disesuaikan kembali setelah Manager menyetujui.
+          </div>
+
+          <div class="flex justify-end space-x-2 pt-2 border-t">
+            <button type="button" onclick="document.getElementById('modal-request-void').classList.add('hidden')" class="px-4 py-2 text-xs text-slate-600 hover:bg-slate-100 rounded-xl font-semibold">Batal</button>
+            <button type="submit" class="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-sm flex items-center gap-1.5">
+              <i data-lucide="send" class="w-4 h-4"></i>
+              Kirim Pengajuan
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div>
+</template>

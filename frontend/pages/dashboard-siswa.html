@@ -1,0 +1,457 @@
+<!-- frontend/pages/dashboard-siswa.html -->
+<template id="tpl-dashboard-siswa">
+  <div class="space-y-6 max-w-5xl mx-auto pb-10">
+    
+    <!-- Header / Profil Siswa -->
+    <div class="bg-gradient-to-r from-green-700 via-emerald-600 to-teal-700 rounded-3xl shadow-lg shadow-green-900/10 text-white p-6 md:p-8 flex flex-col md:flex-row items-center justify-between relative overflow-hidden">
+      <!-- Decorative icon background -->
+      <div class="absolute -right-6 -bottom-6 text-white/5 pointer-events-none">
+        <i data-lucide="leaf" style="width: 180px; height: 180px;"></i>
+      </div>
+
+      <div class="flex items-center space-x-4 relative z-10 w-full md:w-auto">
+        <div class="relative group cursor-pointer" onclick="app.openProfileModal()" title="Ubah Foto Profil">
+          <img id="s-avatar" src="https://ui-avatars.com/api/?name=Siswa&background=10b981&color=fff&bold=true" class="w-16 h-16 rounded-2xl border-2 border-white/40 object-cover shadow-md group-hover:opacity-90 transition">
+          <div class="absolute -bottom-1 -right-1 bg-green-900/80 text-white p-1 rounded-lg border border-white/30 backdrop-blur-sm">
+            <i data-lucide="camera" class="w-3 h-3"></i>
+          </div>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2 mb-1">
+            <span class="bg-white/20 text-[10px] px-2.5 py-0.5 rounded-full font-extrabold uppercase tracking-wider backdrop-blur-sm border border-white/20">Kantong Hijau Siswa</span>
+          </div>
+          <h2 class="text-2xl font-black tracking-tight" id="s-nama">Memuat profil...</h2>
+          <p class="text-green-100 text-xs font-medium" id="s-info">ID: -- | NIS: -- | Kelas: --</p>
+        </div>
+      </div>
+      
+      <div class="flex flex-wrap items-center gap-2.5 relative z-10 w-full md:w-auto justify-start md:justify-end">
+        <button onclick="app.openProfileModal()" class="bg-white/15 hover:bg-white/25 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl backdrop-blur-sm transition flex items-center space-x-1.5 shadow-sm border border-white/20 active:scale-95">
+          <i data-lucide="key-round" class="w-3.5 h-3.5 text-yellow-300"></i>
+          <span>Ganti Password</span>
+        </button>
+        <button onclick="app.openModalPengajuanBibitSiswa()" class="bg-white/15 hover:bg-white/25 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl backdrop-blur-sm transition flex items-center space-x-1.5 shadow-sm border border-white/20 active:scale-95">
+          <i data-lucide="sprout" class="w-3.5 h-3.5 text-emerald-200"></i>
+          <span>Status Bibit</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- DUAL WALLET CARDS (PRD v2 Poin 30) -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      
+      <!-- Card 1: Saldo Tabungan -->
+      <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-200/80 flex flex-col justify-between hover:shadow-md transition">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center space-x-3">
+              <div class="w-11 h-11 rounded-2xl bg-green-100 text-green-700 flex items-center justify-center font-bold text-lg shadow-inner">
+                <i data-lucide="wallet" class="w-6 h-6"></i>
+              </div>
+              <div>
+                <h3 class="font-extrabold text-slate-800 text-sm">SALDO TABUNGAN</h3>
+                <p class="text-[11px] text-slate-400">Dari setoran uang tunai</p>
+              </div>
+            </div>
+            <span class="bg-green-50 text-green-700 text-xs font-bold px-2.5 py-1 rounded-full border border-green-200">Uang Tunai</span>
+          </div>
+          
+          <div class="my-4">
+            <p class="text-xs text-slate-400 font-semibold mb-1">Total Saldo Aktif</p>
+            <p class="text-3xl font-black text-green-700 tracking-tight" id="s-saldo-tabungan">Rp 0</p>
+          </div>
+        </div>
+
+        <div class="pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2">
+          <button type="button" onclick="app.openModalPanduanTarik()" class="flex-1 bg-green-50 hover:bg-green-100 text-green-800 border border-green-200 font-black py-2.5 px-3 rounded-xl text-xs transition shadow-sm flex items-center justify-center space-x-1.5 active:scale-95">
+            <i data-lucide="banknote" class="w-4 h-4 text-green-700"></i>
+            <span>Tarik Tunai di Kasir</span>
+          </button>
+          <button type="button" onclick="app.openModalKatalogKoperasiSiswa()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2.5 px-3 rounded-xl text-xs transition border border-slate-200 flex items-center justify-center space-x-1.5 active:scale-95">
+            <i data-lucide="shopping-cart" class="w-4 h-4 text-purple-600"></i>
+            <span>Katalog Belanja Koperasi</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Card 2: Saldo Hijau -->
+      <div class="bg-gradient-to-br from-emerald-900 via-emerald-950 to-teal-950 text-white rounded-3xl p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition relative overflow-hidden">
+        <div class="relative z-10">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center space-x-3">
+              <div class="w-11 h-11 rounded-2xl bg-emerald-700/60 text-emerald-200 flex items-center justify-center font-bold text-lg border border-emerald-500/30 shadow-inner">
+                <i data-lucide="sprout" class="w-6 h-6"></i>
+              </div>
+              <div>
+                <h3 class="font-extrabold text-emerald-100 text-sm">SALDO HIJAU</h3>
+                <p class="text-[11px] text-emerald-300/80">Dari setoran botol & jelantah</p>
+              </div>
+            </div>
+            <span class="bg-emerald-500/20 text-emerald-200 text-xs font-bold px-2.5 py-1 rounded-full border border-emerald-400/30">Ekonomi Sirkular</span>
+          </div>
+          
+          <div class="my-3">
+            <p class="text-xs text-emerald-300 font-semibold mb-1">Nilai Saldo Hijau</p>
+            <p class="text-3xl font-black text-emerald-200 tracking-tight" id="s-saldo-hijau">Rp 0</p>
+          </div>
+        </div>
+
+        <div class="pt-3 border-t border-emerald-700/50 flex items-center gap-2 relative z-10">
+          <button onclick="app.openModalTukarBibit()" class="flex-1 bg-yellow-400 hover:bg-yellow-300 text-yellow-950 font-black py-2.5 px-3 rounded-xl text-xs transition shadow-sm flex items-center justify-center space-x-1.5 active:scale-95">
+            <i data-lucide="trees" class="w-4 h-4"></i>
+            <span>Tukar Bibit Pohon</span>
+          </button>
+          <button onclick="app.openModalKatalogKoperasiSiswa()" class="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-2.5 px-3 rounded-xl text-xs transition border border-white/20 flex items-center justify-center space-x-1.5 active:scale-95">
+            <i data-lucide="pencil" class="w-4 h-4"></i>
+            <span>Katalog ATK Hijau</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- KONTRIBUSI SAYA & TARGET & QR -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      
+      <!-- Kolom Kiri: Kontribusi & Target & QR -->
+      <div class="space-y-6">
+        
+        <!-- Kontribusi Lingkungan (PRD v2 Poin 39) -->
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200/80">
+          <div class="flex items-center space-x-2 mb-4">
+            <i data-lucide="recycle" class="w-5 h-5 text-emerald-600"></i>
+            <h3 class="font-extrabold text-slate-800 text-xs uppercase tracking-wider">KONTRIBUSI LINGKUNGAN SAYA</h3>
+          </div>
+          
+          <div class="space-y-2.5">
+            <div class="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-100">
+              <div class="flex items-center space-x-2.5">
+                <div class="w-8 h-8 rounded-xl bg-green-100 text-green-700 flex items-center justify-center text-xs font-bold">
+                  <i data-lucide="flask-round" class="w-4 h-4"></i>
+                </div>
+                <span class="text-xs font-semibold text-slate-600">Botol Plastik</span>
+              </div>
+              <span class="font-black text-xs text-slate-800" id="s-kontribusi-plastik">0 Kg</span>
+            </div>
+
+            <div class="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-100">
+              <div class="flex items-center space-x-2.5">
+                <div class="w-8 h-8 rounded-xl bg-yellow-100 text-yellow-700 flex items-center justify-center text-xs font-bold">
+                  <i data-lucide="droplets" class="w-4 h-4"></i>
+                </div>
+                <span class="text-xs font-semibold text-slate-600">Minyak Jelantah</span>
+              </div>
+              <span class="font-black text-xs text-slate-800" id="s-kontribusi-jelantah">0 Liter</span>
+            </div>
+
+            <div class="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-100">
+              <div class="flex items-center space-x-2.5">
+                <div class="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">
+                  <i data-lucide="trees" class="w-4 h-4"></i>
+                </div>
+                <span class="text-xs font-semibold text-slate-600">Bibit Dikonversi</span>
+              </div>
+              <span class="font-black text-xs text-emerald-700" id="s-kontribusi-bibit">0 Bibit</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Target Tabungan -->
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200/80">
+          <div class="flex justify-between items-center mb-3">
+            <h3 class="font-extrabold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5">
+              <i data-lucide="target" class="w-4 h-4 text-green-600"></i>
+              Target Tabungan
+            </h3>
+            <button onclick="document.getElementById('modal-target').classList.remove('hidden')" class="bg-green-600 hover:bg-green-700 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg transition active:scale-95">Set Target</button>
+          </div>
+          
+          <div id="s-target-container">
+            <p class="text-xs font-bold text-slate-700" id="s-target-name">Belum ada target</p>
+            <div class="text-xs text-slate-500 mb-2 mt-1 flex justify-between">
+              <span id="s-target-progress-text">Rp 0 / Rp 0</span>
+              <span class="font-bold text-green-600" id="s-target-percent">0%</span>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+              <div class="bg-green-600 h-2 rounded-full transition-all duration-500" id="s-target-bar" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- QR Code Identity -->
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200/80 flex flex-col items-center justify-center text-center">
+          <h3 class="font-extrabold text-slate-800 text-xs uppercase tracking-wider mb-3 flex items-center gap-1.5">
+            <i data-lucide="qr-code" class="w-4 h-4 text-blue-600"></i>
+            Kartu QR Siswa
+          </h3>
+          <div id="s-qr-container" class="bg-slate-50 p-3 rounded-2xl mb-3 flex items-center justify-center w-40 h-40 border border-slate-200 shadow-inner"></div>
+          <p class="text-[11px] text-slate-400 font-medium">Tunjukkan QR ini ke Kasir saat setor sampah atau bertransaksi</p>
+        </div>
+
+      </div>
+
+      <!-- Kolom Kanan: Histori Transaksi (PRD v2 Poin 31) -->
+      <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200/80 md:col-span-2 flex flex-col h-[650px]">
+        <div class="flex items-center justify-between mb-4 border-b pb-3">
+          <div>
+            <h3 class="font-extrabold text-slate-800 text-sm flex items-center gap-1.5">
+              <i data-lucide="history" class="w-4 h-4 text-green-600"></i>
+              Riwayat Transaksi Saya
+            </h3>
+            <p class="text-xs text-slate-400">Pemisahan otomatis antara Saldo Tabungan & Saldo Hijau</p>
+          </div>
+          <span class="text-xs bg-slate-100 text-slate-600 font-bold px-3 py-1 rounded-full" id="s-tx-count">0 Transaksi</span>
+        </div>
+        
+        <div class="overflow-y-auto flex-grow pr-1 custom-scrollbar">
+          <ul id="s-tx-list" class="space-y-3">
+            <li class="text-center text-slate-400 py-8 font-medium text-xs">Memuat riwayat transaksi...</li>
+          </ul>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+  
+  <!-- Modal: Set Target -->
+  <div id="modal-target" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl animate-scale-in">
+      <div class="flex justify-between items-center border-b pb-3 mb-4">
+        <h3 class="text-base font-bold text-slate-800 flex items-center gap-1.5">
+          <i data-lucide="target" class="w-5 h-5 text-green-600"></i>
+          Set Target Tabungan
+        </h3>
+        <button onclick="document.getElementById('modal-target').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form onsubmit="app.submitTarget(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">Nama Target Tabungan</label>
+          <input type="text" id="target-name-input" class="w-full border rounded-xl p-2.5 text-xs" placeholder="Contoh: Sepeda Baru / Buku Pelajaran" required>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">Target Nominal (Rp)</label>
+          <input type="number" id="target-amount-input" class="w-full border rounded-xl p-2.5 text-xs font-black" required min="1000" step="1000" placeholder="100000">
+        </div>
+        <div class="flex justify-end space-x-2 pt-3 border-t">
+          <button type="button" onclick="document.getElementById('modal-target').classList.add('hidden')" class="px-4 py-2 text-xs text-slate-600 hover:bg-slate-100 rounded-xl font-semibold">Batal</button>
+          <button type="submit" class="px-5 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 text-xs font-bold shadow-sm flex items-center gap-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            Simpan Target
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Tukar Bibit Pohon (PRD v2) -->
+  <div id="modal-tukar-bibit" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl animate-scale-in">
+      <div class="flex items-center justify-between mb-4 border-b pb-3">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+            <i data-lucide="trees" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-800">Tukar Saldo Hijau → Bibit Pohon</h3>
+            <p class="text-xs text-slate-500">Pengajuan konversi bibit tanaman untuk program penghijauan</p>
+          </div>
+        </div>
+        <button onclick="document.getElementById('modal-tukar-bibit').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 mb-4 flex items-center justify-between">
+        <div>
+          <p class="text-xs text-emerald-700 font-medium">Saldo Hijau Tersedia:</p>
+          <p class="text-xl font-black text-emerald-800" id="tb-saldo-hijau">Rp 0</p>
+        </div>
+        <span class="text-xs bg-emerald-200 text-emerald-950 px-3 py-1 rounded-full font-bold">Siklus Hijau</span>
+      </div>
+
+      <form onsubmit="app.submitPengajuanBibit(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Pilih Jenis Bibit Tanaman</label>
+          <select id="tb-seed-select" class="w-full border rounded-xl p-2.5 text-xs bg-white font-medium" onchange="app.calcBibitConversion()" required>
+            <option value="">Memuat daftar bibit...</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Jumlah Bibit yang Diajukan</label>
+          <div class="flex items-center space-x-2">
+            <input type="number" id="tb-seed-qty" class="w-full border rounded-xl p-2.5 text-xs font-black text-center" min="1" value="1" oninput="app.calcBibitConversion()" required>
+            <button type="button" onclick="app.setMaxBibitQty()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3.5 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap">Maksimal</button>
+          </div>
+        </div>
+
+        <!-- Kalkulasi Konversi Real-Time -->
+        <div class="bg-slate-50 rounded-2xl p-4 mb-2 border border-slate-200 space-y-2 text-xs">
+          <div class="flex justify-between text-slate-600">
+            <span>Nilai Konversi Satuan:</span>
+            <span class="font-bold text-slate-800" id="tb-val-unit">Rp 0 / bibit</span>
+          </div>
+          <div class="flex justify-between text-slate-600">
+            <span>Total Saldo Hijau Digunakan:</span>
+            <span class="font-bold text-red-600" id="tb-val-total">Rp 0</span>
+          </div>
+          <div class="border-t border-slate-200 pt-2 flex justify-between font-bold text-slate-800">
+            <span>Estimasi Sisa Saldo Hijau:</span>
+            <span class="text-emerald-700" id="tb-val-sisa">Rp 0</span>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end space-x-2 pt-2 border-t">
+          <button type="button" onclick="document.getElementById('modal-tukar-bibit').classList.add('hidden')" class="px-4 py-2 text-xs text-slate-600 hover:bg-slate-100 rounded-xl font-semibold">Batal</button>
+          <button type="submit" id="tb-submit-btn" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm flex items-center gap-1.5 active:scale-95">
+            <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+            Ajukan Konversi Bibit
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Status Pengajuan Bibit Siswa -->
+  <div id="modal-status-bibit-siswa" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-2xl flex flex-col max-h-[85vh] animate-scale-in">
+      <div class="flex items-center justify-between mb-4 border-b pb-3">
+        <div class="flex items-center space-x-2">
+          <i data-lucide="sprout" class="w-5 h-5 text-emerald-600"></i>
+          <div>
+            <h3 class="text-base font-bold text-slate-800">Status Pengajuan Bibit Saya</h3>
+            <p class="text-xs text-slate-500">Histori permohonan konversi bibit tanaman ke Manager</p>
+          </div>
+        </div>
+        <button onclick="document.getElementById('modal-status-bibit-siswa').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="overflow-y-auto flex-grow custom-scrollbar">
+        <table class="w-full text-left text-xs">
+          <thead>
+            <tr class="bg-slate-50 border-b text-slate-600 uppercase font-bold text-[11px]">
+              <th class="p-3">Tanggal</th>
+              <th class="p-3">Jenis Bibit</th>
+              <th class="p-3 text-center">Jumlah</th>
+              <th class="p-3 text-right">Nilai Hijau</th>
+              <th class="p-3 text-center">Status</th>
+            </tr>
+          </thead>
+          <tbody id="s-bibit-req-tbody" class="divide-y divide-slate-100">
+            <tr><td colspan="5" class="text-center py-6 text-slate-400 font-medium">Memuat pengajuan...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mt-4 pt-3 border-t text-right">
+        <button onclick="document.getElementById('modal-status-bibit-siswa').classList.add('hidden')" class="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl text-xs font-bold">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  
+  <!-- Modal: Panduan Tarik Tunai Siswa -->
+  <div id="modal-panduan-tarik" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl animate-scale-in border border-slate-100 text-center">
+      <div class="w-14 h-14 rounded-2xl bg-green-100 text-green-700 flex items-center justify-center mx-auto mb-3 font-bold shadow-inner">
+        <i data-lucide="banknote" class="w-7 h-7"></i>
+      </div>
+      <h3 class="text-lg font-black text-slate-800 mb-1">Tarik Saldo Tabungan di Kasir</h3>
+      <p class="text-xs text-slate-500 mb-4">Penarikan uang tabungan diproses langsung di Kantor Koperasi</p>
+
+      <div class="bg-slate-50 border border-slate-200 p-4 rounded-2xl text-left text-xs space-y-2.5 mb-4">
+        <div class="flex justify-between items-center pb-2.5 border-b border-slate-200">
+          <span class="text-slate-500 font-bold">Saldo Tabungan Anda:</span>
+          <span class="text-lg font-black text-green-700" id="pt-saldo-tabungan">Rp 0</span>
+        </div>
+        
+        <div class="space-y-2 pt-1 text-slate-600 text-xs leading-relaxed">
+          <div class="flex items-start gap-2.5">
+            <div class="w-5 h-5 rounded-full bg-green-100 text-green-800 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">1</div>
+            <p>Kunjungi <b>Kantor Koperasi / Loket Kasir</b> pada jam istirahat sekolah.</p>
+          </div>
+          <div class="flex items-start gap-2.5">
+            <div class="w-5 h-5 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">2</div>
+            <p>Tunjukkan <b>Kartu Anggota / QR Code Siswa</b> Anda di bawah ini kepada Kasir.</p>
+          </div>
+          <div class="flex items-start gap-2.5">
+            <div class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">3</div>
+            <p>Kasir akan memverifikasi dan menyerahkan uang tunai seketika.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- QR Preview Mini -->
+      <div class="bg-emerald-50/60 border border-emerald-200/80 rounded-2xl p-3.5 mb-5 flex items-center justify-center gap-4">
+        <div id="pt-qr-container" class="w-16 h-16 bg-white rounded-xl p-1 border border-emerald-200 shadow-sm flex items-center justify-center shrink-0"></div>
+        <div class="text-left text-xs">
+          <span class="text-[10px] bg-green-100 text-green-800 font-extrabold px-2 py-0.5 rounded-full uppercase">Kartu Siswa</span>
+          <p class="font-black text-slate-800 mt-1" id="pt-nama">Nama Siswa</p>
+          <p class="text-[11px] font-mono text-slate-500 font-bold" id="pt-member-id">ID: --</p>
+        </div>
+      </div>
+
+      <button type="button" onclick="document.getElementById('modal-panduan-tarik').classList.add('hidden')" class="w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-2xl text-xs font-black shadow-md transition active:scale-95">Saya Mengerti</button>
+    </div>
+  </div>
+
+  <!-- Modal: Katalog Produk Koperasi Siswa (Real-Time Live Stock) -->
+  <div id="modal-katalog-siswa" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-3xl p-6 w-full max-w-4xl shadow-2xl flex flex-col max-h-[90vh] animate-scale-in border border-slate-100">
+      
+      <!-- Modal Header -->
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b pb-4 mb-4">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+            <i data-lucide="boxes" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-black text-slate-800">Katalog Produk Koperasi Sekolah</h3>
+            <p class="text-xs text-slate-500 font-medium">Stok barang real-time untuk belanja tunai maupun penukaran Saldo Hijau</p>
+          </div>
+        </div>
+        <button onclick="document.getElementById('modal-katalog-siswa').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Search & Filters -->
+      <div class="flex flex-col sm:flex-row gap-3 mb-4">
+        <div class="relative flex-grow">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+            <i data-lucide="search" class="w-4 h-4"></i>
+          </div>
+          <input type="text" id="s-catalog-search" onkeyup="app.filterCatalogProducts()" class="w-full border border-slate-200 rounded-xl py-2 pl-9 pr-3 text-xs bg-slate-50 focus:bg-white" placeholder="Cari nama barang (Pensil, Buku, ATK...)">
+        </div>
+        <div class="flex gap-1.5 text-xs font-bold" id="s-catalog-filters">
+          <button type="button" onclick="app.setCatalogFilter('ALL')" id="scat-btn-all" class="px-3 py-2 rounded-xl bg-purple-600 text-white shadow-sm">Semua</button>
+          <button type="button" onclick="app.setCatalogFilter('READY')" id="scat-btn-ready" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700">Tersedia</button>
+          <button type="button" onclick="app.setCatalogFilter('EMPTY')" id="scat-btn-empty" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700">Habis</button>
+        </div>
+      </div>
+
+      <!-- Real-Time Product Grid -->
+      <div class="overflow-y-auto flex-grow custom-scrollbar pr-1">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" id="s-catalog-grid">
+          <p class="col-span-full text-center py-10 text-slate-400 font-medium text-xs">Memuat katalog produk...</p>
+        </div>
+      </div>
+
+      <!-- Guidance Footer -->
+      <div class="mt-4 pt-3.5 border-t flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+        <div class="flex items-center gap-2 text-slate-600 text-[11px] font-medium">
+          <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+            <i data-lucide="info" class="w-3.5 h-3.5"></i>
+          </div>
+          <span>Pembelian / penukaran barang dapat dilakukan langsung di <b>Kantor Koperasi</b> dengan menunjukkan Kartu QR kepada Kasir.</span>
+        </div>
+        <button onclick="document.getElementById('modal-katalog-siswa').classList.add('hidden')" class="w-full sm:w-auto px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold transition">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+</template>

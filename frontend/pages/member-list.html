@@ -1,0 +1,277 @@
+<!-- frontend/pages/member-list.html -->
+<template id="tpl-member-list">
+  <div class="space-y-6 max-w-7xl mx-auto pb-10">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-4">
+      <div class="flex items-center space-x-3">
+        <button onclick="app.renderPage('tpl-dashboard-manager')" class="w-10 h-10 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-green-700 flex items-center justify-center shadow-sm transition active:scale-95">
+          <i data-lucide="arrow-left" class="w-5 h-5"></i>
+        </button>
+        <div>
+          <h2 class="text-xl font-black text-slate-800 flex items-center gap-2">
+            <i data-lucide="users" class="w-6 h-6 text-green-600"></i>
+            Kelola Anggota & Staff
+          </h2>
+          <p class="text-xs text-slate-500 font-medium">Manajemen data siswa, kasir, dan akun administrator</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2">
+        <button onclick="document.getElementById('modal-tambah-siswa').classList.remove('hidden')" class="bg-green-600 hover:bg-green-700 text-white px-3.5 py-2 rounded-xl shadow-sm transition text-xs font-bold flex items-center space-x-1.5 active:scale-95">
+          <i data-lucide="user-plus" class="w-4 h-4"></i>
+          <span>+ Siswa Baru</span>
+        </button>
+        <button onclick="document.getElementById('modal-tambah-user').classList.remove('hidden')" class="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl shadow-sm transition text-xs font-bold flex items-center space-x-1.5 active:scale-95">
+          <i data-lucide="shield-plus" class="w-4 h-4"></i>
+          <span>+ Staff Baru</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Tabel Siswa (Members) -->
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80">
+      <div class="flex justify-between items-center mb-4">
+        <div>
+          <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-1.5">
+            <i data-lucide="graduation-cap" class="w-4 h-4 text-green-600"></i>
+            Data Anggota Siswa
+          </h3>
+          <p class="text-xs text-slate-400">Daftar akun siswa dengan saldo tabungan & saldo hijau</p>
+        </div>
+        <span class="text-xs bg-green-50 text-green-700 border border-green-200 font-bold px-2.5 py-1 rounded-lg" id="m-member-count">Memuat...</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs text-left">
+          <thead class="bg-slate-50 text-slate-600 border-b border-slate-200 uppercase font-bold text-[11px]">
+            <tr>
+              <th class="py-3 px-3.5">Member ID</th>
+              <th class="py-3 px-3.5">Nama Lengkap</th>
+              <th class="py-3 px-3.5">Kelas</th>
+              <th class="py-3 px-3.5">Status</th>
+              <th class="py-3 px-3.5 text-right">💰 Saldo Tabungan</th>
+              <th class="py-3 px-3.5 text-right">🌱 Saldo Hijau</th>
+              <th class="py-3 px-3.5 text-center">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="m-member-table-body" class="divide-y divide-slate-100">
+            <tr><td colspan="7" class="py-6 text-center text-slate-400 font-medium">Memuat data siswa...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tabel Staff (Users) -->
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80">
+      <div class="flex justify-between items-center mb-4">
+        <div>
+          <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-1.5">
+            <i data-lucide="shield" class="w-4 h-4 text-blue-600"></i>
+            Data Petugas & Pengelola (Staff)
+          </h3>
+          <p class="text-xs text-slate-400">Daftar pengguna dengan hak akses Kasir atau Manager</p>
+        </div>
+        <span class="text-xs bg-blue-50 text-blue-700 border border-blue-200 font-bold px-2.5 py-1 rounded-lg" id="m-user-count">Memuat...</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs text-left">
+          <thead class="bg-slate-50 text-slate-600 border-b border-slate-200 uppercase font-bold text-[11px]">
+            <tr>
+              <th class="py-3 px-3.5">User ID</th>
+              <th class="py-3 px-3.5">Nama Lengkap</th>
+              <th class="py-3 px-3.5">Hak Akses (Role)</th>
+              <th class="py-3 px-3.5">Username</th>
+              <th class="py-3 px-3.5">Status</th>
+              <th class="py-3 px-3.5 text-center">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="m-user-table-body" class="divide-y divide-slate-100">
+            <tr><td colspan="6" class="py-6 text-center text-slate-400 font-medium">Memuat data staff...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Modal Form: Tambah Siswa -->
+    <div id="modal-tambah-siswa" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-scale-in">
+        <div class="flex justify-between items-center border-b pb-3 mb-4">
+          <h3 class="text-base font-bold text-slate-800 flex items-center gap-1.5">
+            <i data-lucide="user-plus" class="w-5 h-5 text-green-600"></i>
+            Tambah Siswa Baru
+          </h3>
+          <button onclick="document.getElementById('modal-tambah-siswa').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <form onsubmit="app.submitSiswa(event)" class="space-y-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap</label>
+            <input type="text" id="ts-nama" class="w-full border rounded-xl p-2.5 text-xs" placeholder="Contoh: Ahmad Fauzi" required>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">NIS</label>
+              <input type="text" id="ts-nis" class="w-full border rounded-xl p-2.5 text-xs" placeholder="Contoh: 20260101" required>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Kelas</label>
+              <input type="text" id="ts-kelas" class="w-full border rounded-xl p-2.5 text-xs" placeholder="Contoh: X IPA 1" required>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Username Login</label>
+            <input type="text" id="ts-username" class="w-full border rounded-xl p-2.5 text-xs" placeholder="Contoh: ahmad2026" required>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Password Awal</label>
+            <input type="password" id="ts-password" class="w-full border rounded-xl p-2.5 text-xs" placeholder="Minimal 6 karakter" required>
+          </div>
+          <div class="flex justify-end space-x-2 pt-3 border-t">
+            <button type="button" onclick="document.getElementById('modal-tambah-siswa').classList.add('hidden')" class="px-4 py-2 text-xs text-slate-600 hover:bg-slate-100 rounded-xl font-semibold">Batal</button>
+            <button type="submit" class="px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold text-xs shadow-sm flex items-center gap-1.5">
+              <i data-lucide="check" class="w-4 h-4"></i>
+              Simpan Siswa
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Form: Tambah Staff -->
+    <div id="modal-tambah-user" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-scale-in">
+        <div class="flex justify-between items-center border-b pb-3 mb-4">
+          <h3 class="text-base font-bold text-slate-800 flex items-center gap-1.5">
+            <i data-lucide="shield-plus" class="w-5 h-5 text-blue-600"></i>
+            Tambah Petugas / Staff Baru
+          </h3>
+          <button onclick="document.getElementById('modal-tambah-user').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <form onsubmit="app.submitUser(event)" class="space-y-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Hak Akses (Role)</label>
+            <select id="tu-role" class="w-full border rounded-xl p-2.5 text-xs bg-white font-medium" required>
+              <option value="KASIR">KASIR (Petugas Transaksi)</option>
+              <option value="MANAGER">MANAGER (Administrator / Pengelola)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap</label>
+            <input type="text" id="tu-nama" class="w-full border rounded-xl p-2.5 text-xs" placeholder="Contoh: Budi Santoso" required>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Username</label>
+            <input type="text" id="tu-username" class="w-full border rounded-xl p-2.5 text-xs" placeholder="Contoh: kasir_budi" required>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Password</label>
+            <input type="password" id="tu-password" class="w-full border rounded-xl p-2.5 text-xs" placeholder="Minimal 6 karakter" required>
+          </div>
+          <div class="flex justify-end space-x-2 pt-3 border-t">
+            <button type="button" onclick="document.getElementById('modal-tambah-user').classList.add('hidden')" class="px-4 py-2 text-xs text-slate-600 hover:bg-slate-100 rounded-xl font-semibold">Batal</button>
+            <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs shadow-sm flex items-center gap-1.5">
+              <i data-lucide="check" class="w-4 h-4"></i>
+              Simpan Staff
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Form: Edit Siswa -->
+    <div id="modal-edit-siswa" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-scale-in">
+        <div class="flex justify-between items-center border-b pb-3 mb-4">
+          <h3 class="text-base font-bold text-slate-800 flex items-center gap-1.5">
+            <i data-lucide="edit-3" class="w-5 h-5 text-yellow-600"></i>
+            Edit Data Siswa
+          </h3>
+          <button onclick="document.getElementById('modal-edit-siswa').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <form onsubmit="app.submitEditSiswa(event)" class="space-y-3">
+          <input type="hidden" id="es-id">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap</label>
+            <input type="text" id="es-nama" class="w-full border rounded-xl p-2.5 text-xs" required>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">NIS</label>
+              <input type="text" id="es-nis" class="w-full border rounded-xl p-2.5 text-xs" required>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Kelas</label>
+              <input type="text" id="es-kelas" class="w-full border rounded-xl p-2.5 text-xs" required>
+            </div>
+          </div>
+          <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2.5">
+            <p class="text-[11px] font-bold text-slate-500 uppercase">Kredensial Login (Opsional)</p>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Username Login</label>
+              <input type="text" id="es-username" class="w-full border rounded-xl p-2 text-xs bg-white">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Password Baru (Kosongkan jika tidak diganti)</label>
+              <input type="password" id="es-password" class="w-full border rounded-xl p-2 text-xs bg-white" placeholder="••••••••">
+            </div>
+          </div>
+          <div class="flex justify-end space-x-2 pt-3 border-t">
+            <button type="button" onclick="document.getElementById('modal-edit-siswa').classList.add('hidden')" class="px-4 py-2 text-xs text-slate-600 hover:bg-slate-100 rounded-xl font-semibold">Batal</button>
+            <button type="submit" class="px-5 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl font-bold text-xs shadow-sm flex items-center gap-1.5">
+              <i data-lucide="check" class="w-4 h-4"></i>
+              Update Data
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Form: Edit Staff -->
+    <div id="modal-edit-user" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-scale-in">
+        <div class="flex justify-between items-center border-b pb-3 mb-4">
+          <h3 class="text-base font-bold text-slate-800 flex items-center gap-1.5">
+            <i data-lucide="edit-3" class="w-5 h-5 text-yellow-600"></i>
+            Edit Data Staff
+          </h3>
+          <button onclick="document.getElementById('modal-edit-user').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <form onsubmit="app.submitEditUser(event)" class="space-y-3">
+          <input type="hidden" id="eu-id">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Hak Akses (Role)</label>
+            <select id="eu-role" class="w-full border rounded-xl p-2.5 text-xs bg-white font-medium" required>
+              <option value="KASIR">KASIR</option>
+              <option value="MANAGER">MANAGER</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap</label>
+            <input type="text" id="eu-nama" class="w-full border rounded-xl p-2.5 text-xs" required>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Username</label>
+            <input type="text" id="eu-username" class="w-full border rounded-xl p-2.5 text-xs" required>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Password Baru (Kosongkan jika tidak diganti)</label>
+            <input type="password" id="eu-password" class="w-full border rounded-xl p-2.5 text-xs" placeholder="••••••••">
+          </div>
+          <div class="flex justify-end space-x-2 pt-3 border-t">
+            <button type="button" onclick="document.getElementById('modal-edit-user').classList.add('hidden')" class="px-4 py-2 text-xs text-slate-600 hover:bg-slate-100 rounded-xl font-semibold">Batal</button>
+            <button type="submit" class="px-5 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl font-bold text-xs shadow-sm flex items-center gap-1.5">
+              <i data-lucide="check" class="w-4 h-4"></i>
+              Update Staff
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div>
+</template>

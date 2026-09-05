@@ -1,0 +1,149 @@
+<!-- frontend/pages/product-list.html -->
+<template id="tpl-product-list">
+  <div class="space-y-6 max-w-7xl mx-auto pb-10">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-4">
+      <div class="flex items-center space-x-3">
+        <button onclick="app.renderPage('tpl-dashboard-manager')" class="w-10 h-10 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-green-700 flex items-center justify-center shadow-sm transition active:scale-95">
+          <i data-lucide="arrow-left" class="w-5 h-5"></i>
+        </button>
+        <div>
+          <h2 class="text-xl font-black text-slate-800 flex items-center gap-2">
+            <i data-lucide="package" class="w-6 h-6 text-purple-600"></i>
+            Produk Koperasi & Nilai Tukar ATK
+          </h2>
+          <p class="text-xs text-slate-500 font-medium">Kelola barang koperasi dengan harga uang tunai dan nilai tukar Saldo Hijau</p>
+        </div>
+      </div>
+      <button onclick="document.getElementById('modal-tambah-produk').classList.remove('hidden')" class="bg-green-600 hover:bg-green-700 text-white px-3.5 py-2 rounded-xl shadow-sm transition text-xs font-bold flex items-center space-x-1.5 active:scale-95">
+        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+        <span>+ Tambah Produk</span>
+      </button>
+    </div>
+
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80">
+      <div class="flex justify-between items-center mb-4">
+        <div>
+          <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-1.5">
+            <i data-lucide="boxes" class="w-4 h-4 text-purple-600"></i>
+            Daftar Katalog Produk Koperasi
+          </h3>
+          <p class="text-xs text-slate-400">Barang yang dapat dibeli dengan Saldo Tabungan atau ditukar dengan Saldo Hijau</p>
+        </div>
+        <span class="text-xs bg-purple-50 text-purple-700 border border-purple-200 font-bold px-2.5 py-1 rounded-lg" id="m-product-count">Memuat...</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs text-left">
+          <thead class="bg-slate-50 text-slate-600 border-b uppercase font-bold text-[11px]">
+            <tr>
+              <th class="py-3 px-3.5">ID Produk</th>
+              <th class="py-3 px-3.5">Nama Produk</th>
+              <th class="py-3 px-3.5">Kategori</th>
+              <th class="py-3 px-3.5 text-right">💰 Harga Tabungan</th>
+              <th class="py-3 px-3.5 text-right">🌱 Nilai Tukar Hijau</th>
+              <th class="py-3 px-3.5 text-center">Stok</th>
+              <th class="py-3 px-3.5 text-center">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="m-product-table-body" class="divide-y divide-slate-100">
+            <tr><td colspan="7" class="py-6 text-center text-slate-400 font-medium">Memuat data produk...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Modal Form: Tambah Produk -->
+    <div id="modal-tambah-produk" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-scale-in">
+        <div class="flex justify-between items-center border-b pb-3 mb-4">
+          <h3 class="text-base font-bold text-slate-800 flex items-center gap-1.5">
+            <i data-lucide="plus-circle" class="w-5 h-5 text-green-600"></i>
+            Tambah Produk Koperasi
+          </h3>
+          <button onclick="document.getElementById('modal-tambah-produk').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <form onsubmit="app.submitProduct(event)" class="space-y-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Nama Produk</label>
+            <input type="text" id="tp-nama" class="w-full border rounded-xl p-2.5 text-xs" placeholder="Contoh: Pensil 2B Joyko" required>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Kategori Barang</label>
+            <input type="text" id="tp-kategori" class="w-full border rounded-xl p-2.5 text-xs" placeholder="Contoh: ATK, Buku Tulis, Seragam">
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">💰 Harga Tabungan (Rp)</label>
+              <input type="number" id="tp-harga" class="w-full border rounded-xl p-2.5 text-xs font-bold" required min="0" oninput="if(!document.getElementById('tp-green-harga').value) document.getElementById('tp-green-harga').value = this.value">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">🌱 Nilai Hijau (Rp)</label>
+              <input type="number" id="tp-green-harga" class="w-full border rounded-xl p-2.5 text-xs font-bold" min="0" placeholder="Sama jika kosong">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Stok Awal</label>
+            <input type="number" id="tp-stok" class="w-full border rounded-xl p-2.5 text-xs font-bold" required min="0">
+          </div>
+          <div class="flex justify-end space-x-2 pt-3 border-t">
+            <button type="button" onclick="document.getElementById('modal-tambah-produk').classList.add('hidden')" class="px-4 py-2 text-xs text-slate-600 hover:bg-slate-100 rounded-xl font-semibold">Batal</button>
+            <button type="submit" class="px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold text-xs shadow-sm flex items-center gap-1.5">
+              <i data-lucide="check" class="w-4 h-4"></i>
+              Simpan Produk
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Form: Edit Produk -->
+    <div id="modal-edit-produk" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-scale-in">
+        <div class="flex justify-between items-center border-b pb-3 mb-4">
+          <h3 class="text-base font-bold text-slate-800 flex items-center gap-1.5">
+            <i data-lucide="edit-3" class="w-5 h-5 text-yellow-600"></i>
+            Edit Data Produk
+          </h3>
+          <button onclick="document.getElementById('modal-edit-produk').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <form onsubmit="app.submitEditProduct(event)" class="space-y-3">
+          <input type="hidden" id="ep-id">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Nama Produk</label>
+            <input type="text" id="ep-nama" class="w-full border rounded-xl p-2.5 text-xs" required>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Kategori Barang</label>
+            <input type="text" id="ep-kategori" class="w-full border rounded-xl p-2.5 text-xs">
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">💰 Harga Tabungan (Rp)</label>
+              <input type="number" id="ep-harga" class="w-full border rounded-xl p-2.5 text-xs font-bold" required min="0">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">🌱 Nilai Hijau (Rp)</label>
+              <input type="number" id="ep-green-harga" class="w-full border rounded-xl p-2.5 text-xs font-bold" min="0">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Stok Tersedia</label>
+            <input type="number" id="ep-stok" class="w-full border rounded-xl p-2.5 text-xs font-bold" required min="0">
+          </div>
+          <div class="flex justify-end space-x-2 pt-3 border-t">
+            <button type="button" onclick="document.getElementById('modal-edit-produk').classList.add('hidden')" class="px-4 py-2 text-xs text-slate-600 hover:bg-slate-100 rounded-xl font-semibold">Batal</button>
+            <button type="submit" class="px-5 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl font-bold text-xs shadow-sm flex items-center gap-1.5">
+              <i data-lucide="check" class="w-4 h-4"></i>
+              Update Produk
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div>
+</template>
