@@ -22,8 +22,8 @@ jobs:
 
       - name: Authenticate Clasp
         env:
-            CLASP_TOKEN: ${{ secrets.CLASPRC_JSON }}
-        run: echo "$CLASP_TOKEN" > ~/.clasprc.json
+          CLASP_TOKEN: ${{ secrets.CLASPRC_JSON }}
+        run: node -e "require('fs').writeFileSync(require('os').homedir() + '/.clasprc.json', process.env.CLASP_TOKEN)"
 
       - name: Push to GAS
         run: clasp push -f
