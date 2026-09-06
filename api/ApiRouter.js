@@ -200,7 +200,7 @@ function handleApiRequest(e, method) {
         result = updateSeedTarget(params.token, parseInt(params.target || params.targetBibit, 10));
         break;
 
-      // 11. MEMBER MANAGEMENT
+      // 11. MEMBER MANAGEMENT (Siswa)
       case 'members':
       case 'get_members':
       case 'getmemberlist':
@@ -208,9 +208,42 @@ function handleApiRequest(e, method) {
         result = getMemberList(params.token);
         break;
 
+      case 'register_member':
+      case 'create_member':
+      case 'add_member':
+        result = registerMember(params.token, {
+          nama: params.nama || params.name,
+          nis: params.nis,
+          kelas: params.kelas || params.className,
+          username: params.username,
+          password: params.password
+        });
+        break;
+
+      case 'update_member':
+      case 'edit_member':
+        result = updateMember(params.token, params.memberId || params.member_id, {
+          nama: params.nama || params.name,
+          nis: params.nis,
+          kelas: params.kelas || params.className,
+          username: params.username,
+          password: params.password
+        });
+        break;
+
       case 'approve_member':
       case 'approvemember':
         result = approveMember(params.token, params.memberId || params.member_id);
+        break;
+
+      case 'activate_member':
+      case 'activatemember':
+        result = activateMember(params.token, params.memberId || params.member_id);
+        break;
+
+      case 'deactivate_member':
+      case 'deactivatemember':
+        result = deactivateMember(params.token, params.memberId || params.member_id);
         break;
 
       case 'reject_member':
@@ -221,6 +254,50 @@ function handleApiRequest(e, method) {
       case 'update_member_status':
       case 'updatememberstatus':
         result = updateMemberStatus(params.token, params.memberId || params.member_id, params.status);
+        break;
+
+      // 11b. STAFF / USER MANAGEMENT (Kasir & Manager)
+      case 'users':
+      case 'get_users':
+      case 'getuserlist':
+      case 'staff':
+      case 'get_staff':
+        result = getUserList(params.token);
+        break;
+
+      case 'register_user':
+      case 'create_user':
+      case 'add_user':
+      case 'register_staff':
+        result = registerUser(params.token, {
+          role: (params.role || 'KASIR').toUpperCase(),
+          nama: params.nama || params.name,
+          username: params.username,
+          password: params.password,
+          photo_url: params.photo_url || params.photoUrl
+        });
+        break;
+
+      case 'update_user':
+      case 'edit_user':
+      case 'update_staff':
+        result = updateUser(params.token, params.userId || params.user_id, {
+          role: params.role ? params.role.toUpperCase() : undefined,
+          nama: params.nama || params.name,
+          username: params.username,
+          password: params.password,
+          photo_url: params.photo_url || params.photoUrl
+        });
+        break;
+
+      case 'activate_user':
+      case 'activateuser':
+        result = activateUser(params.token, params.userId || params.user_id);
+        break;
+
+      case 'deactivate_user':
+      case 'deactivateuser':
+        result = deactivateUser(params.token, params.userId || params.user_id);
         break;
 
       // 12. WASTE PRICES
@@ -348,7 +425,7 @@ function handleApiRequest(e, method) {
         result = {
           success: false,
           error_code: 'UNKNOWN_ACTION',
-          message: `Endpoint action '${action}' tidak dikenali. Daftar endpoint yang tersedia: ping, login, login_manager, login_kasir, login_siswa, verify_token, profile, change_password, logout, dashboard, void_requests, review_void, seed_requests, review_seed, update_seed_target, members, approve_member, waste_prices, update_waste_price, products, laporan, audit_logs, find_member, member_recent_transactions, setor_tunai, setor_sampah, tarik_tunai, belanja, request_void, transactions.`
+          message: `Endpoint action '${action}' tidak dikenali. Daftar endpoint yang tersedia: ping, login, login_manager, login_kasir, login_siswa, verify_token, profile, change_password, logout, dashboard, void_requests, review_void, seed_requests, review_seed, update_seed_target, members, register_member, update_member, approve_member, activate_member, deactivate_member, users, register_user, update_user, activate_user, deactivate_user, waste_prices, update_waste_price, products, laporan, audit_logs, find_member, member_recent_transactions, setor_tunai, setor_sampah, tarik_tunai, belanja, request_void, transactions.`
         };
         break;
     }
