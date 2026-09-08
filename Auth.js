@@ -269,16 +269,22 @@ function updateMyProfile(token, dataUpdate) {
         
         delete cachedSheetData[CONFIG.SHEETS.USERS];
         
-        // If user is Siswa, also update name in Members sheet if changed
-        if (session.role === CONFIG.ROLES.SISWA && dataUpdate.nama) {
+        // If user is Siswa, also update name & photo in Members sheet if changed
+        if (session.role === CONFIG.ROLES.SISWA) {
           const mSheet = getSheet(CONFIG.SHEETS.MEMBERS);
           const mData = mSheet.getDataRange().getValues();
           const mHeaders = mData[0];
           const mUIdIdx = mHeaders.indexOf('user_id');
           const mNamaIdx = mHeaders.indexOf('nama');
+          const mPhotoIdx = mHeaders.indexOf('photo_url');
           for (let j = 1; j < mData.length; j++) {
             if (mData[j][mUIdIdx] === session.userId) {
-              mSheet.getRange(j + 1, mNamaIdx + 1).setValue(dataUpdate.nama);
+              if (dataUpdate.nama && mNamaIdx !== -1) {
+                mSheet.getRange(j + 1, mNamaIdx + 1).setValue(dataUpdate.nama);
+              }
+              if (dataUpdate.photo_url !== undefined && mPhotoIdx !== -1) {
+                mSheet.getRange(j + 1, mPhotoIdx + 1).setValue(dataUpdate.photo_url);
+              }
               delete cachedSheetData[CONFIG.SHEETS.MEMBERS];
               break;
             }

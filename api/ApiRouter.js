@@ -107,6 +107,14 @@ function handleApiRequest(e, method) {
         result = apiGetProfile(params);
         break;
 
+      // 5B. UPDATE USER PROFILE / PHOTO
+      case 'update_profile':
+      case 'update-profile':
+      case 'update_photo':
+      case 'update_profile_photo':
+        result = apiUpdateProfile(params);
+        break;
+
       // 6. CHANGE PASSWORD
       case 'change_password':
       case 'change-password':
@@ -425,7 +433,7 @@ function handleApiRequest(e, method) {
         result = {
           success: false,
           error_code: 'UNKNOWN_ACTION',
-          message: `Endpoint action '${action}' tidak dikenali. Daftar endpoint yang tersedia: ping, login, login_manager, login_kasir, login_siswa, verify_token, profile, change_password, logout, dashboard, void_requests, review_void, seed_requests, review_seed, update_seed_target, members, register_member, update_member, approve_member, activate_member, deactivate_member, users, register_user, update_user, activate_user, deactivate_user, waste_prices, update_waste_price, products, laporan, audit_logs, find_member, member_recent_transactions, setor_tunai, setor_sampah, tarik_tunai, belanja, request_void, transactions.`
+          message: `Endpoint action '${action}' tidak dikenali. Daftar endpoint yang tersedia: ping, login, login_manager, login_kasir, login_siswa, verify_token, profile, update_profile, change_password, logout, dashboard, void_requests, review_void, seed_requests, review_seed, update_seed_target, members, register_member, update_member, approve_member, activate_member, deactivate_member, users, register_user, update_user, activate_user, deactivate_user, waste_prices, update_waste_price, products, laporan, audit_logs, find_member, member_recent_transactions, setor_tunai, setor_sampah, tarik_tunai, belanja, request_void, transactions.`
         };
         break;
     }

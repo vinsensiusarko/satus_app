@@ -273,6 +273,42 @@ function apiGetProfile(params) {
 }
 
 /**
+ * Update Profile / Photo via Mobile API
+ */
+function apiUpdateProfile(params) {
+  try {
+    params = params || {};
+    const token = String(params.token || '').trim();
+    if (!token) return { success: false, error_code: 'MISSING_TOKEN', message: 'Token wajib disertakan' };
+
+    const session = verifyToken(token);
+    if (!session) return { success: false, error_code: 'INVALID_TOKEN', message: 'Sesi login tidak valid atau telah berakhir' };
+
+    const updateData = {};
+    if (params.photo_url !== undefined || params.photoUrl !== undefined) {
+      updateData.photo_url = String(params.photo_url || params.photoUrl || '').trim();
+    }
+    if (params.nama !== undefined || params.name !== undefined) {
+      updateData.nama = String(params.nama || params.name || '').trim();
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return { success: false, error_code: 'NO_DATA', message: 'Tidak ada data profil yang dikirim untuk diperbarui' };
+    }
+
+    const res = updateMyProfile(token, updateData);
+    if (res.success) {
+      // Re-fetch updated profile according to role
+      return apiVerifyToken({ token: token });
+    } else {
+      return { success: false, error_code: 'UPDATE_FAILED', message: res.message || 'Gagal memperbarui profil' };
+    }
+  } catch (err) {
+    return { success: false, error_code: 'SERVER_ERROR', message: err.message };
+  }
+}
+
+/**
  * Change password via Mobile API
  */
 function apiChangePassword(params) {
