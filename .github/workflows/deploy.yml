@@ -11,6 +11,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Wajib angka 0 agar bisa membaca histori tag git terdahulu
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -26,5 +28,15 @@ jobs:
       - name: Push to GAS
         run: clasp push -f
 
+      # 1. Otomatis hitung dan buat tag versi baru (misal: v2.0.5 -> v2.0.6)
+      - name: Bump Version Tag
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          default_bump: patch # Otomatis menaikkan angka paling belakang
+
+      # 2. Deploy ke ID GAS yang sama dengan deskripsi versi baru
       - name: Deploy to Existing Deployment ID
-        run: clasp deploy -i ${{ secrets.GAS_DEPLOYMENT_ID }} -d "Auto deploy via GitHub Actions"
+        run: |
+          clasp deploy -i ${{ secrets.GAS_DEPLOYMENT_ID }} -d "Satus ${{ steps.tag_version.outputs.new_tag }}"
