@@ -374,7 +374,7 @@ function apiLogout(params) {
  */
 function buildStudentProfileData(user, member) {
   const memberId = member ? member.member_id : user.user_id;
-  const defaultAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.nama || user.username) + '&background=10b981&color=fff&bold=true';
+  const defaultAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.nama || user.username) + '&background=10b981&color=fff&bold=true&format=png';
   const photoUrl = (member && member.photo_url) ? member.photo_url : (user.photo_url || defaultAvatar);
 
   let dualBalance = { tabungan: 0, hijau: 0, total: 0 };
@@ -444,7 +444,7 @@ function buildStudentProfileData(user, member) {
  * Includes Cashier Identity and Operator Permissions
  */
 function buildKasirProfileData(user) {
-  const defaultAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.nama || user.username) + '&background=0284c7&color=fff&bold=true';
+  const defaultAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.nama || user.username) + '&background=0284c7&color=fff&bold=true&format=png';
   const photoUrl = user.photo_url || defaultAvatar;
 
   return {
@@ -473,7 +473,7 @@ function buildKasirProfileData(user) {
  * Includes Administrator Identity and Leadership Permissions
  */
 function buildManagerProfileData(user) {
-  const defaultAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.nama || user.username) + '&background=4f46e5&color=fff&bold=true';
+  const defaultAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.nama || user.username) + '&background=4f46e5&color=fff&bold=true&format=png';
   const photoUrl = user.photo_url || defaultAvatar;
 
   return {
@@ -504,7 +504,7 @@ function buildManagerProfileData(user) {
  * Fallback Profile Builder for generic staff
  */
 function buildStaffProfileData(user) {
-  const defaultAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.nama || user.username) + '&background=64748b&color=fff&bold=true';
+  const defaultAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.nama || user.username) + '&background=64748b&color=fff&bold=true&format=png';
   return {
     userId: user.user_id,
     username: user.username,

@@ -69,7 +69,7 @@ function getCurrentSession(token) {
       } catch(e) {}
     }
     
-    const defaultAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(session.nama || session.username) + '&background=10b981&color=fff&bold=true';
+    const defaultAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(session.nama || session.username) + '&background=10b981&color=fff&bold=true&format=png';
     session.photoUrl = photoUrl || defaultAvatar;
     session.token = token; // Guarantee token is preserved
     
@@ -107,7 +107,7 @@ function login(username, password) {
       } catch(e) {}
     }
 
-    const defaultAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.nama || user.username) + '&background=10b981&color=fff&bold=true';
+    const defaultAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.nama || user.username) + '&background=10b981&color=fff&bold=true&format=png';
     const sessionData = {
       userId: user.user_id,
       username: user.username,
@@ -291,7 +291,7 @@ function updateMyProfile(token, dataUpdate) {
           }
         }
         
-        const photoUrl = dataUpdate.photo_url || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(session.nama) + '&background=10b981&color=fff&bold=true');
+        const photoUrl = dataUpdate.photo_url || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(session.nama) + '&background=10b981&color=fff&bold=true&format=png');
         session.photoUrl = photoUrl;
         session.token = token; // Guarantee token is preserved!
         
@@ -324,7 +324,7 @@ function getUserList(token) {
     const safeUsers = users.map(u => {
       delete u.password_hash;
       if (!u.photo_url) {
-        u.photo_url = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.nama || u.username) + '&background=10b981&color=fff&bold=true';
+        u.photo_url = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.nama || u.username) + '&background=10b981&color=fff&bold=true&format=png';
       }
       return u;
     });
@@ -347,7 +347,7 @@ function registerUser(token, data) {
     
     const userId = 'STF-' + Date.now().toString().slice(-6);
     const hash = hashPassword(data.password);
-    const placeholderPhoto = data.photo_url || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(data.nama) + '&background=10b981&color=fff&bold=true');
+    const placeholderPhoto = data.photo_url || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(data.nama) + '&background=10b981&color=fff&bold=true&format=png');
     
     appendRow(CONFIG.SHEETS.USERS, [
       userId, data.username, hash, data.role, data.nama, 'AKTIF', new Date(), placeholderPhoto

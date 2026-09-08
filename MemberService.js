@@ -28,7 +28,7 @@ function registerMember(token, data) {
     ]);
 
     ensureUserPhotoColumn();
-    const placeholderPhoto = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.nama)}&background=10b981&color=fff&bold=true`;
+    const placeholderPhoto = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.nama)}&background=10b981&color=fff&bold=true&format=png`;
     appendRow(CONFIG.SHEETS.USERS, [
       userId, data.username, hash, CONFIG.ROLES.SISWA, data.nama, CONFIG.MEMBER_STATUS.MENUNGGU, new Date(), placeholderPhoto
     ]);
@@ -170,7 +170,7 @@ function activateMember(token, memberId) {
 
 function formatPhotoUrlHelper(url, name) {
   if (!url || typeof url !== 'string' || !url.trim()) {
-    return 'https://ui-avatars.com/api/?name=' + encodeURIComponent(name || 'Siswa') + '&background=10b981&color=fff&bold=true';
+    return 'https://ui-avatars.com/api/?name=' + encodeURIComponent(name || 'Siswa') + '&background=10b981&color=fff&bold=true&format=png';
   }
   let cleanUrl = url.trim();
   if (cleanUrl.includes('drive.google.com')) {
