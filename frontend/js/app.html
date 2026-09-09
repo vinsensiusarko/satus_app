@@ -1935,68 +1935,8 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
   html5QrcodeScanner: null,
   currentShoppingWallet: 'TABUNGAN',
   
-  toggleScanner: function() {
-    const btnText = document.getElementById('scan-btn-text');
-    const helper = document.getElementById('camera-helper');
-    if(!this.html5QrcodeScanner) {
-      if(helper) helper.classList.remove('hidden');
-      this.html5QrcodeScanner = new Html5QrcodeScanner('qr-reader', { fps: 10, qrbox: {width: 250, height: 250} }, false);
-      this.html5QrcodeScanner.render((decodedText, decodedResult) => {
-        document.getElementById('k-search-input').value = decodedText;
-        this.showToast('QR Terbaca: ' + decodedText, 'success');
-        
-        if (this.html5QrcodeScanner) {
-          this.html5QrcodeScanner.clear().then(() => {
-            this.html5QrcodeScanner = null;
-            btnText.innerText = 'Buka Kamera Scan';
-            if(helper) helper.classList.add('hidden');
-            this.searchMemberKasir(new Event('submit'));
-          }).catch(e => {
-            this.html5QrcodeScanner = null;
-          });
-        }
-      }, (error) => {});
-      btnText.innerText = 'Tutup Kamera';
-    } else {
-      this.html5QrcodeScanner.clear().then(() => {
-        this.html5QrcodeScanner = null;
-        btnText.innerText = 'Buka Kamera Scan';
-        if(helper) helper.classList.add('hidden');
-      }).catch(e => {
-        this.html5QrcodeScanner = null;
-        btnText.innerText = 'Buka Kamera Scan';
-        if(helper) helper.classList.add('hidden');
-      });
-    }
-  },
-  
-  scanImageFile: function(inputElement) {
-    if (inputElement.files && inputElement.files.length > 0) {
-      this.showLoading(true);
-      const file = inputElement.files[0];
-      const html5QrCode = new Html5Qrcode('qr-file-reader');
-      html5QrCode.scanFileV2(file, true)
-      .then(result => {
-        this.showLoading(false);
-        document.getElementById('k-search-input').value = result.decodedText;
-        this.showToast('QR Terbaca: ' + result.decodedText, 'success');
-        this.searchMemberKasir(new Event('submit'));
-        html5QrCode.clear().catch(e => {});
-        inputElement.value = '';
-        const helper = document.getElementById('camera-helper');
-        if(helper) helper.classList.add('hidden');
-        if(this.html5QrcodeScanner) {
-          this.toggleScanner();
-        }
-      })
-      .catch(err => {
-        this.showLoading(false);
-        this.showToast('Gagal membaca QR dari gambar. Pastikan gambar jelas.', 'error');
-        html5QrCode.clear().catch(e => {});
-        inputElement.value = '';
-      });
-    }
-  },
+  toggleScanner: function() {},
+  scanImageFile: function() {},
 
   showKwitansi: function(txData) {
     this.lastKwitansiData = txData;
