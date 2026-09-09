@@ -4,6 +4,13 @@ const CONFIG = {
   // GANTI INI DENGAN SPREADSHEET ID YANG BARU DIBUAT OLEH Setup.gs
   SPREADSHEET_ID: '1vA-Gyx35b0M8ic4UwLTBA1b3irTotyQfbX_VBUQ1pZE', 
   
+  // Konfigurasi Concurrency & Mutex Script Lock
+  LOCK_CONFIG: {
+    ENABLED: true,
+    TIMEOUT_MS: 30000,
+    MODE: 'MUTATION_ONLY' // 'MUTATION_ONLY' (rekomendasi) atau 'ALL_POST'
+  },
+  
   SHEETS: {
     USERS: 'Users',
     MEMBERS: 'Members',
@@ -81,5 +88,6 @@ function generateTransactionId() {
   const sheet = getSheet(CONFIG.SHEETS.TRANSACTIONS);
   const lastRow = sheet.getLastRow();
   const seq = String(lastRow > 0 ? lastRow : 1).padStart(4, '0');
-  return `TRX-${date}-${seq}`;
+  const rand = Math.random().toString(36).substring(2, 5).toUpperCase();
+  return `TRX-${date}-${seq}-${rand}`;
 }

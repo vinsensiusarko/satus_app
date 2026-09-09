@@ -57,89 +57,91 @@ function getProductList(token) {
 function createBelanja(token, memberId, items, walletType) {
   // items = [{productId, qty}]
   // walletType = 'TABUNGAN' | 'HIJAU' (defaults to 'TABUNGAN')
-  try {
-    const session = requireRole(token, [CONFIG.ROLES.KASIR]);
-    const member = getMemberById(memberId);
-    if (!member || member.status !== CONFIG.MEMBER_STATUS.AKTIF) throw new Error('Anggota tidak aktif');
-    
-    const selectedWallet = walletType === CONFIG.WALLET_TYPES.HIJAU ? CONFIG.WALLET_TYPES.HIJAU : CONFIG.WALLET_TYPES.TABUNGAN;
-    const products = getSheetData(CONFIG.SHEETS.PRODUCTS);
-    let totalAmount = 0;
-    const validatedItems = [];
-    
-    // Validation
-    for (let item of items) {
-      const prod = products.find(p => p.product_id === item.productId && p.status === 'AKTIF');
-      if (!prod) throw new Error(`Produk ${item.productId} tidak ditemukan atau tidak aktif`);
-      if (prod.stock < item.qty) throw new Error(`Stok ${prod.product_name} tidak mencukupi (sisa ${prod.stock})`);
+  return withScriptLock(function() {
+    try {
+      const session = requireRole(token, [CONFIG.ROLES.KASIR]);
+      const member = getMemberById(memberId);
+      if (!member || member.status !== CONFIG.MEMBER_STATUS.AKTIF) throw new Error('Anggota tidak aktif');
       
-      const itemPrice = selectedWallet === CONFIG.WALLET_TYPES.HIJAU 
-        ? (parseFloat(prod.green_price) || parseFloat(prod.price) || 0)
-        : (parseFloat(prod.price) || 0);
+      const selectedWallet = walletType === CONFIG.WALLET_TYPES.HIJAU ? CONFIG.WALLET_TYPES.HIJAU : CONFIG.WALLET_TYPES.TABUNGAN;
+      const products = getSheetData(CONFIG.SHEETS.PRODUCTS);
+      let totalAmount = 0;
+      const validatedItems = [];
+      
+      // Validation
+      for (let item of items) {
+        const prod = products.find(p => p.product_id === item.productId && p.status === 'AKTIF');
+        if (!prod) throw new Error(`Produk ${item.productId} tidak ditemukan atau tidak aktif`);
+        if (prod.stock < item.qty) throw new Error(`Stok ${prod.product_name} tidak mencukupi (sisa ${prod.stock})`);
+        
+        const itemPrice = selectedWallet === CONFIG.WALLET_TYPES.HIJAU 
+          ? (parseFloat(prod.green_price) || parseFloat(prod.price) || 0)
+          : (parseFloat(prod.price) || 0);
 
-      totalAmount += (itemPrice * item.qty);
-      validatedItems.push({ ...prod, itemPrice: itemPrice, qty: item.qty });
-    }
-    
-    // Validasi Saldo sesuai wallet yang dipilih
-    if (selectedWallet === CONFIG.WALLET_TYPES.HIJAU) {
-      const balanceCheck = validateHijau(memberId, totalAmount);
-      if (!balanceCheck.valid) throw new Error(balanceCheck.message);
-    } else {
-      const balanceCheck = validateTabungan(memberId, totalAmount);
-      if (!balanceCheck.valid) throw new Error(balanceCheck.message);
-    }
-    
-    // Execute
-    const txId = generateTransactionId();
-    const now = new Date();
-    
-    const descDetails = validatedItems.map(item => `${item.product_name} (${item.qty}x)`).join(', ');
-    const txType = selectedWallet === CONFIG.WALLET_TYPES.HIJAU 
-      ? CONFIG.TRANSACTION_TYPES.TUKAR_HIJAU_ATK 
-      : CONFIG.TRANSACTION_TYPES.BELANJA_TABUNGAN;
+        totalAmount += (itemPrice * item.qty);
+        validatedItems.push({ ...prod, itemPrice: itemPrice, qty: item.qty });
+      }
+      
+      // Validasi Saldo sesuai wallet yang dipilih
+      if (selectedWallet === CONFIG.WALLET_TYPES.HIJAU) {
+        const balanceCheck = validateHijau(memberId, totalAmount);
+        if (!balanceCheck.valid) throw new Error(balanceCheck.message);
+      } else {
+        const balanceCheck = validateTabungan(memberId, totalAmount);
+        if (!balanceCheck.valid) throw new Error(balanceCheck.message);
+      }
+      
+      // Execute
+      const txId = generateTransactionId();
+      const now = new Date();
+      
+      const descDetails = validatedItems.map(item => `${item.product_name} (${item.qty}x)`).join(', ');
+      const txType = selectedWallet === CONFIG.WALLET_TYPES.HIJAU 
+        ? CONFIG.TRANSACTION_TYPES.TUKAR_HIJAU_ATK 
+        : CONFIG.TRANSACTION_TYPES.BELANJA_TABUNGAN;
 
-    const finalDesc = `${selectedWallet === CONFIG.WALLET_TYPES.HIJAU ? 'Tukar ATK Hijau' : 'Belanja Koperasi'}: ${descDetails}`;
-    
-    appendRow(CONFIG.SHEETS.TRANSACTIONS, [
-      txId, now, memberId, txType, selectedWallet,
-      0, totalAmount, totalAmount, session.userId,
-      finalDesc, 'COMPLETED'
-    ]);
-    
-    // Update stock
-    const sheet = getSheet(CONFIG.SHEETS.PRODUCTS);
-    const data = sheet.getDataRange().getValues();
-    const headers = data[0];
-    const idIdx = headers.indexOf('product_id');
-    const stockIdx = headers.indexOf('stock');
-    
-    for (let item of validatedItems) {
-      for (let i = 1; i < data.length; i++) {
-        if (data[i][idIdx] === item.product_id) {
-          const newStock = data[i][stockIdx] - item.qty;
-          sheet.getRange(i + 1, stockIdx + 1).setValue(newStock);
-          break;
+      const finalDesc = `${selectedWallet === CONFIG.WALLET_TYPES.HIJAU ? 'Tukar ATK Hijau' : 'Belanja Koperasi'}: ${descDetails}`;
+      
+      appendRow(CONFIG.SHEETS.TRANSACTIONS, [
+        txId, now, memberId, txType, selectedWallet,
+        0, totalAmount, totalAmount, session.userId,
+        finalDesc, 'COMPLETED'
+      ]);
+      
+      // Update stock
+      const sheet = getSheet(CONFIG.SHEETS.PRODUCTS);
+      const data = sheet.getDataRange().getValues();
+      const headers = data[0];
+      const idIdx = headers.indexOf('product_id');
+      const stockIdx = headers.indexOf('stock');
+      
+      for (let item of validatedItems) {
+        for (let i = 1; i < data.length; i++) {
+          if (data[i][idIdx] === item.product_id) {
+            const newStock = data[i][stockIdx] - item.qty;
+            sheet.getRange(i + 1, stockIdx + 1).setValue(newStock);
+            break;
+          }
         }
       }
+      
+      delete cachedSheetData[CONFIG.SHEETS.PRODUCTS];
+      
+      auditLog(session.userId, session.role, 'CREATE_TRANSACTION', txId, `${txType} Rp${totalAmount} oleh ${memberId} (${selectedWallet})`);
+      
+      const dualBalance = calculateDualBalance(memberId);
+      return { 
+        success: true, 
+        message: `${selectedWallet === CONFIG.WALLET_TYPES.HIJAU ? 'Tukar ATK' : 'Belanja'} berhasil`, 
+        transactionId: txId, 
+        walletType: selectedWallet,
+        totalAmount: totalAmount,
+        dualBalance: dualBalance,
+        newBalance: selectedWallet === CONFIG.WALLET_TYPES.HIJAU ? dualBalance.hijau : dualBalance.tabungan 
+      };
+    } catch (error) {
+      if (error.message.includes("Unauthorized")) throw error; return { success: false, message: error.message };
     }
-    
-    delete cachedSheetData[CONFIG.SHEETS.PRODUCTS];
-    
-    auditLog(session.userId, session.role, 'CREATE_TRANSACTION', txId, `${txType} Rp${totalAmount} oleh ${memberId} (${selectedWallet})`);
-    
-    const dualBalance = calculateDualBalance(memberId);
-    return { 
-      success: true, 
-      message: `${selectedWallet === CONFIG.WALLET_TYPES.HIJAU ? 'Tukar ATK' : 'Belanja'} berhasil`, 
-      transactionId: txId, 
-      walletType: selectedWallet,
-      totalAmount: totalAmount,
-      dualBalance: dualBalance,
-      newBalance: selectedWallet === CONFIG.WALLET_TYPES.HIJAU ? dualBalance.hijau : dualBalance.tabungan 
-    };
-  } catch (error) {
-    if (error.message.includes("Unauthorized")) throw error; return { success: false, message: error.message };
-  }
+  });
 }
 

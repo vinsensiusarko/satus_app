@@ -39,6 +39,102 @@ function getSheet(sheetName) {
 
 const cachedSheetData = {};
 
+/**
+ * Membersihkan cache in-memory data sheet
+ * Dipanggil setiap kali thread baru memperoleh lock agar data yang dibaca 100% mutakhir
+ */
+function clearDatabaseCache() {
+  for (const key in cachedSheetData) {
+    delete cachedSheetData[key];
+  }
+}
+
+/**
+ * Melakukan commit paksa seluruh antrean penulisan SpreadsheetApp ke disk Google
+ */
+function flushDatabase() {
+  try {
+    if (typeof SpreadsheetApp !== 'undefined' && SpreadsheetApp.flush) {
+      SpreadsheetApp.flush();
+    }
+  } catch (e) {
+    console.warn('Gagal melakukan SpreadsheetApp.flush():', e);
+  }
+}
+
+/**
+ * Menjalankan operasi database penting dengan mutual exclusion lock (LockService)
+ * Mencegah race condition, double-spending, tabrakan ID, dan lost update.
+ * 
+ * @param {Function} callback Fungsi callback yang akan dieksekusi di dalam lock
+ * @param {Object} [options] Konfigurasi opsional (timeoutMs)
+ * @returns {*} Hasil callback atau objek error jika lock gagal diperoleh
+ */
+function withScriptLock(callback, options) {
+  const isEnabled = CONFIG.LOCK_CONFIG && CONFIG.LOCK_CONFIG.ENABLED !== false;
+  if (!isEnabled) {
+    return callback();
+  }
+
+  const timeoutMs = (options && options.timeoutMs) || (CONFIG.LOCK_CONFIG && CONFIG.LOCK_CONFIG.TIMEOUT_MS) || 30000;
+  
+  let lock = null;
+  try {
+    if (typeof LockService !== 'undefined' && LockService.getScriptLock) {
+      lock = LockService.getScriptLock();
+    }
+  } catch (e) {
+    console.warn('LockService tidak tersedia pada runtime ini:', e);
+    return callback();
+  }
+
+  if (!lock) {
+    return callback();
+  }
+
+  // Jika thread eksekusi saat ini sudah memegang lock (misal dari ApiRouter), langsung jalankan
+  if (typeof lock.hasLock === 'function' && lock.hasLock()) {
+    return callback();
+  }
+
+  let acquired = false;
+  try {
+    acquired = lock.tryLock(timeoutMs);
+  } catch (err) {
+    console.warn('Error saat mencoba acquire lock:', err);
+  }
+
+  if (!acquired) {
+    console.error(`Gagal memperoleh script lock setelah ${timeoutMs}ms (antrean server penuh / timeout).`);
+    return {
+      success: false,
+      error_code: 'SERVER_BUSY',
+      message: 'Server sedang sibuk memproses antrean transaksi lain. Silakan coba beberapa saat lagi.'
+    };
+  }
+
+  try {
+    // 1. Bersihkan cache in-memory agar membaca data paling mutakhir dari Google Sheets
+    clearDatabaseCache();
+
+    // 2. Jalankan eksekusi mutasi / transaksi
+    const result = callback();
+
+    // 3. Commit paksa seluruh penulisan buffer spreadsheet sebelum lock dilepaskan
+    flushDatabase();
+
+    return result;
+  } finally {
+    try {
+      if (lock && typeof lock.hasLock === 'function' && lock.hasLock()) {
+        lock.releaseLock();
+      }
+    } catch (e) {
+      console.warn('Error saat melepaskan lock:', e);
+    }
+  }
+}
+
 function getSheetData(sheetName) {
   if (cachedSheetData[sheetName]) return cachedSheetData[sheetName];
   

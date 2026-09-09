@@ -38,6 +38,43 @@ function parseApiParams(e) {
 }
 
 /**
+ * Memeriksa apakah suatu action API merupakan aksi mutasi (menulis ke spreadsheet)
+ * Jika true, request wajib melewati antrean LockService untuk mencegah race condition.
+ */
+function isMutationAction(action) {
+  const mode = (CONFIG.LOCK_CONFIG && CONFIG.LOCK_CONFIG.MODE) || 'MUTATION_ONLY';
+  if (mode === 'ALL_POST') {
+    return true;
+  }
+
+  // Daftar endpoint READ-ONLY (aman dijalankan simultan tanpa antrean)
+  const READ_ONLY_ACTIONS = [
+    'ping', 'health',
+    'login', 'login_manager', 'login-manager', 'manager_login',
+    'login_kasir', 'login-kasir', 'kasir_login',
+    'login_siswa', 'login-siswa', 'siswa_login',
+    'verify_token', 'verify-token', 'check_token', 'check_session',
+    'profile', 'me', 'get_profile',
+    'dashboard', 'get_dashboard', 'getdashboarddata', 'dashboard_manager',
+    'void_requests', 'get_void_requests', 'getvoidrequests',
+    'seed_requests', 'get_seed_requests', 'getseedrequests',
+    'seeds', 'get_seeds', 'getseedlist',
+    'siswa_seed_requests', 'my_seed_requests', 'getsiswaseedrequests',
+    'members', 'get_members', 'getmemberlist', 'getmembers',
+    'users', 'get_users', 'getuserlist', 'staff', 'get_staff',
+    'waste_prices', 'get_waste_prices', 'getallwasteprices', 'getwasteprices',
+    'products', 'get_products', 'getproductlist', 'getproducts',
+    'laporan', 'get_laporan', 'getlaporanmanager',
+    'audit_logs', 'get_audit_logs', 'getauditlogs',
+    'find_member', 'search_member', 'findmember', 'searchmember',
+    'member_recent_transactions', 'getmemberrecenttransactions',
+    'transactions', 'get_transactions', 'gettransactions', 'kasir_transactions'
+  ];
+
+  return !READ_ONLY_ACTIONS.includes(action);
+}
+
+/**
  * Main API Request Dispatcher
  * @param {Object} e Event object from doGet or doPost
  * @param {string} method 'GET' or 'POST'
@@ -50,7 +87,32 @@ function handleApiRequest(e, method) {
 
     let result = null;
 
-    switch (action) {
+    if (method === 'POST' && isMutationAction(action)) {
+      result = withScriptLock(function() {
+        return dispatchApiAction(action, params, method);
+      });
+    } else {
+      result = dispatchApiAction(action, params, method);
+    }
+
+    return createJsonResponse(result);
+  } catch (error) {
+    console.error('API Router Error:', error);
+    return createJsonResponse({
+      success: false,
+      error_code: 'INTERNAL_ERROR',
+      message: error.message || 'Internal API Router Error'
+    });
+  }
+}
+
+/**
+ * Memetakan action parameter ke handler fungsi layanan backend
+ */
+function dispatchApiAction(action, params, method) {
+  let result = null;
+
+  switch (action) {
       // 1. HEALTH CHECK / PING
       case 'ping':
       case 'health':
@@ -438,15 +500,7 @@ function handleApiRequest(e, method) {
         break;
     }
 
-    return createJsonResponse(result);
-  } catch (error) {
-    console.error('API Router Error:', error);
-    return createJsonResponse({
-      success: false,
-      error_code: 'INTERNAL_ERROR',
-      message: error.message || 'Internal API Router Error'
-    });
-  }
+    return result;
 }
 
 /**
