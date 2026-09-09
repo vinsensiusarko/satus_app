@@ -10,6 +10,7 @@ function doGet(e) {
   return HtmlService.createTemplateFromFile('frontend/index')
     .evaluate()
     .setTitle('SATUS - Kantong Hijau')
+    .setFaviconUrl('https://iili.io/nFG1IAQ.png')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
