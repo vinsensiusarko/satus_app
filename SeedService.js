@@ -139,7 +139,11 @@ function getSeedRequests(token) {
         seed_type: s.seed_type || 'Bibit Tanaman',
         current_saldo_hijau: currentHijau
       };
-    }).sort((a, b) => new Date(b.requested_at) - new Date(a.requested_at));
+    }).sort((a, b) => {
+      const tA = a.requested_at ? new Date(a.requested_at).getTime() : 0;
+      const tB = b.requested_at ? new Date(b.requested_at).getTime() : 0;
+      return (isNaN(tB) ? 0 : tB) - (isNaN(tA) ? 0 : tA);
+    });
 
     return { success: true, data: populated };
   } catch (error) {
@@ -164,7 +168,11 @@ function getSiswaSeedRequests(token) {
         seed_name: s.seed_name || req.seed_id,
         seed_type: s.seed_type || 'Bibit Tanaman'
       };
-    }).sort((a, b) => new Date(b.requested_at) - new Date(a.requested_at));
+    }).sort((a, b) => {
+      const tA = a.requested_at ? new Date(a.requested_at).getTime() : 0;
+      const tB = b.requested_at ? new Date(b.requested_at).getTime() : 0;
+      return (isNaN(tB) ? 0 : tB) - (isNaN(tA) ? 0 : tA);
+    });
 
     return { success: true, data: populated };
   } catch (error) {

@@ -16,7 +16,13 @@ function auditLog(userId, role, action, referenceId, description) {
 function getAuditLogs(token) {
   try {
     requireRole(token, [CONFIG.ROLES.MANAGER]);
-    return { success: true, data: getSheetData(CONFIG.SHEETS.AUDIT_LOG).reverse().slice(0, 100) };
+    const rawData = getSheetData(CONFIG.SHEETS.AUDIT_LOG) || [];
+    const sorted = rawData.slice().sort((a, b) => {
+      const tA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+      const tB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+      return (isNaN(tB) ? 0 : tB) - (isNaN(tA) ? 0 : tA);
+    });
+    return { success: true, data: sorted.slice(0, 200) };
   } catch (error) {
     if (error.message.includes("Unauthorized")) throw error; return { success: false, message: error.message };
   }
