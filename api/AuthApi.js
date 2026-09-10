@@ -41,6 +41,94 @@ function apiLogin(params) {
       };
     }
 
+    // 1. Cek login akun Dev/Testing (terisolasi dari database produksi)
+    if (CONFIG.DEV_CONFIG && CONFIG.DEV_CONFIG.ENABLED && CONFIG.DEV_CONFIG.ACCOUNTS[identifier.toLowerCase()]) {
+      const devAcc = CONFIG.DEV_CONFIG.ACCOUNTS[identifier.toLowerCase()];
+      if (password !== devAcc.password) {
+        return {
+          success: false,
+          error_code: 'INVALID_PASSWORD',
+          message: 'Password akun dev salah'
+        };
+      }
+      if (expectedRole && devAcc.role !== expectedRole) {
+        return {
+          success: false,
+          error_code: 'ROLE_MISMATCH',
+          message: `Akun ini terdaftar sebagai ${devAcc.role}, bukan ${expectedRole}. Silakan gunakan menu login yang sesuai.`
+        };
+      }
+
+      const sessionData = {
+        userId: devAcc.userId,
+        username: devAcc.username,
+        role: devAcc.role,
+        nama: devAcc.nama,
+        photoUrl: devAcc.photoUrl,
+        isDev: true,
+        status: devAcc.status || 'AKTIF'
+      };
+
+      const token = generateSignedToken(sessionData);
+      sessionData.token = token;
+
+      try {
+        const cache = CacheService.getScriptCache();
+        cache.put(token, JSON.stringify(sessionData), 21600);
+      } catch (e) {}
+
+      let responseData;
+      if (devAcc.role === CONFIG.ROLES.SISWA) {
+        const mockMember = {
+          member_id: devAcc.memberId,
+          user_id: devAcc.userId,
+          nama: devAcc.nama,
+          nis: devAcc.nis,
+          kelas: devAcc.kelas,
+          registered_at: new Date().toISOString(),
+          status: 'AKTIF',
+          photo_url: devAcc.photoUrl
+        };
+        const mockUser = {
+          user_id: devAcc.userId,
+          username: devAcc.username,
+          nama: devAcc.nama,
+          role: CONFIG.ROLES.SISWA,
+          status: 'AKTIF',
+          photo_url: devAcc.photoUrl
+        };
+        responseData = buildStudentProfileData(mockUser, mockMember);
+      } else if (devAcc.role === CONFIG.ROLES.KASIR) {
+        responseData = buildKasirProfileData({
+          user_id: devAcc.userId,
+          username: devAcc.username,
+          nama: devAcc.nama,
+          role: CONFIG.ROLES.KASIR,
+          status: 'AKTIF',
+          photo_url: devAcc.photoUrl
+        });
+      } else {
+        responseData = buildManagerProfileData({
+          user_id: devAcc.userId,
+          username: devAcc.username,
+          nama: devAcc.nama,
+          role: CONFIG.ROLES.MANAGER,
+          status: 'AKTIF',
+          photo_url: devAcc.photoUrl
+        });
+      }
+
+      responseData.token = token;
+      responseData.isDev = true;
+
+      return {
+        success: true,
+        message: `Login berhasil sebagai ${devAcc.role} (Akun Dev / Test). Selamat datang, ${devAcc.nama}!`,
+        data: responseData,
+        token: token
+      };
+    }
+
     ensureUserPhotoColumn();
     const users = getSheetData(CONFIG.SHEETS.USERS);
     const members = getSheetData(CONFIG.SHEETS.MEMBERS);
@@ -229,6 +317,31 @@ function apiVerifyToken(params) {
         error_code: 'ROLE_MISMATCH',
         message: `Akses ditolak. Sesi ini adalah ${session.role}, bukan ${expectedRole}.`
       };
+    }
+
+    // Jika sesi akun dev, buat profil tanpa query sheet produksi
+    if (session.isDev || (typeof isDevAccount === 'function' && isDevAccount(session))) {
+      const devAcc = (CONFIG.DEV_CONFIG && CONFIG.DEV_CONFIG.ACCOUNTS[session.username.toLowerCase()]) || {
+        username: session.username,
+        role: session.role,
+        nama: session.nama,
+        userId: session.userId,
+        photoUrl: session.photoUrl
+      };
+      let profile;
+      if (devAcc.role === CONFIG.ROLES.SISWA) {
+        profile = buildStudentProfileData(
+          { user_id: devAcc.userId, username: devAcc.username, nama: devAcc.nama, role: 'SISWA', status: 'AKTIF', photo_url: devAcc.photoUrl },
+          { member_id: devAcc.memberId || devAcc.userId, user_id: devAcc.userId, nama: devAcc.nama, nis: devAcc.nis || 'DEV-001', kelas: devAcc.kelas || 'DEV', status: 'AKTIF', photo_url: devAcc.photoUrl }
+        );
+      } else if (devAcc.role === CONFIG.ROLES.KASIR) {
+        profile = buildKasirProfileData({ user_id: devAcc.userId, username: devAcc.username, nama: devAcc.nama, role: 'KASIR', status: 'AKTIF', photo_url: devAcc.photoUrl });
+      } else {
+        profile = buildManagerProfileData({ user_id: devAcc.userId, username: devAcc.username, nama: devAcc.nama, role: 'MANAGER', status: 'AKTIF', photo_url: devAcc.photoUrl });
+      }
+      profile.token = token;
+      profile.isDev = true;
+      return { success: true, message: 'Token valid (Akun Dev)', data: profile };
     }
 
     const users = getSheetData(CONFIG.SHEETS.USERS);

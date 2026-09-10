@@ -56,6 +56,12 @@ function getCurrentSession(token) {
     const session = verifyToken(token);
     if (!session) return { success: false, message: 'Session expired' };
     
+    // Jika sesi adalah akun dev, langsung return sesi tanpa query sheet produksi
+    if (session.isDev || (typeof isDevAccount === 'function' && isDevAccount(session))) {
+      session.token = token;
+      return { success: true, data: session };
+    }
+
     ensureUserPhotoColumn();
     const users = getSheetData(CONFIG.SHEETS.USERS);
     const user = users.find(u => u.user_id === session.userId);
@@ -86,9 +92,45 @@ function getCurrentSession(token) {
 
 function login(username, password) {
   try {
+    const cleanUsername = String(username || '').trim().toLowerCase();
+
+    // 1. Cek login akun Dev/Testing (terisolasi dari database produksi)
+    if (CONFIG.DEV_CONFIG && CONFIG.DEV_CONFIG.ENABLED && CONFIG.DEV_CONFIG.ACCOUNTS[cleanUsername]) {
+      const devAcc = CONFIG.DEV_CONFIG.ACCOUNTS[cleanUsername];
+      if (password !== devAcc.password) {
+        return { success: false, message: 'Password akun dev salah' };
+      }
+
+      const sessionData = {
+        userId: devAcc.userId,
+        username: devAcc.username,
+        role: devAcc.role,
+        nama: devAcc.nama,
+        photoUrl: devAcc.photoUrl,
+        isDev: true,
+        status: devAcc.status || 'AKTIF'
+      };
+
+      const token = generateSignedToken(sessionData);
+      sessionData.token = token;
+
+      try {
+        const cache = CacheService.getScriptCache();
+        cache.put(token, JSON.stringify(sessionData), 21600); // 6 hours cache
+      } catch (e) {}
+
+      return { 
+        success: true, 
+        data: sessionData,
+        token: token,
+        message: 'Login berhasil sebagai ' + devAcc.role + ' (Akun Dev / Test)'
+      };
+    }
+
+    // 2. Normal login ke tabel Users
     ensureUserPhotoColumn();
     const users = getSheetData(CONFIG.SHEETS.USERS);
-    const user = users.find(u => u.username === username && (u.status === 'AKTIF' || (u.role === 'SISWA' && u.status === 'MENUNGGU')));
+    const user = users.find(u => u.username === username && !isDevAccount(u) && (u.status === 'AKTIF' || (u.role === 'SISWA' && u.status === 'MENUNGGU')));
 
     if (!user) {
       return { success: false, message: 'Username tidak ditemukan, tidak aktif, atau bukan siswa yang menunggu persetujuan' };
@@ -321,7 +363,8 @@ function getUserList(token) {
     ensureUserPhotoColumn();
     requireRole(token, [CONFIG.ROLES.MANAGER]);
     const users = getSheetData(CONFIG.SHEETS.USERS);
-    const safeUsers = users.map(u => {
+    const prodUsers = users.filter(u => typeof isDevAccount !== 'function' || !isDevAccount(u));
+    const safeUsers = prodUsers.map(u => {
       delete u.password_hash;
       if (!u.photo_url) {
         u.photo_url = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.nama || u.username) + '&background=10b981&color=fff&bold=true&format=png';

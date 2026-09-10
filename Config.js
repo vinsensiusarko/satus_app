@@ -70,8 +70,68 @@ const CONFIG = {
     KOREKSI: 'KOREKSI',
     REVERSAL: 'REVERSAL',
     REFUND: 'REFUND'
+  },
+
+  // Kredensial Khusus Lingkungan Dev/Testing (Terisolasi dari Database Produksi)
+  DEV_CONFIG: {
+    ENABLED: true,
+    ACCOUNTS: {
+      'admin-dev': {
+        username: 'admin-dev',
+        password: 'manager123',
+        role: 'MANAGER',
+        nama: 'Admin Dev (Testing)',
+        userId: 'DEV-MGR-001',
+        status: 'AKTIF',
+        isDev: true,
+        photoUrl: 'https://ui-avatars.com/api/?name=Admin+Dev&background=7c3aed&color=fff&bold=true'
+      },
+      'kasir-dev': {
+        username: 'kasir-dev',
+        password: 'kasir123',
+        role: 'KASIR',
+        nama: 'Kasir Dev (Testing)',
+        userId: 'DEV-KSR-001',
+        status: 'AKTIF',
+        isDev: true,
+        photoUrl: 'https://ui-avatars.com/api/?name=Kasir+Dev&background=0284c7&color=fff&bold=true'
+      },
+      'siswa-dev': {
+        username: 'siswa-dev',
+        password: 'siswa123',
+        role: 'SISWA',
+        nama: 'Siswa Dev (Testing)',
+        userId: 'DEV-SIS-001',
+        memberId: 'DEV-SIS-001',
+        nis: 'DEV-001',
+        kelas: 'DEV',
+        status: 'AKTIF',
+        isDev: true,
+        photoUrl: 'https://ui-avatars.com/api/?name=Siswa+Dev&background=10b981&color=fff&bold=true'
+      }
+    }
   }
 };
+
+function isDevUsername(username) {
+  if (!username) return false;
+  const u = String(username).trim().toLowerCase();
+  return u === 'admin-dev' || u === 'kasir-dev' || u === 'siswa-dev' || u.startsWith('dev-');
+}
+
+function isDevUserId(userId) {
+  if (!userId) return false;
+  const id = String(userId).trim().toUpperCase();
+  return id.startsWith('DEV-');
+}
+
+function isDevAccount(obj) {
+  if (!obj) return false;
+  if (obj.isDev) return true;
+  if (isDevUsername(obj.username)) return true;
+  if (isDevUserId(obj.user_id) || isDevUserId(obj.userId) || isDevUserId(obj.member_id) || isDevUserId(obj.memberId)) return true;
+  return false;
+}
 
 function generateMemberId() {
   const year = new Date().getFullYear();

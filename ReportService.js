@@ -10,6 +10,19 @@ function getDashboardData(token) {
     } else if (session.role === CONFIG.ROLES.KASIR) {
       return getKasirDashboard();
     } else if (session.role === CONFIG.ROLES.SISWA) {
+      if (session.isDev || (typeof isDevAccount === 'function' && isDevAccount(session))) {
+        return getSiswaDashboard(session.userId || 'DEV-SIS-001', {
+          member_id: 'DEV-SIS-001',
+          user_id: 'DEV-SIS-001',
+          nama: session.nama || 'Siswa Dev (Testing)',
+          nis: 'DEV-001',
+          kelas: 'DEV',
+          status: 'AKTIF',
+          qr_data: 'DEV-SIS-001',
+          photoUrl: session.photoUrl || ''
+        });
+      }
+
       let members = getSheetData(CONFIG.SHEETS.MEMBERS);
       let member = (typeof findMemberForUser === 'function') 
         ? findMemberForUser(session, members) 
@@ -44,11 +57,19 @@ function getDashboardData(token) {
 }
 
 function getManagerDashboard() {
-  const members = getSheetData(CONFIG.SHEETS.MEMBERS);
-  const users = getSheetData(CONFIG.SHEETS.USERS);
-  const transactions = getSheetData(CONFIG.SHEETS.TRANSACTIONS).filter(t => t.status === 'COMPLETED');
-  const wastes = getSheetData(CONFIG.SHEETS.WASTE_TRANSACTIONS);
-  const seedRequests = getSheetData(CONFIG.SHEETS.SEED_REQUESTS);
+  const allMembers = getSheetData(CONFIG.SHEETS.MEMBERS);
+  const allUsers = getSheetData(CONFIG.SHEETS.USERS);
+  
+  // Filter akun dev agar statistik dashboard produksi murni 100% data nyata
+  const members = allMembers.filter(m => typeof isDevAccount !== 'function' || !isDevAccount(m));
+  const users = allUsers.filter(u => typeof isDevAccount !== 'function' || !isDevAccount(u));
+
+  const transactions = getSheetData(CONFIG.SHEETS.TRANSACTIONS)
+    .filter(t => t.status === 'COMPLETED' && (typeof isDevAccount !== 'function' || !isDevAccount({ member_id: t.member_id })));
+  const wastes = getSheetData(CONFIG.SHEETS.WASTE_TRANSACTIONS)
+    .filter(w => typeof isDevAccount !== 'function' || !isDevAccount({ member_id: w.member_id }));
+  const seedRequests = getSheetData(CONFIG.SHEETS.SEED_REQUESTS)
+    .filter(r => typeof isDevAccount !== 'function' || !isDevAccount({ member_id: r.member_id }));
   // Total Pengguna Unik di sistem (Siswa + Kasir + Manager)
   const totalAnggota = users.length;
   
@@ -175,6 +196,46 @@ function getKasirDashboard() {
 }
 
 function getSiswaDashboard(memberId, fallbackMember) {
+  // Jika akun dev, sediakan mock dashboard data langsung tanpa baca transaksi produksi
+  if (typeof isDevUserId === 'function' && isDevUserId(memberId)) {
+    const devProfile = fallbackMember || {
+      member_id: 'DEV-SIS-001',
+      user_id: 'DEV-SIS-001',
+      nama: 'Siswa Dev (Testing)',
+      nis: 'DEV-001',
+      kelas: 'DEV',
+      status: 'AKTIF',
+      photoUrl: 'https://ui-avatars.com/api/?name=Siswa+Dev&background=10b981&color=fff&bold=true'
+    };
+    return {
+      success: true,
+      data: {
+        profile: devProfile,
+        balance: 100000,
+        saldoTabungan: 100000,
+        saldoHijau: 50000,
+        dualBalance: { tabungan: 100000, hijau: 50000, total: 150000 },
+        kontribusi: {
+          plastik: 5,
+          jelantah: 2,
+          bibit: 1,
+          nilaiHijau: 50000
+        },
+        target: {
+          target_id: 'TGT-DEV',
+          target_name: 'Beli Sepatu Sekolah (Demo Target)',
+          target_amount: 250000,
+          currentSaved: 100000,
+          progressPercent: 40
+        },
+        recentTx: [
+          { transaction_id: 'TRX-DEV-001', timestamp: new Date().toISOString(), type: 'SETOR_TUNAI', wallet_type: 'TABUNGAN', amount: 50000, description: 'Setoran Awal (Testing)' },
+          { transaction_id: 'TRX-DEV-002', timestamp: new Date(Date.now() - 86400000).toISOString(), type: 'SETOR_PLASTIK', wallet_type: 'HIJAU', amount: 25000, description: 'Setor Sampah Plastik 2.5 Kg (Testing)' }
+        ]
+      }
+    };
+  }
+
   const members = getSheetData(CONFIG.SHEETS.MEMBERS);
   let member = members.find(m => m.member_id === memberId || m.user_id === memberId);
   if (!member && fallbackMember) member = fallbackMember;
@@ -260,10 +321,14 @@ function getLaporanManager(token, period) {
       startDate = new Date(y, m, 1);
     }
 
-    const members = getSheetData(CONFIG.SHEETS.MEMBERS);
-    const transactions = getSheetData(CONFIG.SHEETS.TRANSACTIONS).filter(t => t.status === 'COMPLETED');
-    const wastes = getSheetData(CONFIG.SHEETS.WASTE_TRANSACTIONS);
-    const seedRequests = getSheetData(CONFIG.SHEETS.SEED_REQUESTS);
+    const allMembers = getSheetData(CONFIG.SHEETS.MEMBERS);
+    const members = allMembers.filter(m => typeof isDevAccount !== 'function' || !isDevAccount(m));
+    const transactions = getSheetData(CONFIG.SHEETS.TRANSACTIONS)
+      .filter(t => t.status === 'COMPLETED' && (typeof isDevAccount !== 'function' || !isDevAccount({ member_id: t.member_id })));
+    const wastes = getSheetData(CONFIG.SHEETS.WASTE_TRANSACTIONS)
+      .filter(w => typeof isDevAccount !== 'function' || !isDevAccount({ member_id: w.member_id }));
+    const seedRequests = getSheetData(CONFIG.SHEETS.SEED_REQUESTS)
+      .filter(r => typeof isDevAccount !== 'function' || !isDevAccount({ member_id: r.member_id }));
     
     const txInPeriod = transactions.filter(t => {
       const txDate = new Date(t.timestamp);

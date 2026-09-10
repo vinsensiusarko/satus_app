@@ -268,7 +268,7 @@ function ensureMemberForStudentUser(user) {
  */
 function syncStudentMembers() {
   const users = getSheetData(CONFIG.SHEETS.USERS);
-  const studentUsers = users.filter(u => u.role === CONFIG.ROLES.SISWA);
+  const studentUsers = users.filter(u => u.role === CONFIG.ROLES.SISWA && (typeof isDevAccount !== 'function' || !isDevAccount(u)));
   if (studentUsers.length === 0) return;
 
   let members = getSheetData(CONFIG.SHEETS.MEMBERS);
@@ -298,20 +298,24 @@ function getMemberList(token) {
     const members = getSheetData(CONFIG.SHEETS.MEMBERS);
     const users = getSheetData(CONFIG.SHEETS.USERS);
     
+    // Filter akun dev agar tabel anggota siswa produksi tetap bersih
+    const prodMembers = members.filter(m => typeof isDevAccount !== 'function' || !isDevAccount(m));
+    const prodUsers = users.filter(u => typeof isDevAccount !== 'function' || !isDevAccount(u));
+
     // Attach dual balances & profile photos
-    const membersWithBalance = members.map(m => {
+    const membersWithBalance = prodMembers.map(m => {
       const dual = calculateDualBalance(m.member_id);
       m.balance = dual.tabungan; // legacy compat
       m.saldoTabungan = dual.tabungan;
       m.saldoHijau = dual.hijau;
       m.dualBalance = dual;
 
-      let user = users.find(u => u.user_id && m.user_id && String(u.user_id).trim() === String(m.user_id).trim());
+      let user = prodUsers.find(u => u.user_id && m.user_id && String(u.user_id).trim() === String(m.user_id).trim());
       if (!user && m.member_id) {
-        user = users.find(u => u.user_id && String(u.user_id).trim().toLowerCase() === String(m.member_id).trim().toLowerCase());
+        user = prodUsers.find(u => u.user_id && String(u.user_id).trim().toLowerCase() === String(m.member_id).trim().toLowerCase());
       }
       if (!user && m.nama) {
-        user = users.find(u => u.nama && String(u.nama).trim().toLowerCase() === String(m.nama).trim().toLowerCase());
+        user = prodUsers.find(u => u.nama && String(u.nama).trim().toLowerCase() === String(m.nama).trim().toLowerCase());
       }
 
       const rawPhoto = getMemberProp(m, 'photo_url') || getMemberProp(user, 'photo_url');
@@ -399,6 +403,28 @@ function getMyProfile(token) {
   try {
     const session = requireRole(token, [CONFIG.ROLES.SISWA]);
     ensureUserPhotoColumn();
+
+    // Jika sesi adalah akun dev, return profil dev tanpa query sheet
+    if (session.isDev || (typeof isDevAccount === 'function' && isDevAccount(session))) {
+      return {
+        success: true,
+        data: {
+          member_id: 'DEV-SIS-001',
+          user_id: 'DEV-SIS-001',
+          nama: session.nama || 'Siswa Dev (Testing)',
+          nis: 'DEV-001',
+          kelas: 'DEV',
+          status: 'AKTIF',
+          photoUrl: session.photoUrl || '',
+          photo_url: session.photoUrl || '',
+          balance: 100000,
+          saldoTabungan: 100000,
+          saldoHijau: 50000,
+          dualBalance: { tabungan: 100000, hijau: 50000, total: 150000 }
+        }
+      };
+    }
+
     let members = getSheetData(CONFIG.SHEETS.MEMBERS);
     
     // Find member by user_id
