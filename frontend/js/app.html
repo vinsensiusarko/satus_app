@@ -2457,9 +2457,16 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
           app.myMemberData = d.profile;
           app.siswaDualBalance = d.dualBalance || { tabungan: d.saldoTabungan || 0, hijau: d.saldoHijau || 0 };
           
-          if(d.profile.status === 'MENUNGGU') {
+          const p = d.profile || {};
+          const pStatus = p.status || 'AKTIF';
+          const pNama = p.nama || (app.session ? app.session.nama : 'Siswa');
+          const pId = p.member_id || (app.session ? app.session.userId : '--');
+          const pNis = p.nis || '-';
+          const pKelas = p.kelas || '-';
+
+          if(pStatus === 'MENUNGGU') {
             this.showLoading(false);
-            document.getElementById('s-nama').innerText = d.profile.nama;
+            document.getElementById('s-nama').innerText = pNama;
             document.getElementById('s-info').innerText = 'STATUS: MENUNGGU PERSETUJUAN MANAGER';
             document.getElementById('s-saldo-tabungan').innerText = 'Rp 0';
             document.getElementById('s-saldo-hijau').innerText = 'Rp 0';
@@ -2468,13 +2475,13 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
             return;
           }
           
-          document.getElementById('s-nama').innerText = d.profile.nama;
-          document.getElementById('s-info').innerText = `ID: ${d.profile.member_id} | NIS: ${d.profile.nis} | Kelas: ${d.profile.kelas}`;
+          document.getElementById('s-nama').innerText = pNama;
+          document.getElementById('s-info').innerText = `ID: ${pId} | NIS: ${pNis} | Kelas: ${pKelas}`;
           
           const sAvatar = document.getElementById('s-avatar');
           if (sAvatar) {
-            const photo = (d.profile && d.profile.photoUrl) || (app.session && app.session.photoUrl);
-            const defaultAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(d.profile ? d.profile.nama : 'Siswa') + '&background=10b981&color=fff&bold=true';
+            const photo = (p && p.photoUrl) || (app.session && app.session.photoUrl);
+            const defaultAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(pNama) + '&background=10b981&color=fff&bold=true';
             sAvatar.src = photo || defaultAvatar;
           }
           
@@ -2508,9 +2515,9 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
           // Transactions list
           this.showLoading(false);
           const list = document.getElementById('s-tx-list');
-          if(document.getElementById('s-tx-count')) document.getElementById('s-tx-count').innerText = `${d.recentTx.length} Transaksi`;
+          if(document.getElementById('s-tx-count')) document.getElementById('s-tx-count').innerText = `${(d.recentTx || []).length} Transaksi`;
 
-          if(d.recentTx.length === 0) {
+          if(!d.recentTx || d.recentTx.length === 0) {
             list.innerHTML = '<li class="text-center text-gray-400 py-10">Belum ada riwayat transaksi.</li>';
             return;
           }
@@ -2553,9 +2560,19 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
         } else {
           this.showLoading(false);
           this.showToast(res.message, 'error');
+          if (app.session) {
+            document.getElementById('s-nama').innerText = app.session.nama || app.session.username || 'Siswa';
+            document.getElementById('s-info').innerText = `ID: ${app.session.userId || '--'} | Status: Aktif`;
+          }
         }
       })
-      .withFailureHandler((err) => app.handleError(err))
+      .withFailureHandler((err) => {
+        app.handleError(err);
+        if (app.session) {
+          document.getElementById('s-nama').innerText = app.session.nama || app.session.username || 'Siswa';
+          document.getElementById('s-info').innerText = `ID: ${app.session.userId || '--'} | Status: Aktif`;
+        }
+      })
       .getDashboardData(this.session.token);
   },
 

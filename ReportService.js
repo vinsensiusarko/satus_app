@@ -10,10 +10,33 @@ function getDashboardData(token) {
     } else if (session.role === CONFIG.ROLES.KASIR) {
       return getKasirDashboard();
     } else if (session.role === CONFIG.ROLES.SISWA) {
-      const members = getSheetData(CONFIG.SHEETS.MEMBERS);
-      const member = members.find(m => m.user_id === session.userId);
-      if (!member) throw new Error('Member profile not found');
-      return getSiswaDashboard(member.member_id);
+      let members = getSheetData(CONFIG.SHEETS.MEMBERS);
+      let member = (typeof findMemberForUser === 'function') 
+        ? findMemberForUser(session, members) 
+        : members.find(m => m.user_id === session.userId || m.member_id === session.userId);
+      
+      if (!member) {
+        // Auto-heal: sinkronisasi jika user ada di sheet Users
+        const users = getSheetData(CONFIG.SHEETS.USERS);
+        const user = users.find(u => u.user_id === session.userId || u.username === session.username);
+        if (user && typeof ensureMemberForStudentUser === 'function') {
+          member = ensureMemberForStudentUser(user);
+        }
+      }
+
+      // Jika tetap belum ditemukan, fallback agar dashboard siswa tidak blank/stuck
+      if (!member) {
+        member = {
+          member_id: session.userId || 'KH-SISWA',
+          user_id: session.userId,
+          nama: session.nama || session.username || 'Siswa',
+          nis: '-',
+          kelas: '-',
+          status: 'AKTIF',
+          qr_data: session.userId || 'KH-SISWA'
+        };
+      }
+      return getSiswaDashboard(member.member_id, member);
     }
   } catch (error) {
     if (error.message.includes("Unauthorized")) throw error; return { success: false, message: error.message };
@@ -151,17 +174,29 @@ function getKasirDashboard() {
   };
 }
 
-function getSiswaDashboard(memberId) {
+function getSiswaDashboard(memberId, fallbackMember) {
   const members = getSheetData(CONFIG.SHEETS.MEMBERS);
-  const member = members.find(m => m.member_id === memberId);
+  let member = members.find(m => m.member_id === memberId || m.user_id === memberId);
+  if (!member && fallbackMember) member = fallbackMember;
+
   const users = getSheetData(CONFIG.SHEETS.USERS);
-  const user = member ? users.find(u => u.user_id === member.user_id) : null;
-  const photoUrl = user ? (user.photo_url || '') : '';
+  const user = member 
+    ? users.find(u => (u.user_id && member.user_id && u.user_id === member.user_id) || (u.user_id && member.member_id && u.user_id === member.member_id) || (u.nama && member.nama && u.nama.toLowerCase().trim() === member.nama.toLowerCase().trim()))
+    : null;
+  const photoUrl = user ? (user.photo_url || '') : ((member && member.photo_url) ? member.photo_url : '');
   
   const memberProfile = member ? {
     ...member,
     photoUrl: photoUrl
-  } : null;
+  } : {
+    member_id: memberId,
+    user_id: memberId,
+    nama: 'Siswa',
+    nis: '-',
+    kelas: '-',
+    status: 'AKTIF',
+    photoUrl: photoUrl
+  };
 
   const dualBalance = calculateDualBalance(memberId);
   

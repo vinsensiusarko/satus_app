@@ -345,13 +345,29 @@ function registerUser(token, data) {
       throw new Error('Username sudah digunakan');
     }
     
-    const userId = 'STF-' + Date.now().toString().slice(-6);
+    const isSiswa = (data.role === CONFIG.ROLES.SISWA);
+    const userId = isSiswa ? generateMemberId() : ('STF-' + Date.now().toString().slice(-6));
     const hash = hashPassword(data.password);
     const placeholderPhoto = data.photo_url || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(data.nama) + '&background=10b981&color=fff&bold=true&format=png');
     
     appendRow(CONFIG.SHEETS.USERS, [
       userId, data.username, hash, data.role, data.nama, 'AKTIF', new Date(), placeholderPhoto
     ]);
+
+    // Jika role SISWA, otomatis buat record di tabel Members agar muncul di data anggota
+    if (isSiswa) {
+      appendRow(CONFIG.SHEETS.MEMBERS, [
+        userId,
+        userId,
+        data.nama,
+        data.nis || '-',
+        data.kelas || '-',
+        new Date(),
+        'AKTIF',
+        userId
+      ]);
+      delete cachedSheetData[CONFIG.SHEETS.MEMBERS];
+    }
     
     auditLog(session.userId, session.role, 'ADD_USER', userId, 'Tambah ' + data.role + ': ' + data.nama);
     return { success: true, message: data.role + ' berhasil ditambahkan!' };
@@ -368,16 +384,37 @@ function deactivateUser(token, userId) {
     const headers = data[0];
     const idIdx = headers.indexOf('user_id');
     const statusIdx = headers.indexOf('status');
+    const roleIdx = headers.indexOf('role');
     
     for (let i = 1; i < data.length; i++) {
       if (data[i][idIdx] === userId) {
-        if (data[i][headers.indexOf('role')] === CONFIG.ROLES.MANAGER) {
+        if (data[i][roleIdx] === CONFIG.ROLES.MANAGER) {
           throw new Error('Tidak bisa menonaktifkan akun Manager');
         }
         sheet.getRange(i + 1, statusIdx + 1).setValue('NONAKTIF');
         delete cachedSheetData[CONFIG.SHEETS.USERS];
+
+        // Jika SISWA, nonaktifkan juga di sheet Members
+        if (data[i][roleIdx] === CONFIG.ROLES.SISWA) {
+          try {
+            const mSheet = getSheet(CONFIG.SHEETS.MEMBERS);
+            const mData = mSheet.getDataRange().getValues();
+            const mHeaders = mData[0];
+            const mUid = mHeaders.indexOf('user_id');
+            const mMid = mHeaders.indexOf('member_id');
+            const mSt = mHeaders.indexOf('status');
+            for (let m = 1; m < mData.length; m++) {
+              if (mData[m][mUid] === userId || mData[m][mMid] === userId) {
+                mSheet.getRange(m + 1, mSt + 1).setValue('NONAKTIF');
+                break;
+              }
+            }
+            delete cachedSheetData[CONFIG.SHEETS.MEMBERS];
+          } catch(e) {}
+        }
+
         auditLog(session.userId, session.role, 'DEACTIVATE_USER', userId, 'Set status user ' + userId + ' ke NONAKTIF');
-        return { success: true, message: 'Status staff berhasil dinonaktifkan' };
+        return { success: true, message: 'Status user berhasil dinonaktifkan' };
       }
     }
     throw new Error('User tidak ditemukan');
@@ -394,13 +431,34 @@ function activateUser(token, userId) {
     const headers = data[0];
     const idIdx = headers.indexOf('user_id');
     const statusIdx = headers.indexOf('status');
+    const roleIdx = headers.indexOf('role');
     
     for (let i = 1; i < data.length; i++) {
       if (data[i][idIdx] === userId) {
         sheet.getRange(i + 1, statusIdx + 1).setValue('AKTIF');
         delete cachedSheetData[CONFIG.SHEETS.USERS];
+
+        // Jika SISWA, aktifkan juga di sheet Members
+        if (data[i][roleIdx] === CONFIG.ROLES.SISWA) {
+          try {
+            const mSheet = getSheet(CONFIG.SHEETS.MEMBERS);
+            const mData = mSheet.getDataRange().getValues();
+            const mHeaders = mData[0];
+            const mUid = mHeaders.indexOf('user_id');
+            const mMid = mHeaders.indexOf('member_id');
+            const mSt = mHeaders.indexOf('status');
+            for (let m = 1; m < mData.length; m++) {
+              if (mData[m][mUid] === userId || mData[m][mMid] === userId) {
+                mSheet.getRange(m + 1, mSt + 1).setValue('AKTIF');
+                break;
+              }
+            }
+            delete cachedSheetData[CONFIG.SHEETS.MEMBERS];
+          } catch(e) {}
+        }
+
         auditLog(session.userId, session.role, 'ACTIVATE_USER', userId, 'Set status user ' + userId + ' ke AKTIF');
-        return { success: true, message: 'Status staff berhasil diaktifkan kembali' };
+        return { success: true, message: 'Status user berhasil diaktifkan kembali' };
       }
     }
     throw new Error('User tidak ditemukan');
@@ -426,6 +484,7 @@ function updateUser(token, userId, dataUpdate) {
 
     for (let i = 1; i < data.length; i++) {
       if (data[i][headers.indexOf('user_id')] === userId) {
+        const currentRole = data[i][headers.indexOf('role')];
         if (dataUpdate.nama) sheet.getRange(i + 1, headers.indexOf('nama') + 1).setValue(dataUpdate.nama);
         if (dataUpdate.role) sheet.getRange(i + 1, headers.indexOf('role') + 1).setValue(dataUpdate.role);
         if (dataUpdate.username) sheet.getRange(i + 1, headers.indexOf('username') + 1).setValue(dataUpdate.username);
@@ -437,8 +496,28 @@ function updateUser(token, userId, dataUpdate) {
           sheet.getRange(i + 1, headers.indexOf('photo_url') + 1).setValue(dataUpdate.photo_url);
         }
         delete cachedSheetData[CONFIG.SHEETS.USERS];
+
+        // Jika SISWA, sinkronisasi nama ke tabel Members jika nama diubah
+        if (currentRole === CONFIG.ROLES.SISWA && dataUpdate.nama) {
+          try {
+            const mSheet = getSheet(CONFIG.SHEETS.MEMBERS);
+            const mData = mSheet.getDataRange().getValues();
+            const mHeaders = mData[0];
+            const mUid = mHeaders.indexOf('user_id');
+            const mMid = mHeaders.indexOf('member_id');
+            const mNama = mHeaders.indexOf('nama');
+            for (let m = 1; m < mData.length; m++) {
+              if (mData[m][mUid] === userId || mData[m][mMid] === userId) {
+                mSheet.getRange(m + 1, mNama + 1).setValue(dataUpdate.nama);
+                break;
+              }
+            }
+            delete cachedSheetData[CONFIG.SHEETS.MEMBERS];
+          } catch(e) {}
+        }
+
         auditLog(session.userId, session.role, 'UPDATE_USER', userId, 'Update data user ' + userId);
-        return { success: true, message: 'Data staff berhasil diupdate' };
+        return { success: true, message: 'Data user berhasil diupdate' };
       }
     }
     throw new Error('User tidak ditemukan');

@@ -13,6 +13,61 @@ function getSpreadsheet() {
   return cachedSpreadsheet;
 }
 
+const DATABASE_SCHEMAS = {
+  'Users': ['user_id','username','password_hash','role','nama','status','created_at','photo_url'],
+  'Members': ['member_id','user_id','nama','nis','kelas','tanggal_daftar','status','qr_data'],
+  'Transactions': ['transaction_id','timestamp','member_id','type','wallet_type','credit','debit','amount','cashier_id','description','status'],
+  'Waste_Transactions': ['waste_id','transaction_id','member_id','waste_type','quantity','unit','unit_price','total_value','cashier_id','timestamp'],
+  'Products': ['product_id','product_name','category','price','green_price','stock','status'],
+  'Waste_Prices': ['waste_type','unit','price','effective_date','status'],
+  'Targets': ['target_id','member_id','target_name','target_amount','status','created_at'],
+  'Audit_Log': ['log_id','timestamp','user_id','role','action','reference_id','description'],
+  'Seeds': ['seed_id','seed_name','seed_type','conversion_value','stock','status'],
+  'Seed_Requests': ['request_id','member_id','seed_id','quantity','total_value','status','requested_at','reviewed_by','reviewed_at','reject_reason'],
+  'Void_Requests': ['void_id','transaction_id','member_id','wallet_type','amount','reason','cashier_id','status','requested_at','reviewed_by','reviewed_at','reject_reason']
+};
+
+function ensureSheetHeaders(sheet, sheetName) {
+  if (!sheet) return;
+  const expectedHeaders = DATABASE_SCHEMAS[sheetName];
+  if (!expectedHeaders) return;
+
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+
+  if (lastRow === 0 || lastCol === 0) {
+    const headerRange = sheet.getRange(1, 1, 1, expectedHeaders.length);
+    headerRange.setValues([expectedHeaders]);
+    headerRange.setFontWeight('bold');
+    headerRange.setBackground('#e0e0e0');
+    sheet.setFrozenRows(1);
+    try { sheet.autoResizeColumns(1, expectedHeaders.length); } catch(e) {}
+    return;
+  }
+
+  // Check if row 1 is actually the header row
+  const firstCell = String(sheet.getRange(1, 1).getValue()).trim();
+  if (firstCell !== expectedHeaders[0]) {
+    if (firstCell === '') {
+      // Empty row 1, set headers
+      const headerRange = sheet.getRange(1, 1, 1, expectedHeaders.length);
+      headerRange.setValues([expectedHeaders]);
+      headerRange.setFontWeight('bold');
+      headerRange.setBackground('#e0e0e0');
+      sheet.setFrozenRows(1);
+    } else {
+      // There is actual data in row 1! Insert a new row at row 1 for headers
+      sheet.insertRowBefore(1);
+      const headerRange = sheet.getRange(1, 1, 1, expectedHeaders.length);
+      headerRange.setValues([expectedHeaders]);
+      headerRange.setFontWeight('bold');
+      headerRange.setBackground('#e0e0e0');
+      sheet.setFrozenRows(1);
+      try { sheet.autoResizeColumns(1, expectedHeaders.length); } catch(e) {}
+    }
+  }
+}
+
 function getSheet(sheetName) {
   if (cachedSheets[sheetName]) return cachedSheets[sheetName];
   
@@ -20,19 +75,8 @@ function getSheet(sheetName) {
   let sheet = ss.getSheetByName(sheetName);
   if (!sheet) {
     sheet = ss.insertSheet(sheetName);
-    // Initialize headers if we know them
-    const schemas = {
-      'Targets': ['target_id','member_id','target_name','target_amount','status','created_at']
-    };
-    if (schemas[sheetName]) {
-      const headers = schemas[sheetName];
-      const headerRange = sheet.getRange(1, 1, 1, headers.length);
-      headerRange.setValues([headers]);
-      headerRange.setFontWeight('bold');
-      headerRange.setBackground('#e0e0e0');
-      sheet.setFrozenRows(1);
-    }
   }
+  ensureSheetHeaders(sheet, sheetName);
   cachedSheets[sheetName] = sheet;
   return sheet;
 }

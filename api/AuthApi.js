@@ -64,7 +64,12 @@ function apiLogin(params) {
         user = users.find(u => u.user_id === member.user_id || u.user_id === member.member_id);
       }
     } else if (user.role === CONFIG.ROLES.SISWA) {
-      member = members.find(m => m.user_id === user.user_id || m.member_id === user.user_id);
+      member = (typeof findMemberForUser === 'function')
+        ? findMemberForUser(user, members)
+        : members.find(m => m.user_id === user.user_id || m.member_id === user.user_id);
+      if (!member && typeof ensureMemberForStudentUser === 'function') {
+        member = ensureMemberForStudentUser(user);
+      }
     }
 
     if (!user) {
@@ -239,7 +244,12 @@ function apiVerifyToken(params) {
     let profile = null;
     if (user.role === CONFIG.ROLES.SISWA) {
       const members = getSheetData(CONFIG.SHEETS.MEMBERS);
-      const member = members.find(m => m.user_id === user.user_id || m.member_id === user.user_id);
+      let member = (typeof findMemberForUser === 'function')
+        ? findMemberForUser(user, members)
+        : members.find(m => m.user_id === user.user_id || m.member_id === user.user_id);
+      if (!member && typeof ensureMemberForStudentUser === 'function') {
+        member = ensureMemberForStudentUser(user);
+      }
       profile = buildStudentProfileData(user, member);
     } else if (user.role === CONFIG.ROLES.KASIR) {
       profile = buildKasirProfileData(user);
