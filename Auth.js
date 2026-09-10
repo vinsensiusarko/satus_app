@@ -42,6 +42,7 @@ function generateSignedToken(sessionData) {
     role: sessionData.role,
     nama: sessionData.nama,
     photoUrl: sessionData.photoUrl || '',
+    isDev: !!sessionData.isDev,
     iat: Date.now(),
     exp: Date.now() + (14 * 24 * 60 * 60 * 1000) // 14 days expiration
   };
@@ -198,6 +199,29 @@ function verifyToken(token) {
           if (session.exp && Date.now() > session.exp) {
             return null; // Expired
           }
+
+          // Verifikasi sesi akun dev / testing tanpa query database produksi
+          const isDev = session.isDev || 
+                        (typeof isDevAccount === 'function' && isDevAccount(session)) || 
+                        (typeof isDevUsername === 'function' && isDevUsername(session.username)) || 
+                        (typeof isDevUserId === 'function' && isDevUserId(session.userId));
+
+          if (isDev) {
+            const devKey = String(session.username || '').toLowerCase().trim();
+            const devAcc = (CONFIG.DEV_CONFIG && CONFIG.DEV_CONFIG.ENABLED && CONFIG.DEV_CONFIG.ACCOUNTS) 
+              ? CONFIG.DEV_CONFIG.ACCOUNTS[devKey] 
+              : null;
+            if (devAcc) {
+              session.role = devAcc.role || session.role;
+              session.nama = devAcc.nama || session.nama;
+              session.photoUrl = devAcc.photoUrl || session.photoUrl;
+              session.userId = devAcc.userId || session.userId;
+              session.status = devAcc.status || 'AKTIF';
+            }
+            session.isDev = true;
+            session.token = token;
+            return session;
+          }
           
           // Verify user exists and is active in database
           const users = getSheetData(CONFIG.SHEETS.USERS);
@@ -226,6 +250,15 @@ function verifyToken(token) {
     const sessionStr = cache.get(token);
     if (sessionStr) {
       const session = JSON.parse(sessionStr);
+      const isDev = session.isDev || 
+                    (typeof isDevAccount === 'function' && isDevAccount(session)) || 
+                    (typeof isDevUsername === 'function' && isDevUsername(session.username)) || 
+                    (typeof isDevUserId === 'function' && isDevUserId(session.userId));
+      if (isDev) {
+        session.isDev = true;
+        session.token = token;
+        return session;
+      }
       const users = getSheetData(CONFIG.SHEETS.USERS);
       const dbUser = users.find(u => u.user_id === session.userId);
       if (!dbUser || (dbUser.status !== 'AKTIF' && !(dbUser.role === 'SISWA' && dbUser.status === 'MENUNGGU'))) {
@@ -256,6 +289,10 @@ function changePassword(token, oldPassword, newPassword) {
     
     if (!newPassword || newPassword.length < 4) {
       throw new Error('Password baru minimal 4 karakter');
+    }
+
+    if (session.isDev || (typeof isDevAccount === 'function' && isDevAccount(session))) {
+      return { success: true, message: 'Password akun dev berhasil disimulasikan!' };
     }
     
     const sheet = getSheet(CONFIG.SHEETS.USERS);
@@ -292,6 +329,17 @@ function updateMyProfile(token, dataUpdate) {
     if (!session) throw new Error('Unauthorized: Session expired or invalid');
     
     ensureUserPhotoColumn();
+
+    if (session.isDev || (typeof isDevAccount === 'function' && isDevAccount(session))) {
+      if (dataUpdate.nama) session.nama = dataUpdate.nama;
+      if (dataUpdate.photo_url) session.photoUrl = dataUpdate.photo_url;
+      try {
+        const cache = CacheService.getScriptCache();
+        cache.put(token, JSON.stringify(session), 21600);
+      } catch(e) {}
+      return { success: true, message: 'Profil dev berhasil diperbarui!', data: session };
+    }
+
     const sheet = getSheet(CONFIG.SHEETS.USERS);
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
