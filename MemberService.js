@@ -15,10 +15,8 @@ function registerMember(token, data) {
     const userId = memberId; // Use same ID for User record so it shows as KH-
     const hash = hashPassword(data.password);
     
-    // Jika didaftarkan langsung oleh Manager, langsung AKTIF. Jika oleh Kasir, MENUNGGU persetujuan
-    const initialStatus = (session.role === CONFIG.ROLES.MANAGER) 
-      ? CONFIG.MEMBER_STATUS.AKTIF 
-      : CONFIG.MEMBER_STATUS.MENUNGGU;
+    // Sesuai perencanaan: setiap siswa yang baru didaftarkan statusnya selalu MENUNGGU konfirmasi Manager
+    const initialStatus = CONFIG.MEMBER_STATUS.MENUNGGU;
 
     appendRow(CONFIG.SHEETS.MEMBERS, [
       memberId, 
@@ -38,10 +36,7 @@ function registerMember(token, data) {
     ]);
 
     auditLog(session.userId, session.role, 'REGISTER_MEMBER', memberId, `Register member: ${data.nama}`);
-    const successMsg = (initialStatus === CONFIG.MEMBER_STATUS.AKTIF)
-      ? 'Siswa baru berhasil didaftarkan dan langsung aktif.'
-      : 'Pendaftaran berhasil, menunggu persetujuan Manager.';
-    return { success: true, message: successMsg, memberId: memberId };
+    return { success: true, message: 'Pendaftaran berhasil, akun berstatus MENUNGGU persetujuan Manager.', memberId: memberId };
   } catch (error) {
     if (error.message.includes("Unauthorized")) throw error; return { success: false, message: error.message };
   }
@@ -240,6 +235,7 @@ function ensureMemberForStudentUser(user) {
 
   const uId = String(user.user_id || user.userId || '').trim();
   const memberId = (uId && uId.startsWith('KH-')) ? uId : generateMemberId();
+  const memberStatus = user.status || CONFIG.MEMBER_STATUS.MENUNGGU;
 
   const newMemberRow = [
     memberId,
@@ -248,7 +244,7 @@ function ensureMemberForStudentUser(user) {
     user.nis || '-',
     user.kelas || '-',
     user.created_at || new Date(),
-    user.status || 'AKTIF',
+    memberStatus,
     memberId
   ];
 
@@ -262,7 +258,7 @@ function ensureMemberForStudentUser(user) {
     nis: user.nis || '-',
     kelas: user.kelas || '-',
     tanggal_daftar: user.created_at || new Date(),
-    status: user.status || 'AKTIF',
+    status: memberStatus,
     qr_data: memberId
   };
 }

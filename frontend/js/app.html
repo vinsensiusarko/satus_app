@@ -2458,11 +2458,18 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
           app.siswaDualBalance = d.dualBalance || { tabungan: d.saldoTabungan || 0, hijau: d.saldoHijau || 0 };
           
           const p = d.profile || {};
-          const pStatus = p.status || 'AKTIF';
+          const pStatus = p.status || (app.session ? app.session.status : 'MENUNGGU');
           const pNama = p.nama || (app.session ? app.session.nama : 'Siswa');
           const pId = p.member_id || (app.session ? app.session.userId : '--');
           const pNis = p.nis || '-';
           const pKelas = p.kelas || '-';
+
+          const sAvatar = document.getElementById('s-avatar');
+          if (sAvatar) {
+            const photo = (p && p.photoUrl) || (app.session && app.session.photoUrl);
+            const defaultAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(pNama) + '&background=10b981&color=fff&bold=true';
+            sAvatar.src = photo || defaultAvatar;
+          }
 
           if(pStatus === 'MENUNGGU') {
             this.showLoading(false);
@@ -2477,13 +2484,6 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
           
           document.getElementById('s-nama').innerText = pNama;
           document.getElementById('s-info').innerText = `ID: ${pId} | NIS: ${pNis} | Kelas: ${pKelas}`;
-          
-          const sAvatar = document.getElementById('s-avatar');
-          if (sAvatar) {
-            const photo = (p && p.photoUrl) || (app.session && app.session.photoUrl);
-            const defaultAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(pNama) + '&background=10b981&color=fff&bold=true';
-            sAvatar.src = photo || defaultAvatar;
-          }
           
           // Dual Balance display (PRD v2 Poin 30)
           document.getElementById('s-saldo-tabungan').innerText = 'Rp ' + (d.saldoTabungan || 0).toLocaleString('id-ID');

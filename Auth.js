@@ -349,12 +349,13 @@ function registerUser(token, data) {
     const userId = isSiswa ? generateMemberId() : ('STF-' + Date.now().toString().slice(-6));
     const hash = hashPassword(data.password);
     const placeholderPhoto = data.photo_url || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(data.nama) + '&background=10b981&color=fff&bold=true&format=png');
+    const userStatus = isSiswa ? CONFIG.MEMBER_STATUS.MENUNGGU : 'AKTIF';
     
     appendRow(CONFIG.SHEETS.USERS, [
-      userId, data.username, hash, data.role, data.nama, 'AKTIF', new Date(), placeholderPhoto
+      userId, data.username, hash, data.role, data.nama, userStatus, new Date(), placeholderPhoto
     ]);
 
-    // Jika role SISWA, otomatis buat record di tabel Members agar muncul di data anggota
+    // Jika role SISWA, otomatis buat record di tabel Members agar muncul di data anggota dengan status MENUNGGU
     if (isSiswa) {
       appendRow(CONFIG.SHEETS.MEMBERS, [
         userId,
@@ -363,14 +364,17 @@ function registerUser(token, data) {
         data.nis || '-',
         data.kelas || '-',
         new Date(),
-        'AKTIF',
+        CONFIG.MEMBER_STATUS.MENUNGGU,
         userId
       ]);
       delete cachedSheetData[CONFIG.SHEETS.MEMBERS];
     }
     
     auditLog(session.userId, session.role, 'ADD_USER', userId, 'Tambah ' + data.role + ': ' + data.nama);
-    return { success: true, message: data.role + ' berhasil ditambahkan!' };
+    const msg = isSiswa 
+      ? 'Siswa berhasil ditambahkan dengan status MENUNGGU konfirmasi Manager.' 
+      : (data.role + ' berhasil ditambahkan!');
+    return { success: true, message: msg };
   } catch (error) {
     if (error.message.includes("Unauthorized")) throw error; return { success: false, message: error.message };
   }

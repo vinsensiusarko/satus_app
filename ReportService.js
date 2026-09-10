@@ -32,7 +32,7 @@ function getDashboardData(token) {
           nama: session.nama || session.username || 'Siswa',
           nis: '-',
           kelas: '-',
-          status: 'AKTIF',
+          status: session.status || CONFIG.MEMBER_STATUS.MENUNGGU,
           qr_data: session.userId || 'KH-SISWA'
         };
       }
@@ -194,7 +194,7 @@ function getSiswaDashboard(memberId, fallbackMember) {
     nama: 'Siswa',
     nis: '-',
     kelas: '-',
-    status: 'AKTIF',
+    status: (user && user.status) || CONFIG.MEMBER_STATUS.MENUNGGU,
     photoUrl: photoUrl
   };
 
