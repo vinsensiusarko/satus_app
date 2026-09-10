@@ -59,12 +59,18 @@ function apiLogin(params) {
         };
       }
 
+      let customPhoto = devAcc.photoUrl;
+      try {
+        const cached = CacheService.getScriptCache().get('dev_photo_' + identifier.toLowerCase());
+        if (cached) customPhoto = cached;
+      } catch (e) {}
+
       const sessionData = {
         userId: devAcc.userId,
         username: devAcc.username,
         role: devAcc.role,
         nama: devAcc.nama,
-        photoUrl: devAcc.photoUrl,
+        photoUrl: customPhoto,
         isDev: true,
         status: devAcc.status || 'AKTIF'
       };
@@ -87,7 +93,7 @@ function apiLogin(params) {
           kelas: devAcc.kelas,
           registered_at: new Date().toISOString(),
           status: 'AKTIF',
-          photo_url: devAcc.photoUrl
+          photo_url: customPhoto
         };
         const mockUser = {
           user_id: devAcc.userId,
@@ -95,7 +101,7 @@ function apiLogin(params) {
           nama: devAcc.nama,
           role: CONFIG.ROLES.SISWA,
           status: 'AKTIF',
-          photo_url: devAcc.photoUrl
+          photo_url: customPhoto
         };
         responseData = buildStudentProfileData(mockUser, mockMember);
       } else if (devAcc.role === CONFIG.ROLES.KASIR) {
@@ -105,7 +111,7 @@ function apiLogin(params) {
           nama: devAcc.nama,
           role: CONFIG.ROLES.KASIR,
           status: 'AKTIF',
-          photo_url: devAcc.photoUrl
+          photo_url: customPhoto
         });
       } else {
         responseData = buildManagerProfileData({
@@ -114,7 +120,7 @@ function apiLogin(params) {
           nama: devAcc.nama,
           role: CONFIG.ROLES.MANAGER,
           status: 'AKTIF',
-          photo_url: devAcc.photoUrl
+          photo_url: customPhoto
         });
       }
 
@@ -321,24 +327,37 @@ function apiVerifyToken(params) {
 
     // Jika sesi akun dev, buat profil tanpa query sheet produksi
     if (session.isDev || (typeof isDevAccount === 'function' && isDevAccount(session))) {
-      const devAcc = (CONFIG.DEV_CONFIG && CONFIG.DEV_CONFIG.ACCOUNTS[session.username.toLowerCase()]) || {
+      const devKey = String(session.username || '').toLowerCase().trim();
+      const devAcc = (CONFIG.DEV_CONFIG && CONFIG.DEV_CONFIG.ACCOUNTS[devKey]) || {
         username: session.username,
         role: session.role,
         nama: session.nama,
         userId: session.userId,
         photoUrl: session.photoUrl
       };
+
+      let activePhoto = null;
+      try {
+        const cached = CacheService.getScriptCache().get('dev_photo_' + devKey);
+        if (cached) activePhoto = cached;
+      } catch (e) {}
+      if (!activePhoto) {
+        activePhoto = session.photoUrl || session.photo_url || (devAcc ? devAcc.photoUrl : '');
+      }
+
       let profile;
       if (devAcc.role === CONFIG.ROLES.SISWA) {
         profile = buildStudentProfileData(
-          { user_id: devAcc.userId, username: devAcc.username, nama: devAcc.nama, role: 'SISWA', status: 'AKTIF', photo_url: devAcc.photoUrl },
-          { member_id: devAcc.memberId || devAcc.userId, user_id: devAcc.userId, nama: devAcc.nama, nis: devAcc.nis || 'DEV-001', kelas: devAcc.kelas || 'DEV', status: 'AKTIF', photo_url: devAcc.photoUrl }
+          { user_id: devAcc.userId, username: devAcc.username, nama: session.nama || devAcc.nama, role: 'SISWA', status: 'AKTIF', photo_url: activePhoto },
+          { member_id: devAcc.memberId || devAcc.userId, user_id: devAcc.userId, nama: session.nama || devAcc.nama, nis: devAcc.nis || 'DEV-001', kelas: devAcc.kelas || 'DEV', status: 'AKTIF', photo_url: activePhoto }
         );
       } else if (devAcc.role === CONFIG.ROLES.KASIR) {
-        profile = buildKasirProfileData({ user_id: devAcc.userId, username: devAcc.username, nama: devAcc.nama, role: 'KASIR', status: 'AKTIF', photo_url: devAcc.photoUrl });
+        profile = buildKasirProfileData({ user_id: devAcc.userId, username: devAcc.username, nama: session.nama || devAcc.nama, role: 'KASIR', status: 'AKTIF', photo_url: activePhoto });
       } else {
-        profile = buildManagerProfileData({ user_id: devAcc.userId, username: devAcc.username, nama: devAcc.nama, role: 'MANAGER', status: 'AKTIF', photo_url: devAcc.photoUrl });
+        profile = buildManagerProfileData({ user_id: devAcc.userId, username: devAcc.username, nama: session.nama || devAcc.nama, role: 'MANAGER', status: 'AKTIF', photo_url: activePhoto });
       }
+      profile.photo_url = activePhoto;
+      profile.photoUrl = activePhoto;
       profile.token = token;
       profile.isDev = true;
       return { success: true, message: 'Token valid (Akun Dev)', data: profile };
@@ -422,7 +441,12 @@ function apiUpdateProfile(params) {
     const res = updateMyProfile(token, updateData);
     if (res.success) {
       // Re-fetch updated profile according to role
-      return apiVerifyToken({ token: token });
+      const effectiveToken = (res.token || (res.data && res.data.token)) ? (res.token || res.data.token) : token;
+      const verified = apiVerifyToken({ token: effectiveToken });
+      if (verified && verified.success && verified.data) {
+        verified.data.token = effectiveToken;
+      }
+      return verified;
     } else {
       return { success: false, error_code: 'UPDATE_FAILED', message: res.message || 'Gagal memperbarui profil' };
     }

@@ -16,7 +16,7 @@ const app = {
     this.selectedPhotoDataUrl = null;
     
     const preview = document.getElementById('profile-modal-avatar-preview');
-    const avatar = this.session.photoUrl || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(this.session.nama || this.session.username) + '&background=10b981&color=fff&bold=true');
+    const avatar = this.formatPhotoUrl(this.session.photoUrl || this.session.photo_url, this.session.nama || this.session.username);
     if (preview) preview.src = avatar;
 
     modal.classList.remove('hidden');
@@ -99,30 +99,44 @@ const app = {
   },
 
   saveProfilePhoto: function() {
+    if (!this.session || !this.session.token) {
+      this.showToast('Sesi login tidak valid atau telah berakhir', 'error');
+      return;
+    }
     if (!this.selectedPhotoDataUrl) {
       this.showToast('Pilih foto baru terlebih dahulu', 'error');
       return;
     }
 
+    const photoToSave = this.selectedPhotoDataUrl;
     this.showLoading(true);
     google.script.run
       .withSuccessHandler((res) => {
         this.showLoading(false);
         if (res.success) {
-          const currentToken = this.session ? this.session.token : null;
-          this.session = res.data;
-          if (currentToken && !this.session.token) {
-            this.session.token = currentToken;
+          const newToken = res.token || (res.data && res.data.token) || (this.session ? this.session.token : null);
+          const newPhoto = (res.data && (res.data.photoUrl || res.data.photo_url)) || photoToSave;
+          
+          if (this.session) {
+            this.session = {
+              ...this.session,
+              ...(res.data || {}),
+              photoUrl: newPhoto,
+              photo_url: newPhoto,
+              token: newToken || this.session.token
+            };
+            this.saveSession(this.session);
           }
-          this.saveSession(this.session);
           this.updateNavProfile();
           this.closeProfileModal();
-          this.showToast('Foto profil berhasil diperbarui!', 'success');
+          this.showToast(res.message || 'Foto profil berhasil diperbarui!', 'success');
           
           const sAvatar = document.getElementById('s-avatar');
-          if (sAvatar) sAvatar.src = res.data.photoUrl;
+          if (sAvatar) {
+            sAvatar.src = this.formatPhotoUrl(newPhoto, this.session ? (this.session.nama || this.session.username) : 'Siswa');
+          }
         } else {
-          this.showToast(res.message, 'error');
+          this.showToast(res.message || 'Gagal memperbarui foto profil', 'error');
         }
       })
       .withFailureHandler((err) => app.handleError(err))
@@ -193,7 +207,7 @@ const app = {
     if (navRole) navRole.innerText = this.session.role;
     if (navAvatar) {
       const defaultAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(this.session.nama || this.session.username) + '&background=10b981&color=fff&bold=true';
-      navAvatar.src = this.formatPhotoUrl(this.session.photoUrl, this.session.nama || this.session.username);
+      navAvatar.src = this.formatPhotoUrl(this.session.photoUrl || this.session.photo_url, this.session.nama || this.session.username);
       navAvatar.onerror = function() {
         this.onerror = null;
         this.src = defaultAvatar;
@@ -2466,9 +2480,8 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
 
           const sAvatar = document.getElementById('s-avatar');
           if (sAvatar) {
-            const photo = (p && p.photoUrl) || (app.session && app.session.photoUrl);
-            const defaultAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(pNama) + '&background=10b981&color=fff&bold=true';
-            sAvatar.src = photo || defaultAvatar;
+            const photo = (p && (p.photoUrl || p.photo_url)) || (app.session && (app.session.photoUrl || app.session.photo_url));
+            sAvatar.src = app.formatPhotoUrl(photo, pNama);
           }
 
           if(pStatus === 'MENUNGGU') {

@@ -102,12 +102,18 @@ function login(username, password) {
         return { success: false, message: 'Password akun dev salah' };
       }
 
+      let customPhoto = devAcc.photoUrl;
+      try {
+        const cached = CacheService.getScriptCache().get('dev_photo_' + cleanUsername);
+        if (cached) customPhoto = cached;
+      } catch (e) {}
+
       const sessionData = {
         userId: devAcc.userId,
         username: devAcc.username,
         role: devAcc.role,
         nama: devAcc.nama,
-        photoUrl: devAcc.photoUrl,
+        photoUrl: customPhoto,
         isDev: true,
         status: devAcc.status || 'AKTIF'
       };
@@ -211,13 +217,24 @@ function verifyToken(token) {
             const devAcc = (CONFIG.DEV_CONFIG && CONFIG.DEV_CONFIG.ENABLED && CONFIG.DEV_CONFIG.ACCOUNTS) 
               ? CONFIG.DEV_CONFIG.ACCOUNTS[devKey] 
               : null;
+
+            let activePhoto = null;
+            try {
+              const cached = CacheService.getScriptCache().get('dev_photo_' + devKey);
+              if (cached) activePhoto = cached;
+            } catch (e) {}
+            if (!activePhoto) {
+              activePhoto = session.photoUrl || (devAcc ? devAcc.photoUrl : '');
+            }
+
             if (devAcc) {
               session.role = devAcc.role || session.role;
               session.nama = devAcc.nama || session.nama;
-              session.photoUrl = devAcc.photoUrl || session.photoUrl;
               session.userId = devAcc.userId || session.userId;
               session.status = devAcc.status || 'AKTIF';
             }
+            session.photoUrl = activePhoto || '';
+            session.photo_url = session.photoUrl;
             session.isDev = true;
             session.token = token;
             return session;
@@ -255,6 +272,26 @@ function verifyToken(token) {
                     (typeof isDevUsername === 'function' && isDevUsername(session.username)) || 
                     (typeof isDevUserId === 'function' && isDevUserId(session.userId));
       if (isDev) {
+        const devKey = String(session.username || '').toLowerCase().trim();
+        const devAcc = (CONFIG.DEV_CONFIG && CONFIG.DEV_CONFIG.ENABLED && CONFIG.DEV_CONFIG.ACCOUNTS) 
+          ? CONFIG.DEV_CONFIG.ACCOUNTS[devKey] 
+          : null;
+        let activePhoto = null;
+        try {
+          const cached = CacheService.getScriptCache().get('dev_photo_' + devKey);
+          if (cached) activePhoto = cached;
+        } catch (e) {}
+        if (!activePhoto) {
+          activePhoto = session.photoUrl || (devAcc ? devAcc.photoUrl : '');
+        }
+        if (devAcc) {
+          session.role = devAcc.role || session.role;
+          session.nama = devAcc.nama || session.nama;
+          session.userId = devAcc.userId || session.userId;
+          session.status = devAcc.status || 'AKTIF';
+        }
+        session.photoUrl = activePhoto || '';
+        session.photo_url = session.photoUrl;
         session.isDev = true;
         session.token = token;
         return session;
@@ -331,13 +368,31 @@ function updateMyProfile(token, dataUpdate) {
     ensureUserPhotoColumn();
 
     if (session.isDev || (typeof isDevAccount === 'function' && isDevAccount(session))) {
+      const devKey = String(session.username || '').toLowerCase().trim();
       if (dataUpdate.nama) session.nama = dataUpdate.nama;
-      if (dataUpdate.photo_url) session.photoUrl = dataUpdate.photo_url;
+      if (dataUpdate.photo_url !== undefined) {
+        session.photoUrl = dataUpdate.photo_url;
+        session.photo_url = dataUpdate.photo_url;
+        try {
+          CacheService.getScriptCache().put('dev_photo_' + devKey, dataUpdate.photo_url, 21600);
+        } catch(e) {
+          console.warn('Cache put dev photo warning:', e);
+        }
+      }
+
+      // Terbitkan token bertanda tangan baru yang membawa foto baru
+      const newToken = generateSignedToken(session);
+      session.token = newToken;
       try {
-        const cache = CacheService.getScriptCache();
-        cache.put(token, JSON.stringify(session), 21600);
+        CacheService.getScriptCache().put(newToken, JSON.stringify(session), 21600);
       } catch(e) {}
-      return { success: true, message: 'Profil dev berhasil diperbarui!', data: session };
+
+      return { 
+        success: true, 
+        message: 'Foto profil dev berhasil diperbarui!', 
+        data: session, 
+        token: newToken 
+      };
     }
 
     const sheet = getSheet(CONFIG.SHEETS.USERS);
@@ -395,7 +450,8 @@ function updateMyProfile(token, dataUpdate) {
         return { 
           success: true, 
           message: 'Profil berhasil diperbarui!',
-          data: session
+          data: session,
+          token: token
         };
       }
     }

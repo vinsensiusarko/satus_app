@@ -19,7 +19,8 @@ function getDashboardData(token) {
           kelas: 'DEV',
           status: 'AKTIF',
           qr_data: 'DEV-SIS-001',
-          photoUrl: session.photoUrl || ''
+          photoUrl: session.photoUrl || '',
+          photo_url: session.photoUrl || ''
         });
       }
 
@@ -205,8 +206,13 @@ function getSiswaDashboard(memberId, fallbackMember) {
       nis: 'DEV-001',
       kelas: 'DEV',
       status: 'AKTIF',
-      photoUrl: 'https://ui-avatars.com/api/?name=Siswa+Dev&background=10b981&color=fff&bold=true'
+      photoUrl: 'https://ui-avatars.com/api/?name=Siswa+Dev&background=10b981&color=fff&bold=true',
+      photo_url: 'https://ui-avatars.com/api/?name=Siswa+Dev&background=10b981&color=fff&bold=true'
     };
+    if (fallbackMember && (fallbackMember.photoUrl || fallbackMember.photo_url)) {
+      devProfile.photoUrl = fallbackMember.photoUrl || fallbackMember.photo_url;
+      devProfile.photo_url = devProfile.photoUrl;
+    }
     return {
       success: true,
       data: {
