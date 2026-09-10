@@ -954,8 +954,17 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
 
       const qrContainer = document.getElementById('pt-qr-container');
       if (qrContainer) {
-        const url = 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' + encodeURIComponent(this.myMemberData.member_id);
-        qrContainer.innerHTML = '<img src="' + url + '" alt="QR" class="w-full h-full object-contain mix-blend-multiply">';
+        const url = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&ecc=H&data=' + encodeURIComponent(this.myMemberData.member_id);
+        const logoSrc = this.getLogoSrc();
+        qrContainer.innerHTML = `
+          <div class="relative w-full h-full flex items-center justify-center">
+            <img src="${url}" alt="QR" class="w-full h-full object-contain mix-blend-multiply">
+            <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div class="w-4 h-4 bg-white rounded-sm p-[1px] shadow-sm border border-slate-200 flex items-center justify-center">
+                <img src="${logoSrc}" alt="SATUS" class="w-full h-full object-contain rounded-[2px]">
+              </div>
+            </div>
+          </div>`;
       }
     }
 
@@ -2571,12 +2580,30 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
       .setTarget(this.session.token, name, amount);
   },
 
+  getLogoSrc: function() {
+    const brandImg = document.querySelector('img[alt="Logo SATUS"]') || document.querySelector('nav#navbar img');
+    if (brandImg && brandImg.src) {
+      return brandImg.src;
+    }
+    return 'https://iili.io/nFGEkEF.png';
+  },
+
   generateMyQR: function() {
-    if(!app.myMemberData) return;
+    if (!app.myMemberData) return;
     const qrData = app.myMemberData.member_id;
-    const url = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`;
+    const url = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&ecc=H&data=${encodeURIComponent(qrData)}`;
     const container = document.getElementById('s-qr-container');
-    container.innerHTML = `<img src="${url}" alt="QR Code" class="w-full h-full object-contain mix-blend-multiply">`;
+    if (!container) return;
+    const logoSrc = this.getLogoSrc();
+    container.innerHTML = `
+      <div class="relative w-full h-full flex items-center justify-center">
+        <img src="${url}" alt="QR Code" class="w-full h-full object-contain mix-blend-multiply">
+        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div class="w-9 h-9 bg-white rounded-lg p-0.5 shadow-md border border-slate-200/80 flex items-center justify-center">
+            <img src="${logoSrc}" alt="SATUS" class="w-full h-full object-contain rounded">
+          </div>
+        </div>
+      </div>`;
   },
 
   openModalTukarBibit: function() {
