@@ -382,6 +382,11 @@ function registerUser(token, data) {
     const session = requireRole(token, [CONFIG.ROLES.MANAGER]);
     ensureUserPhotoColumn();
     
+    // Check if username is dev reserved
+    if (typeof isDevUsername === 'function' && isDevUsername(data.username)) {
+      throw new Error('Username ini dicadangkan untuk environment testing dev');
+    }
+
     // Check if username exists
     const users = getSheetData(CONFIG.SHEETS.USERS);
     if (users.find(u => u.username === data.username)) {

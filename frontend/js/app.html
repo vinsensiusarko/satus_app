@@ -2806,6 +2806,24 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
           if (countEl) countEl.innerText = '0 Siswa';
           return;
         }
+
+        // Layer pertahanan frontend: isolasi dev accounts dari tabel Data Anggota Siswa
+        if (res.data && Array.isArray(res.data)) {
+          res.data = res.data.filter(m => {
+            if (!m) return false;
+            const mid = String(m.member_id || '').toLowerCase();
+            const uid = String(m.user_id || '').toLowerCase();
+            const nama = String(m.nama || '').toLowerCase();
+            const nis = String(m.nis || '').toLowerCase();
+            const kelas = String(m.kelas || '').toLowerCase();
+            if (mid.startsWith('dev') || uid.startsWith('dev') || mid.includes('dev-') || uid.includes('dev-')) return false;
+            if (mid === 'siswa-dev' || uid === 'siswa-dev') return false;
+            if (nama.includes('siswa dev') || nama.includes('siswa-dev') || nama.includes('admin dev') || nama.includes('kasir dev') || nama.includes('(testing)')) return false;
+            if (nis === 'dev-001' || nis === 'dev' || nis.startsWith('dev') || kelas === 'dev') return false;
+            return true;
+          });
+        }
+
         if (countEl) countEl.innerText = `Total: ${res.data.length} Siswa`;
         if (res.data.length === 0) {
           tbody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-gray-500">Belum ada siswa yang terdaftar.</td></tr>';
@@ -2853,7 +2871,14 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
           return;
         }
         
-        const staffList = (res.data || []).filter(u => u.role !== 'SISWA');
+        const staffList = (res.data || []).filter(u => {
+          if (u.role === 'SISWA') return false;
+          const uname = String(u.username || '').toLowerCase();
+          const uid = String(u.user_id || '').toLowerCase();
+          const unama = String(u.nama || '').toLowerCase();
+          if (uname.includes('dev') || uid.startsWith('dev') || unama.includes('dev') || unama.includes('(testing)')) return false;
+          return true;
+        });
         if (countEl) countEl.innerText = `Total: ${staffList.length} Staff`;
 
         if (staffList.length === 0) {

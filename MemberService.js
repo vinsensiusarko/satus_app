@@ -5,6 +5,9 @@ function registerMember(token, data) {
     const session = requireRole(token, [CONFIG.ROLES.MANAGER, CONFIG.ROLES.KASIR]);
     
     // Check username availability
+    if (typeof isDevUsername === 'function' && isDevUsername(data.username)) {
+      throw new Error('Username ini dicadangkan untuk testing dev');
+    }
     const users = getSheetData(CONFIG.SHEETS.USERS);
     if (users.find(u => u.username === data.username)) {
       throw new Error('Username sudah digunakan');
@@ -269,6 +272,40 @@ function ensureMemberForStudentUser(user) {
 function syncStudentMembers() {
   const users = getSheetData(CONFIG.SHEETS.USERS);
   const studentUsers = users.filter(u => u.role === CONFIG.ROLES.SISWA && (typeof isDevAccount !== 'function' || !isDevAccount(u)));
+
+  // Bersihkan baris akun dev jika pernah tersimpan di sheet Members produksi
+  try {
+    const sheet = getSheet(CONFIG.SHEETS.MEMBERS);
+    const data = sheet.getDataRange().getValues();
+    if (data && data.length > 1) {
+      const headers = data[0];
+      const uIdIdx = headers.indexOf('user_id');
+      const mIdIdx = headers.indexOf('member_id');
+      const namaIdx = headers.indexOf('nama');
+      const nisIdx = headers.indexOf('nis');
+      const kelasIdx = headers.indexOf('kelas');
+      let cleaned = false;
+      for (let i = data.length - 1; i >= 1; i--) {
+        const rowObj = {
+          user_id: data[i][uIdIdx],
+          member_id: data[i][mIdIdx],
+          nama: data[i][namaIdx],
+          nis: nisIdx !== -1 ? data[i][nisIdx] : '',
+          kelas: kelasIdx !== -1 ? data[i][kelasIdx] : ''
+        };
+        if (typeof isDevAccount === 'function' && isDevAccount(rowObj)) {
+          sheet.deleteRow(i + 1);
+          cleaned = true;
+        }
+      }
+      if (cleaned) {
+        delete cachedSheetData[CONFIG.SHEETS.MEMBERS];
+      }
+    }
+  } catch (e) {
+    console.warn('Gagal membersihkan baris dev member: ' + e.message);
+  }
+
   if (studentUsers.length === 0) return;
 
   let members = getSheetData(CONFIG.SHEETS.MEMBERS);
@@ -292,14 +329,45 @@ function getMemberList(token) {
     requireRole(token, [CONFIG.ROLES.MANAGER, CONFIG.ROLES.KASIR]);
     ensureUserPhotoColumn();
     
-    // Auto-heal: sinkronisasi siswa dari tabel Users jika belum ada di tabel Members
+    // Auto-heal: sinkronisasi siswa dari tabel Users jika belum ada di tabel Members (dan purge dev)
     syncStudentMembers();
 
     const members = getSheetData(CONFIG.SHEETS.MEMBERS);
     const users = getSheetData(CONFIG.SHEETS.USERS);
     
-    // Filter akun dev agar tabel anggota siswa produksi tetap bersih
-    const prodMembers = members.filter(m => typeof isDevAccount !== 'function' || !isDevAccount(m));
+    // Kumpulkan seluruh identifier akun dev dari dev config & tabel users untuk filter silang
+    const devIdMap = {};
+    const devNames = {};
+    if (CONFIG.DEV_CONFIG && CONFIG.DEV_CONFIG.ACCOUNTS) {
+      Object.keys(CONFIG.DEV_CONFIG.ACCOUNTS).forEach(k => {
+        const a = CONFIG.DEV_CONFIG.ACCOUNTS[k];
+        if (a.username) devIdMap[String(a.username).toLowerCase().trim()] = true;
+        if (a.userId) devIdMap[String(a.userId).toLowerCase().trim()] = true;
+        if (a.memberId) devIdMap[String(a.memberId).toLowerCase().trim()] = true;
+        if (a.nama) devNames[String(a.nama).toLowerCase().trim()] = true;
+      });
+    }
+    users.forEach(u => {
+      if (typeof isDevAccount === 'function' && isDevAccount(u)) {
+        if (u.user_id) devIdMap[String(u.user_id).toLowerCase().trim()] = true;
+        if (u.username) devIdMap[String(u.username).toLowerCase().trim()] = true;
+        if (u.nama) devNames[String(u.nama).toLowerCase().trim()] = true;
+      }
+    });
+
+    // Filter akun dev agar tabel anggota siswa produksi tetap bersih 100%
+    const prodMembers = members.filter(m => {
+      if (!m) return false;
+      if (typeof isDevAccount === 'function' && isDevAccount(m)) return false;
+      const mUserId = String(m.user_id || '').toLowerCase().trim();
+      const mMemberId = String(m.member_id || '').toLowerCase().trim();
+      const mName = String(m.nama || '').toLowerCase().trim();
+      if (mUserId && devIdMap[mUserId]) return false;
+      if (mMemberId && devIdMap[mMemberId]) return false;
+      if (mName && devNames[mName]) return false;
+      return true;
+    });
+
     const prodUsers = users.filter(u => typeof isDevAccount !== 'function' || !isDevAccount(u));
 
     // Attach dual balances & profile photos
@@ -331,6 +399,20 @@ function getMemberList(token) {
 }
 
 function getMemberById(memberId) {
+  if (typeof isDevAccount === 'function' && isDevAccount({ member_id: memberId })) {
+    const dev = CONFIG.DEV_CONFIG && CONFIG.DEV_CONFIG.ACCOUNTS && CONFIG.DEV_CONFIG.ACCOUNTS['siswa-dev'];
+    if (dev) {
+      return {
+        member_id: dev.memberId,
+        user_id: dev.userId,
+        nama: dev.nama,
+        nis: dev.nis,
+        kelas: dev.kelas,
+        status: dev.status,
+        isDev: true
+      };
+    }
+  }
   const members = getSheetData(CONFIG.SHEETS.MEMBERS);
   return members.find(m => m.member_id === memberId) || null;
 }
@@ -345,41 +427,47 @@ function findMember(token, query) {
     
     if (!q) return { success: false, message: 'Harap masukkan kata kunci pencarian' };
 
+    // Saring akun dev terlebih dahulu
+    const prodMembers = members.filter(m => typeof isDevAccount !== 'function' || !isDevAccount(m));
+    const prodUsers = users.filter(u => typeof isDevAccount !== 'function' || !isDevAccount(u));
+
     // 1. Search in members sheet: Member ID, NIS, or Nama (exact or partial)
-    let found = members.find(m => 
+    let found = prodMembers.find(m => 
       String(m.member_id || '').trim().toLowerCase() === q || 
       String(m.nis || '').trim().toLowerCase() === q
     );
     if (!found) {
-      found = members.find(m => String(m.nama || '').trim().toLowerCase() === q);
+      found = prodMembers.find(m => String(m.nama || '').trim().toLowerCase() === q);
     }
     if (!found) {
-      found = members.find(m => String(m.nama || '').trim().toLowerCase().includes(q));
+      found = prodMembers.find(m => String(m.nama || '').trim().toLowerCase().includes(q));
     }
     // Also fallback: search user record by username / name, then find member
     if (!found) {
-      const uFound = users.find(u => 
+      const uFound = prodUsers.find(u => 
         String(u.username || '').trim().toLowerCase() === q || 
         String(u.nama || '').trim().toLowerCase() === q ||
         String(u.nama || '').trim().toLowerCase().includes(q)
       );
       if (uFound) {
-        found = findMemberForUser(uFound, members);
+        found = findMemberForUser(uFound, prodMembers);
         if (!found && uFound.role === CONFIG.ROLES.SISWA) {
           found = ensureMemberForStudentUser(uFound);
         }
       }
     }
     
-    if (!found) return { success: false, message: 'Anggota tidak ditemukan' };
+    if (!found || (typeof isDevAccount === 'function' && isDevAccount(found))) {
+      return { success: false, message: 'Anggota tidak ditemukan' };
+    }
     
     // 2. Find matching user record to extract photo
-    let user = users.find(u => u.user_id && found.user_id && String(u.user_id).trim() === String(found.user_id).trim());
+    let user = prodUsers.find(u => u.user_id && found.user_id && String(u.user_id).trim() === String(found.user_id).trim());
     if (!user && found.member_id) {
-      user = users.find(u => u.user_id && String(u.user_id).trim().toLowerCase() === String(found.member_id).trim().toLowerCase());
+      user = prodUsers.find(u => u.user_id && String(u.user_id).trim().toLowerCase() === String(found.member_id).trim().toLowerCase());
     }
     if (!user && found.nama) {
-      user = users.find(u => u.nama && String(u.nama).trim().toLowerCase() === String(found.nama).trim().toLowerCase());
+      user = prodUsers.find(u => u.nama && String(u.nama).trim().toLowerCase() === String(found.nama).trim().toLowerCase());
     }
 
     // 3. Resolve Photo URL

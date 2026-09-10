@@ -116,20 +116,60 @@ const CONFIG = {
 function isDevUsername(username) {
   if (!username) return false;
   const u = String(username).trim().toLowerCase();
-  return u === 'admin-dev' || u === 'kasir-dev' || u === 'siswa-dev' || u.startsWith('dev-');
+  return u === 'admin-dev' || u === 'kasir-dev' || u === 'siswa-dev' ||
+         u.startsWith('dev-') || u.endsWith('-dev') || u.includes('dev-') ||
+         u === 'admindev' || u === 'kasirdev' || u === 'siswadev';
 }
 
 function isDevUserId(userId) {
   if (!userId) return false;
   const id = String(userId).trim().toUpperCase();
-  return id.startsWith('DEV-');
+  return id.startsWith('DEV-') || id.startsWith('DEV_') || id.endsWith('-DEV') ||
+         id === 'DEV' || id === 'DEV-SIS-001' || id === 'DEV-MGR-001' || id === 'DEV-KSR-001' ||
+         id === 'SISWA-DEV' || id === 'ADMIN-DEV' || id === 'KASIR-DEV';
 }
 
 function isDevAccount(obj) {
   if (!obj) return false;
-  if (obj.isDev) return true;
+  if (typeof obj === 'string' || typeof obj === 'number') {
+    const s = String(obj).trim().toLowerCase();
+    return isDevUsername(s) || isDevUserId(s) || s.includes('siswa dev') || s.includes('siswa-dev') || s.includes('admin-dev') || s.includes('kasir-dev');
+  }
+  if (obj.isDev === true || obj.is_dev === true) return true;
+  
+  // 1. Cek username
   if (isDevUsername(obj.username)) return true;
-  if (isDevUserId(obj.user_id) || isDevUserId(obj.userId) || isDevUserId(obj.member_id) || isDevUserId(obj.memberId)) return true;
+  
+  // 2. Cek user_id / member_id / qr_data
+  const idCandidates = [obj.user_id, obj.userId, obj.member_id, obj.memberId, obj.id, obj.qr_data, obj.qrData];
+  for (let i = 0; i < idCandidates.length; i++) {
+    const val = idCandidates[i];
+    if (val) {
+      if (isDevUserId(val) || isDevUsername(val)) return true;
+    }
+  }
+
+  // 3. Cek Nama Akun
+  const nameCandidates = [obj.nama, obj.name, obj.full_name, obj.displayName];
+  for (let i = 0; i < nameCandidates.length; i++) {
+    const val = nameCandidates[i];
+    if (val) {
+      const n = String(val).trim().toLowerCase();
+      if (n === 'siswa dev' || n === 'siswa-dev' || n === 'admin dev' || n === 'admin-dev' || n === 'kasir dev' || n === 'kasir-dev') return true;
+      if (n.includes('siswa dev') || n.includes('siswa-dev') || n.includes('admin dev') || n.includes('admin-dev') || n.includes('kasir dev') || n.includes('kasir-dev') || n.includes('(testing)')) return true;
+    }
+  }
+
+  // 4. Cek NIS & Kelas (khusus data member/siswa)
+  if (obj.nis) {
+    const nis = String(obj.nis).trim().toUpperCase();
+    if (nis === 'DEV-001' || nis === 'DEV' || nis.startsWith('DEV-') || nis.includes('DEV')) return true;
+  }
+  if (obj.kelas) {
+    const kelas = String(obj.kelas).trim().toUpperCase();
+    if (kelas === 'DEV' || kelas.includes('DEV')) return true;
+  }
+
   return false;
 }
 
