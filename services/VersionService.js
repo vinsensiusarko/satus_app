@@ -1,4 +1,4 @@
-﻿// services/VersionService.js
+// services/VersionService.js
 
 /**
  * Memastikan sheet App_Version tersedia di spreadsheet dan memiliki data awal
@@ -232,7 +232,7 @@ function updateAppVersionConfig(token, dataUpdate) {
     } catch (e) {}
 
     // Audit Log
-    const logDesc = Update Konfigurasi Versi Mobile (): v+, Wajib: ;
+    const logDesc = 'Update Konfigurasi Versi Mobile (' + platform + '): v' + latestVersion + '+' + latestBuild + ', Wajib: ' + isRequired;
     auditLog(session.userId, session.role, 'UPDATE_APP_VERSION', platform, logDesc);
 
     const updatedConfig = {
