@@ -18,40 +18,77 @@ function formatRupiahCurrency(amount) {
 }
 
 /**
- * Mendapatkan OAuth2 Access Token untuk Firebase Cloud Messaging HTTP v1 API
- * Menggunakan CacheService untuk menyimpan token selama 55 menit.
+ * Mengambil dan memvalidasi kredensial Firebase Service Account dari Script Properties
  */
-function getFcmAccessToken() {
-  const cache = CacheService.getScriptCache();
-  const cachedToken = cache.get('FCM_ACCESS_TOKEN');
-  if (cachedToken) {
-    return cachedToken;
-  }
-
+function getFcmServiceAccountDetails() {
   const scriptProperties = PropertiesService.getScriptProperties();
-  let saJson = scriptProperties.getProperty('FIREBASE_SERVICE_ACCOUNT');
-  let clientEmail = scriptProperties.getProperty('FIREBASE_CLIENT_EMAIL');
-  let privateKey = scriptProperties.getProperty('FIREBASE_PRIVATE_KEY');
+  const saJson = scriptProperties.getProperty('FIREBASE_SERVICE_ACCOUNT');
+  const clientEmailProp = scriptProperties.getProperty('FIREBASE_CLIENT_EMAIL');
+  const privateKeyProp = scriptProperties.getProperty('FIREBASE_PRIVATE_KEY');
 
-  if (saJson) {
+  let clientEmail = clientEmailProp || '';
+  let privateKey = privateKeyProp || '';
+  let projectId = (CONFIG.FIREBASE && CONFIG.FIREBASE.PROJECT_ID) ? CONFIG.FIREBASE.PROJECT_ID : 'satus-mobile-mhsm1';
+  let isJsonSource = false;
+
+  if (saJson && saJson.trim().length > 0) {
     try {
       const parsed = JSON.parse(saJson);
-      clientEmail = parsed.client_email;
-      privateKey = parsed.private_key;
+      isJsonSource = true;
+      if (parsed.client_email) clientEmail = parsed.client_email;
+      if (parsed.private_key) privateKey = parsed.private_key;
+      if (parsed.project_id) projectId = parsed.project_id;
     } catch (e) {
-      console.warn('Gagal mem-parse FIREBASE_SERVICE_ACCOUNT JSON:', e);
+      return {
+        valid: false,
+        error: 'Format JSON pada properti FIREBASE_SERVICE_ACCOUNT tidak valid: ' + e.message,
+        clientEmail: '',
+        privateKey: '',
+        projectId: projectId
+      };
     }
   }
 
-  // Jika kredensial service account belum diisi di Script Properties
   if (!clientEmail || !privateKey) {
-    return null;
+    return {
+      valid: false,
+      error: 'Kredensial Service Account belum lengkap. Pastikan client_email dan private_key terisi di Script Properties.',
+      clientEmail: clientEmail,
+      privateKey: privateKey,
+      projectId: projectId
+    };
+  }
+
+  return {
+    valid: true,
+    isJsonSource: isJsonSource,
+    clientEmail: clientEmail,
+    privateKey: privateKey.replace(/\\n/g, '\n'),
+    projectId: projectId
+  };
+}
+
+/**
+ * Mendapatkan OAuth2 Access Token untuk Firebase Cloud Messaging HTTP v1 API
+ * Menggunakan CacheService untuk menyimpan token selama 55 menit.
+ * Mengembalikan objek: { success: boolean, token?: string, projectId?: string, error?: string }
+ */
+function getFcmAccessToken(forceRefresh) {
+  const cache = CacheService.getScriptCache();
+  if (!forceRefresh) {
+    const cachedToken = cache.get('FCM_ACCESS_TOKEN');
+    if (cachedToken) {
+      const cachedProject = cache.get('FCM_PROJECT_ID') || ((CONFIG.FIREBASE && CONFIG.FIREBASE.PROJECT_ID) ? CONFIG.FIREBASE.PROJECT_ID : 'satus-mobile-mhsm1');
+      return { success: true, token: cachedToken, projectId: cachedProject };
+    }
+  }
+
+  const saDetails = getFcmServiceAccountDetails();
+  if (!saDetails.valid) {
+    return { success: false, error: saDetails.error, projectId: saDetails.projectId };
   }
 
   try {
-    // Perbaiki format baris baru pada private key jika disimpan sebagai string literal \n
-    privateKey = privateKey.replace(/\\n/g, '\n');
-
     const now = Math.floor(Date.now() / 1000);
     const header = {
       alg: 'RS256',
@@ -59,7 +96,7 @@ function getFcmAccessToken() {
     };
 
     const claim = {
-      iss: clientEmail,
+      iss: saDetails.clientEmail,
       scope: 'https://www.googleapis.com/auth/firebase.messaging',
       aud: 'https://oauth2.googleapis.com/token',
       exp: now + 3600,
@@ -70,7 +107,17 @@ function getFcmAccessToken() {
     const encodedClaim = Utilities.base64EncodeWebSafe(JSON.stringify(claim)).replace(/=+$/, '');
     const unsignedJwt = encodedHeader + '.' + encodedClaim;
 
-    const signature = Utilities.computeRsaSha256Signature(unsignedJwt, privateKey);
+    let signature;
+    try {
+      signature = Utilities.computeRsaSha256Signature(unsignedJwt, saDetails.privateKey);
+    } catch (sigErr) {
+      return {
+        success: false,
+        error: 'Gagal membuat tanda tangan digital RSA: ' + sigErr.message + '. Pastikan private_key utuh dari -----BEGIN PRIVATE KEY----- hingga -----END PRIVATE KEY-----.',
+        projectId: saDetails.projectId
+      };
+    }
+
     const encodedSignature = Utilities.base64EncodeWebSafe(signature).replace(/=+$/, '');
     const jwt = unsignedJwt + '.' + encodedSignature;
 
@@ -84,35 +131,49 @@ function getFcmAccessToken() {
       muteHttpExceptions: true
     });
 
-    const resJson = JSON.parse(response.getContentText());
-    if (resJson.access_token) {
-      cache.put('FCM_ACCESS_TOKEN', resJson.access_token, 3300); // Simpan 55 menit
-      return resJson.access_token;
+    const statusCode = response.getResponseCode();
+    const content = response.getContentText();
+    let resJson = {};
+    try {
+      resJson = JSON.parse(content);
+    } catch (_) {}
+
+    if (statusCode >= 200 && statusCode < 300 && resJson.access_token) {
+      cache.put('FCM_ACCESS_TOKEN', resJson.access_token, 3300); // 55 menit
+      cache.put('FCM_PROJECT_ID', saDetails.projectId, 3300);
+      return { success: true, token: resJson.access_token, projectId: saDetails.projectId };
     } else {
-      console.warn('Gagal mendapatkan access token OAuth2 Firebase:', resJson);
-      return null;
+      const errDetail = resJson.error_description || resJson.error || content;
+      return {
+        success: false,
+        error: 'Google OAuth token ditolak (HTTP ' + statusCode + '): ' + errDetail,
+        projectId: saDetails.projectId,
+        rawResponse: content
+      };
     }
   } catch (e) {
-    console.error('Error saat membuat FCM OAuth2 JWT:', e);
-    return null;
+    return {
+      success: false,
+      error: 'Exception saat pertukaran token OAuth2 dengan Google: ' + e.message,
+      projectId: saDetails.projectId
+    };
   }
 }
 
 /**
- * Mengirim pesan FCM ke Topic tertentu
+ * Mengirim pesan FCM ke Topic tertentu via HTTP v1 API
  */
 function sendFcmTopicMessage(topic, title, body, dataPayload, channelId) {
   if (!CONFIG.FIREBASE || !CONFIG.FIREBASE.ENABLED) {
-    return { success: false, message: 'Firebase notifications are disabled' };
+    return { success: false, message: 'Fitur notifikasi Firebase dinonaktifkan di Config.js (CONFIG.FIREBASE.ENABLED = false)' };
   }
 
   const cleanTopic = sanitizeFcmTopic(topic);
   if (!cleanTopic) {
-    return { success: false, message: 'Invalid topic' };
+    return { success: false, message: 'Topik notifikasi tidak valid atau bernilai kosong' };
   }
 
   const targetChannel = channelId || (CONFIG.FIREBASE.CHANNELS ? CONFIG.FIREBASE.CHANNELS.TRANSAKSI : 'satus_transaksi_channel');
-  const projectId = (CONFIG.FIREBASE && CONFIG.FIREBASE.PROJECT_ID) ? CONFIG.FIREBASE.PROJECT_ID : 'satus-mobile-mhsm1';
 
   // Pastikan seluruh values di dataPayload bertipe String
   const stringData = {};
@@ -123,9 +184,10 @@ function sendFcmTopicMessage(topic, title, body, dataPayload, channelId) {
   }
   stringData.channel_id = targetChannel;
 
-  // 1. Coba kirim via FCM HTTP v1 (Rekomendasi Google Modern)
-  const accessToken = getFcmAccessToken();
-  if (accessToken) {
+  // 1. Dapatkan token akses OAuth2 untuk FCM HTTP v1
+  const authRes = getFcmAccessToken();
+  if (authRes.success && authRes.token) {
+    const projectId = authRes.projectId || 'satus-mobile-mhsm1';
     try {
       const v1Payload = {
         message: {
@@ -150,7 +212,7 @@ function sendFcmTopicMessage(topic, title, body, dataPayload, channelId) {
         method: 'post',
         contentType: 'application/json',
         headers: {
-          Authorization: 'Bearer ' + accessToken
+          Authorization: 'Bearer ' + authRes.token
         },
         payload: JSON.stringify(v1Payload),
         muteHttpExceptions: true
@@ -158,50 +220,54 @@ function sendFcmTopicMessage(topic, title, body, dataPayload, channelId) {
 
       const statusCode = response.getResponseCode();
       const content = response.getContentText();
+
       if (statusCode >= 200 && statusCode < 300) {
         return { success: true, response: JSON.parse(content) };
       } else {
-        console.warn('FCM v1 Error (HTTP ' + statusCode + '):', content);
+        let errMessage = content;
+        try {
+          const errObj = JSON.parse(content);
+          if (errObj.error && errObj.error.message) {
+            errMessage = errObj.error.message;
+          }
+        } catch (_) {}
+
+        return {
+          success: false,
+          code: statusCode,
+          message: 'FCM v1 API Error (HTTP ' + statusCode + '): ' + errMessage,
+          response: content
+        };
       }
     } catch (e) {
-      console.warn('FCM v1 Call Exception:', e);
+      return {
+        success: false,
+        message: 'Exception saat mengirim pesan FCM v1: ' + e.message
+      };
     }
   }
 
-  // 2. Fallback: Coba kirim via FCM Legacy / Server Key jika tersedia
+  // Jika autentikasi Service Account gagal, kembalikan detail error otentikasi asli
+  if (authRes && authRes.error) {
+    return {
+      success: false,
+      message: authRes.error
+    };
+  }
+
+  // 2. Jika ada yang memasang FIREBASE_SERVER_KEY lama (Deprecated)
   const serverKey = PropertiesService.getScriptProperties().getProperty('FIREBASE_SERVER_KEY');
   if (serverKey) {
-    try {
-      const legacyPayload = {
-        to: '/topics/' + cleanTopic,
-        priority: 'high',
-        notification: {
-          title: title,
-          body: body,
-          android_channel_id: targetChannel,
-          sound: 'default'
-        },
-        data: stringData
-      };
-
-      const response = UrlFetchApp.fetch('https://fcm.googleapis.com/fcm/send', {
-        method: 'post',
-        contentType: 'application/json',
-        headers: {
-          Authorization: 'key=' + serverKey
-        },
-        payload: JSON.stringify(legacyPayload),
-        muteHttpExceptions: true
-      });
-
-      const statusCode = response.getResponseCode();
-      return { success: statusCode === 200, response: response.getContentText() };
-    } catch (e) {
-      console.warn('FCM Legacy Call Exception:', e);
-    }
+    return {
+      success: false,
+      message: 'FIREBASE_SERVER_KEY (Legacy) sudah dinonaktifkan permanen oleh Google sejak Juni 2024. Harap gunakan FIREBASE_SERVICE_ACCOUNT (FCM HTTP v1).'
+    };
   }
 
-  return { success: false, message: 'No valid FCM credentials configured or notification dispatch skipped.' };
+  return {
+    success: false,
+    message: 'Kredensial Firebase belum disimpan di Script Properties. Tambahkan FIREBASE_SERVICE_ACCOUNT berisi JSON Service Account.'
+  };
 }
 
 /**
@@ -372,29 +438,155 @@ function sendBroadcastNotification(title, body, role) {
  */
 function getFirebaseConfigStatus() {
   try {
+    const saDetails = getFcmServiceAccountDetails();
     const props = PropertiesService.getScriptProperties();
-    const sa = props.getProperty('FIREBASE_SERVICE_ACCOUNT');
-    const clientEmail = props.getProperty('FIREBASE_CLIENT_EMAIL');
-    const privateKey = props.getProperty('FIREBASE_PRIVATE_KEY');
     const serverKey = props.getProperty('FIREBASE_SERVER_KEY');
 
-    const hasServiceAccount = !!(sa || (clientEmail && privateKey));
-    const hasServerKey = !!serverKey;
-
     let mode = 'NONE';
-    if (hasServiceAccount) mode = 'SERVICE_ACCOUNT';
-    else if (hasServerKey) mode = 'SERVER_KEY';
+    if (saDetails.valid) {
+      mode = 'SERVICE_ACCOUNT';
+    } else if (serverKey) {
+      mode = 'SERVER_KEY_DEPRECATED';
+    }
+
+    let maskedEmail = '';
+    if (saDetails.clientEmail) {
+      const parts = saDetails.clientEmail.split('@');
+      if (parts.length === 2) {
+        maskedEmail = parts[0].substring(0, 6) + '...@' + parts[1];
+      } else {
+        maskedEmail = saDetails.clientEmail.substring(0, 10) + '...';
+      }
+    }
 
     return {
       success: true,
-      isConfigured: hasServiceAccount || hasServerKey,
+      isConfigured: saDetails.valid,
       mode: mode,
-      projectId: (CONFIG.FIREBASE && CONFIG.FIREBASE.PROJECT_ID) ? CONFIG.FIREBASE.PROJECT_ID : 'satus-mobile-mhsm1',
+      projectId: saDetails.projectId,
+      clientEmail: maskedEmail,
+      isJsonSource: saDetails.isJsonSource || false,
+      error: saDetails.valid ? null : saDetails.error,
       channels: CONFIG.FIREBASE ? CONFIG.FIREBASE.CHANNELS : {}
     };
   } catch (e) {
     return { success: false, isConfigured: false, mode: 'ERROR', error: e.message };
   }
+}
+
+/**
+ * Menguji koneksi kredensial Firebase secara menyeluruh dan mengembalikan laporan diagnostik
+ */
+function testFirebaseConnection() {
+  const saDetails = getFcmServiceAccountDetails();
+  const report = {
+    timestamp: new Date().toISOString(),
+    isConfigured: saDetails.valid,
+    isJsonSource: saDetails.isJsonSource || false,
+    projectId: saDetails.projectId,
+    clientEmail: saDetails.clientEmail ? (saDetails.clientEmail.substring(0, 8) + '...' + saDetails.clientEmail.slice(-15)) : '-',
+    hasPrivateKey: !!(saDetails.privateKey && saDetails.privateKey.includes('PRIVATE KEY')),
+    steps: []
+  };
+
+  // Step 1: Script Properties Check
+  if (!saDetails.valid) {
+    report.steps.push({
+      step: 'Kredensial Script Properties',
+      status: 'FAILED',
+      message: saDetails.error
+    });
+    report.overallStatus = 'FAILED';
+    report.summary = saDetails.error;
+    return report;
+  }
+
+  report.steps.push({
+    step: 'Kredensial Script Properties',
+    status: 'SUCCESS',
+    message: 'Kredensial Service Account valid (Project ID: ' + saDetails.projectId + ')'
+  });
+
+  // Step 2: OAuth2 Token Exchange Check
+  const tokenRes = getFcmAccessToken(true); // Force refresh token
+  if (!tokenRes.success) {
+    report.steps.push({
+      step: 'Pembuatan OAuth2 Access Token',
+      status: 'FAILED',
+      message: tokenRes.error
+    });
+    report.overallStatus = 'FAILED';
+    report.summary = tokenRes.error;
+    return report;
+  }
+
+  report.steps.push({
+    step: 'Pembuatan OAuth2 Access Token',
+    status: 'SUCCESS',
+    message: 'OAuth2 Access Token berhasil diperoleh dari Google'
+  });
+
+  // Step 3: Test FCM API Access (Validate with dry-run / validate_only payload)
+  try {
+    const testPayload = {
+      validate_only: true, // Google FCM v1 validate_only flag: validasi tanpa broadcast ke HP
+      message: {
+        topic: 'all_users',
+        data: {
+          test: 'diagnostic_check',
+          timestamp: String(Date.now())
+        }
+      }
+    };
+
+    const response = UrlFetchApp.fetch('https://fcm.googleapis.com/v1/projects/' + tokenRes.projectId + '/messages:send', {
+      method: 'post',
+      contentType: 'application/json',
+      headers: {
+        Authorization: 'Bearer ' + tokenRes.token
+      },
+      payload: JSON.stringify(testPayload),
+      muteHttpExceptions: true
+    });
+
+    const statusCode = response.getResponseCode();
+    const content = response.getContentText();
+
+    if (statusCode >= 200 && statusCode < 300) {
+      report.steps.push({
+        step: 'Akses Google Cloud FCM v1 API',
+        status: 'SUCCESS',
+        message: 'Koneksi ke Firebase Cloud Messaging API v1 sukses! Siap mengirim notifikasi.'
+      });
+      report.overallStatus = 'READY';
+      report.summary = 'Semua pengujian lolos! Kredensial Firebase terhubung dan siap mengirim notifikasi ke aplikasi.';
+    } else {
+      let errDetail = content;
+      try {
+        const j = JSON.parse(content);
+        if (j.error && j.error.message) errDetail = j.error.message;
+      } catch (_) {}
+
+      report.steps.push({
+        step: 'Akses Google Cloud FCM v1 API',
+        status: 'FAILED',
+        code: statusCode,
+        message: 'Google Cloud FCM API menolak request (HTTP ' + statusCode + '): ' + errDetail
+      });
+      report.overallStatus = 'FAILED';
+      report.summary = 'Google Cloud FCM API menolak (HTTP ' + statusCode + '): ' + errDetail;
+    }
+  } catch (e) {
+    report.steps.push({
+      step: 'Akses Google Cloud FCM v1 API',
+      status: 'FAILED',
+      message: 'Exception saat menghubungi Google FCM: ' + e.message
+    });
+    report.overallStatus = 'FAILED';
+    report.summary = 'Gagal menghubungi Google FCM: ' + e.message;
+  }
+
+  return report;
 }
 
 /**
@@ -432,10 +624,8 @@ function sendTestPushNotification(params) {
   let message = '';
   if (result.success) {
     message = 'Tes notifikasi berhasil dikirim ke topik "' + topic + '"!';
-  } else if (status.isConfigured) {
-    message = 'Gagal mengirim notifikasi via FCM: ' + (result.message || 'Periksa log server');
   } else {
-    message = 'Kredensial Firebase belum terkonfigurasi di Script Properties. Notifikasi dicoba kirim namun membutuhkan FIREBASE_SERVICE_ACCOUNT atau FIREBASE_SERVER_KEY di Settings Apps Script.';
+    message = 'Gagal mengirim notifikasi via FCM: ' + (result.message || 'Periksa kredensial Firebase');
   }
 
   return {

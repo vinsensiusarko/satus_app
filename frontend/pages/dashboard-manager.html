@@ -1017,14 +1017,20 @@
         <div class="p-6 overflow-y-auto space-y-6 flex-1 bg-slate-50/50">
 
           <!-- Info Box Kredensial Firebase -->
-          <div id="notif-config-alert" class="p-4 rounded-2xl border text-xs flex items-start gap-3 bg-amber-50 border-amber-200 text-amber-900">
-            <i data-lucide="info" class="w-5 h-5 text-amber-600 shrink-0 mt-0.5"></i>
-            <div class="space-y-1">
-              <p class="font-bold text-amber-950">Status Kredensial Firebase Cloud Messaging:</p>
-              <p id="notif-config-desc" class="text-amber-800 leading-relaxed">
-                Memuat informasi kredensial...
-              </p>
+          <div id="notif-config-alert" class="p-4 rounded-2xl border text-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-amber-50 border-amber-200 text-amber-900">
+            <div class="flex items-start gap-3 flex-1">
+              <i data-lucide="info" class="w-5 h-5 text-amber-600 shrink-0 mt-0.5"></i>
+              <div class="space-y-1">
+                <p class="font-bold text-amber-950">Status Kredensial Firebase Cloud Messaging:</p>
+                <p id="notif-config-desc" class="text-amber-800 leading-relaxed">
+                  Memuat informasi kredensial...
+                </p>
+              </div>
             </div>
+            <button id="btn-test-fcm-connection" onclick="app.testFirebaseConnection()" type="button" class="shrink-0 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs shadow-sm flex items-center gap-1.5 transition">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+              <span>Uji Koneksi Kredensial</span>
+            </button>
           </div>
 
           <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">

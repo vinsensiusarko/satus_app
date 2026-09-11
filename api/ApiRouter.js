@@ -511,6 +511,11 @@ function dispatchApiAction(action, params, method) {
         result = getFirebaseConfigStatus();
         break;
 
+      case 'firebase_test_connection':
+      case 'test_firebase_connection':
+        result = testFirebaseConnection();
+        break;
+
       case 'test_notification':
       case 'send_test_notification':
         result = sendTestPushNotification(params);

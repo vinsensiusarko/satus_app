@@ -935,19 +935,27 @@ const app = {
         .withSuccessHandler((res) => {
           if (!badge || !desc) return;
           if (res && res.isConfigured) {
-            badge.innerText = res.mode === 'SERVICE_ACCOUNT' ? 'FCM v1 Aktif (OAuth2)' : 'FCM Server Key Aktif';
+            badge.innerText = 'FCM v1 Terpasang';
             badge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500 text-white shadow-sm';
             if (alertBox) {
-              alertBox.className = 'p-4 rounded-2xl border text-xs flex items-start gap-3 bg-emerald-50 border-emerald-200 text-emerald-900';
+              alertBox.className = 'p-4 rounded-2xl border text-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-emerald-50 border-emerald-200 text-emerald-900';
             }
-            desc.innerHTML = `✅ Kredensial Firebase Cloud Messaging terhubung (${res.mode}). Siap mengirim notifikasi push langsung ke perangkat Android SATUS Mobile.`;
+            desc.innerHTML = `✅ <b>Kredensial Service Account terdeteksi:</b> Project <code>${res.projectId}</code> (${res.clientEmail || 'Service Account'}).<br><span class="text-[11px] text-emerald-700">Klik tombol <b>"Uji Koneksi Kredensial"</b> di samping untuk memverifikasi handshake token OAuth2 & status API FCM.</span>`;
+          } else if (res && res.mode === 'SERVER_KEY_DEPRECATED') {
+            badge.innerText = 'Server Key Deprecated';
+            badge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-500 text-white shadow-sm';
+            if (alertBox) {
+              alertBox.className = 'p-4 rounded-2xl border text-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-rose-50 border-rose-200 text-rose-900';
+            }
+            desc.innerHTML = `⚠️ <b>FIREBASE_SERVER_KEY sudah dinonaktifkan Google.</b><br>Google mematikan endpoint FCM Legacy sejak Juni 2024. Ganti properti ini dengan <code>FIREBASE_SERVICE_ACCOUNT</code> (JSON kunci privat) di Settings Apps Script.`;
           } else {
             badge.innerText = 'Kredensial Belum Diset';
             badge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500 text-white shadow-sm';
             if (alertBox) {
-              alertBox.className = 'p-4 rounded-2xl border text-xs flex items-start gap-3 bg-amber-50 border-amber-200 text-amber-900';
+              alertBox.className = 'p-4 rounded-2xl border text-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-amber-50 border-amber-200 text-amber-900';
             }
-            desc.innerHTML = `⚠️ <b>Kredensial Firebase belum disimpan di Script Properties.</b><br>Untuk mengaktifkan pengiriman langsung ke HP, buka <i>Apps Script &gt; Project Settings &gt; Script Properties</i>, lalu tambahkan properti <code>FIREBASE_SERVICE_ACCOUNT</code> (isi JSON Service Account) atau <code>FIREBASE_SERVER_KEY</code>.`;
+            const errDetail = res && res.error ? `<br><span class="text-rose-600 font-medium">Detail: ${res.error}</span>` : '';
+            desc.innerHTML = `⚠️ <b>Kredensial Firebase belum disimpan di Script Properties.</b>${errDetail}<br>Buka <i>Apps Script &gt; Project Settings &gt; Script Properties</i>, lalu tambahkan properti <code>FIREBASE_SERVICE_ACCOUNT</code> berisi JSON Service Account dari Firebase Console.`;
           }
         })
         .withFailureHandler((err) => {
@@ -962,6 +970,75 @@ const app = {
       if (desc) {
         desc.innerHTML = 'ℹ️ <b>Mode Uji Coba:</b> Google Apps Script API terhubung saat aplikasi dideploy ke cloud.';
       }
+    }
+  },
+
+  testFirebaseConnection: function() {
+    const btn = document.getElementById('btn-test-fcm-connection');
+    const desc = document.getElementById('notif-config-desc');
+    const alertBox = document.getElementById('notif-config-alert');
+    const badge = document.getElementById('notif-badge-config');
+
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="inline-block animate-spin mr-1">⏳</span> Memeriksa...';
+    }
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler((report) => {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5 mr-1"></i><span>Uji Koneksi Kredensial</span>';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+          }
+
+          if (report && report.overallStatus === 'READY') {
+            if (badge) {
+              badge.innerText = 'FCM v1 Terhubung & Siap';
+              badge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500 text-white shadow-sm';
+            }
+            if (alertBox) {
+              alertBox.className = 'p-4 rounded-2xl border text-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-emerald-50 border-emerald-200 text-emerald-900';
+            }
+            if (desc) {
+              desc.innerHTML = `✅ <b>Koneksi Berhasil:</b> Project <code>${report.projectId}</code> | Email: <code>${report.clientEmail}</code>.<br>Pengujian OAuth2 dan verifikasi Google Cloud FCM v1 API lolos (200 OK)! Siap mengirim notifikasi.`;
+            }
+            this.showToast('Koneksi Firebase Cloud Messaging berhasil diverifikasi!', 'success');
+          } else {
+            if (badge) {
+              badge.innerText = 'Kredensial Error';
+              badge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-500 text-white shadow-sm';
+            }
+            if (alertBox) {
+              alertBox.className = 'p-4 rounded-2xl border text-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-rose-50 border-rose-200 text-rose-900';
+            }
+            const errMsg = (report && report.summary) || 'Gagal memverifikasi kredensial Firebase.';
+            const projId = (report && report.projectId) || 'satus-mobile-mhsm1';
+            if (desc) {
+              desc.innerHTML = `❌ <b>Kendala Kredensial:</b> ${errMsg}<br><span class="text-[11px] text-rose-700">Pastikan <code>FIREBASE_SERVICE_ACCOUNT</code> di Script Properties valid dan API FCM berstatus Enabled di <a href="https://console.cloud.google.com/apis/library/fcm.googleapis.com?project=${projId}" target="_blank" class="underline font-bold text-rose-900">Google Cloud Console</a>.</span>`;
+            }
+            this.showToast(errMsg, 'error');
+          }
+        })
+        .withFailureHandler((err) => {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5 mr-1"></i><span>Uji Koneksi Kredensial</span>';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+          }
+          this.handleError(err);
+        })
+        .testFirebaseConnection();
+    } else {
+      setTimeout(() => {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5 mr-1"></i><span>Uji Koneksi Kredensial</span>';
+          if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+        this.showToast('Simulasi: Verifikasi koneksi Firebase berhasil (Lokal)', 'success');
+      }, 600);
     }
   },
 
