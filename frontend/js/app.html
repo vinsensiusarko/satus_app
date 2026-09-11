@@ -3623,8 +3623,12 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
   }
 };
 
-// Initialize app when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-  app.init();
-});
+// Initialize app when DOM is ready (defensive multi-lifecycle)
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  setTimeout(() => { app.init(); }, 1);
+} else {
+  document.addEventListener('DOMContentLoaded', () => {
+    app.init();
+  });
+}
 </script>
