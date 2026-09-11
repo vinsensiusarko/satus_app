@@ -109,6 +109,25 @@ function requestSeedConversion(token, seedId, quantity) {
 
     auditLog(session.userId, session.role, 'AJUKAN_BIBIT', requestId, `Pengajuan ${qty} bibit ${seed.seed_name} senilai Rp${totalValue} (Saldo Hijau)`);
     
+    // Trigger push notification ke Manager
+    try {
+      if (typeof sendFcmTopicMessage === 'function') {
+        sendFcmTopicMessage(
+          'role_manager',
+          'Pengajuan Bibit Baru 🌱',
+          `Siswa ${member.nama || member.member_id} mengajukan ${qty} bibit ${seed.seed_name}. Menunggu persetujuan.`,
+          {
+            type: 'SEED_REQUEST',
+            requestId: String(requestId),
+            memberId: String(member.member_id)
+          },
+          CONFIG.FIREBASE && CONFIG.FIREBASE.CHANNELS ? CONFIG.FIREBASE.CHANNELS.APPROVAL : 'satus_approval_channel'
+        );
+      }
+    } catch (eNotification) {
+      console.warn('Gagal mengirim notifikasi ajukan bibit ke manager:', eNotification);
+    }
+
     return {
       success: true,
       message: `Pengajuan ${qty} bibit ${seed.seed_name} berhasil dikirim! Menunggu persetujuan Manager.`,
@@ -244,6 +263,15 @@ function approveSeedRequest(token, requestId) {
         
         auditLog(session.userId, session.role, 'APPROVE_BIBIT', requestId, `Persetujuan konversi ${qty} bibit senilai Rp${totalValue} untuk ${memberId}`);
         
+        // Trigger push notification ke siswa
+        try {
+          if (typeof sendSeedStatusNotification === 'function') {
+            sendSeedStatusNotification(memberId, seedName, 'APPROVED');
+          }
+        } catch (eNotification) {
+          console.warn('Gagal mengirim notifikasi approval bibit:', eNotification);
+        }
+
         return { success: true, message: `Pengajuan bibit ${seedName} disetujui. Saldo Hijau siswa telah dipotong Rp${totalValue.toLocaleString('id-ID')}.` };
       }
     }
@@ -262,6 +290,7 @@ function rejectSeedRequest(token, requestId, reason) {
     
     const idIdx = headers.indexOf('request_id');
     const memberIdx = headers.indexOf('member_id');
+    const seedIdx = headers.indexOf('seed_id');
     const statusIdx = headers.indexOf('status');
     const revByIdx = headers.indexOf('reviewed_by');
     const revAtIdx = headers.indexOf('reviewed_at');
@@ -274,6 +303,7 @@ function rejectSeedRequest(token, requestId, reason) {
         }
         
         const memberId = data[i][memberIdx];
+        const seedId = seedIdx !== -1 ? data[i][seedIdx] : '';
         const now = new Date();
         const rejectReason = reason || 'Pengajuan bibit ditolak oleh Manager';
         
@@ -287,6 +317,18 @@ function rejectSeedRequest(token, requestId, reason) {
         
         auditLog(session.userId, session.role, 'REJECT_BIBIT', requestId, `Penolakan bibit untuk ${memberId}. Alasan: ${rejectReason}`);
         
+        // Trigger push notification ke siswa
+        try {
+          if (typeof sendSeedStatusNotification === 'function') {
+            const seeds = getSheetData(CONFIG.SHEETS.SEEDS);
+            const seed = seeds.find(s => s.seed_id === seedId);
+            const seedName = seed ? seed.seed_name : 'Tanaman';
+            sendSeedStatusNotification(memberId, seedName, 'REJECTED');
+          }
+        } catch (eNotification) {
+          console.warn('Gagal mengirim notifikasi reject bibit:', eNotification);
+        }
+
         return { success: true, message: `Pengajuan bibit berhasil ditolak. Saldo Hijau siswa tetap utuh.` };
       }
     }
@@ -329,9 +371,12 @@ function fulfillSeedRequest(token, requestId) {
         const sHeaders = seedData[0];
         const sIdIdx = sHeaders.indexOf('seed_id');
         const sStockIdx = sHeaders.indexOf('stock');
+        const sNameIdx = sHeaders.indexOf('seed_name');
         
+        let seedName = 'Tanaman';
         for (let j = 1; j < seedData.length; j++) {
           if (seedData[j][sIdIdx] === seedId) {
+            if (sNameIdx !== -1) seedName = seedData[j][sNameIdx];
             const curStock = parseInt(seedData[j][sStockIdx], 10) || 0;
             const newStock = Math.max(0, curStock - qty);
             seedSheet.getRange(j + 1, sStockIdx + 1).setValue(newStock);
@@ -342,6 +387,15 @@ function fulfillSeedRequest(token, requestId) {
         
         auditLog(session.userId, session.role, 'FULFILL_BIBIT', requestId, `Realisasi bibit untuk ${memberId} (${qty} bibit)`);
         
+        // Trigger push notification ke siswa
+        try {
+          if (typeof sendSeedStatusNotification === 'function') {
+            sendSeedStatusNotification(memberId, seedName, 'FULFILLED');
+          }
+        } catch (eNotification) {
+          console.warn('Gagal mengirim notifikasi fulfillment bibit:', eNotification);
+        }
+
         return { success: true, message: 'Bibit tanaman berhasil direalisasikan dan diserahkan ke siswa!' };
       }
     }

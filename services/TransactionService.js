@@ -35,6 +35,16 @@ function createSetorTunai(token, memberId, amount) {
       auditLog(session.userId, session.role, 'CREATE_TRANSACTION', txId, 'Setor tunai Rp' + amount + ' untuk ' + memberId + ' (Saldo Tabungan)');
       
       const dualBalance = calculateDualBalance(memberId);
+
+      // Trigger push notification ke siswa
+      try {
+        if (typeof sendTransactionNotification === 'function') {
+          sendTransactionNotification(memberId, CONFIG.TRANSACTION_TYPES.SETOR_TUNAI, amount, dualBalance.tabungan, txId);
+        }
+      } catch (eNotification) {
+        console.warn('Gagal mengirim notifikasi setor tunai:', eNotification);
+      }
+
       return { 
         success: true, 
         message: 'Setor tunai berhasil', 
@@ -92,6 +102,16 @@ function createSetorSampah(token, memberId, wasteType, quantity) {
       auditLog(session.userId, session.role, 'CREATE_TRANSACTION', txId, 'Setor ' + wasteType + ' ' + quantity + priceObj.unit + ' untuk ' + memberId + ' (Saldo Hijau)');
       
       const dualBalance = calculateDualBalance(memberId);
+
+      // Trigger push notification ke siswa
+      try {
+        if (typeof sendTransactionNotification === 'function') {
+          sendTransactionNotification(memberId, txType, totalValue, dualBalance.hijau, txId, wasteType + ' ' + quantity + ' ' + priceObj.unit);
+        }
+      } catch (eNotification) {
+        console.warn('Gagal mengirim notifikasi setor sampah:', eNotification);
+      }
+
       return { 
         success: true, 
         message: 'Setor ' + wasteType + ' berhasil', 
@@ -130,6 +150,16 @@ function createTarikTunai(token, memberId, amount) {
       auditLog(session.userId, session.role, 'CREATE_TRANSACTION', txId, 'Tarik tunai Rp' + amount + ' dari ' + memberId + ' (Saldo Tabungan)');
       
       const dualBalance = calculateDualBalance(memberId);
+
+      // Trigger push notification ke siswa
+      try {
+        if (typeof sendTransactionNotification === 'function') {
+          sendTransactionNotification(memberId, CONFIG.TRANSACTION_TYPES.TARIK_TUNAI, amount, dualBalance.tabungan, txId);
+        }
+      } catch (eNotification) {
+        console.warn('Gagal mengirim notifikasi tarik tunai:', eNotification);
+      }
+
       return { 
         success: true, 
         message: 'Tarik tunai berhasil', 
@@ -218,6 +248,16 @@ function requestVoidTransaction(token, transactionId, reason) {
     ]);
 
     auditLog(session.userId, session.role, 'REQUEST_VOID', voidId, 'Pengajuan pembatalan transaksi ' + transactionId + ': ' + reason);
+
+    // Trigger push notification ke seluruh Manager
+    try {
+      if (typeof sendVoidRequestNotification === 'function') {
+        sendVoidRequestNotification(voidId, transactionId, reason, session.userId, tx.member_id);
+      }
+    } catch (eNotification) {
+      console.warn('Gagal mengirim notifikasi void request:', eNotification);
+    }
+
     return { success: true, message: 'Pengajuan pembatalan transaksi berhasil dikirim ke Manager' };
   } catch (error) {
     if (error.message.includes("Unauthorized")) throw error; return { success: false, message: error.message };
@@ -271,10 +311,12 @@ function reviewVoidRequest(token, voidId, action, rejectReason) {
       const vRejectReason = vHeaders.indexOf('reject_reason');
       const vTxIdIdx = vHeaders.indexOf('transaction_id');
       const vMemberIdIdx = vHeaders.indexOf('member_id');
+      const vCashierIdx = vHeaders.indexOf('cashier_id');
 
       let voidRow = -1;
       let targetTxId = '';
       let targetMemberId = '';
+      let targetCashierId = '';
 
       for (let i = 1; i < vData.length; i++) {
         if (vData[i][vIdIdx] === voidId) {
@@ -284,6 +326,7 @@ function reviewVoidRequest(token, voidId, action, rejectReason) {
           voidRow = i;
           targetTxId = vData[i][vTxIdIdx];
           targetMemberId = vData[i][vMemberIdIdx];
+          targetCashierId = vCashierIdx !== -1 ? vData[i][vCashierIdx] : '';
           break;
         }
       }
@@ -357,6 +400,16 @@ function reviewVoidRequest(token, voidId, action, rejectReason) {
         auditLog(session.userId, session.role, 'APPROVE_VOID', voidId, 'Manager menyetujui pembatalan transaksi ' + targetTxId + ' (Member: ' + targetMemberId + ')');
         
         const dualBalance = calculateDualBalance(targetMemberId);
+
+        // Trigger push notification ke kasir & siswa
+        try {
+          if (typeof sendVoidReviewNotification === 'function') {
+            sendVoidReviewNotification(voidId, targetTxId, targetCashierId, targetMemberId, true, '');
+          }
+        } catch (eNotification) {
+          console.warn('Gagal mengirim notifikasi void review (approved):', eNotification);
+        }
+
         return { 
           success: true, 
           message: 'Pembatalan transaksi berhasil disetujui! Saldo anggota telah disesuaikan kembali.',
@@ -372,6 +425,16 @@ function reviewVoidRequest(token, voidId, action, rejectReason) {
         delete cachedSheetData[CONFIG.SHEETS.VOID_REQUESTS];
 
         auditLog(session.userId, session.role, 'REJECT_VOID', voidId, 'Manager menolak pembatalan transaksi ' + targetTxId + ': ' + (rejectReason || '-'));
+
+        // Trigger push notification ke kasir & siswa
+        try {
+          if (typeof sendVoidReviewNotification === 'function') {
+            sendVoidReviewNotification(voidId, targetTxId, targetCashierId, targetMemberId, false, rejectReason);
+          }
+        } catch (eNotification) {
+          console.warn('Gagal mengirim notifikasi void review (rejected):', eNotification);
+        }
+
         return { success: true, message: 'Pengajuan pembatalan transaksi telah ditolak' };
       } else {
         throw new Error('Aksi tidak valid');

@@ -40,6 +40,17 @@ const CONFIG = {
     is_active: true
   },
   
+  // Konfigurasi Notifikasi Firebase Cloud Messaging (FCM)
+  FIREBASE: {
+    ENABLED: true,
+    PROJECT_ID: 'satus-mobile-mhsm1',
+    CHANNELS: {
+      TRANSAKSI: 'satus_transaksi_channel',
+      APPROVAL: 'satus_approval_channel',
+      INFO: 'satus_info_channel'
+    }
+  },
+  
   ROLES: {
     MANAGER: 'MANAGER',
     KASIR: 'KASIR',
