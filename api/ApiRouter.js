@@ -68,7 +68,8 @@ function isMutationAction(action) {
     'audit_logs', 'get_audit_logs', 'getauditlogs',
     'find_member', 'search_member', 'findmember', 'searchmember',
     'member_recent_transactions', 'getmemberrecenttransactions',
-    'transactions', 'get_transactions', 'gettransactions', 'kasir_transactions'
+    'transactions', 'get_transactions', 'gettransactions', 'kasir_transactions',
+    'app_version', 'check_update', 'get_app_version', 'version'
   ];
 
   return !READ_ONLY_ACTIONS.includes(action);
@@ -490,7 +491,20 @@ function dispatchApiAction(action, params, method) {
         result = getDashboardData(params.token);
         break;
 
-      // 18. UNKNOWN ENDPOINT
+      // 18. APP VERSION & UPDATE CONTROL (Play Store / Mobile Versioning)
+      case 'app_version':
+      case 'check_update':
+      case 'get_app_version':
+      case 'version':
+        result = getAppVersionConfig(params);
+        break;
+
+      case 'update_app_version':
+      case 'set_app_version':
+        result = updateAppVersionConfig(params.token, params);
+        break;
+
+      // 19. UNKNOWN ENDPOINT
       default:
         result = {
           success: false,

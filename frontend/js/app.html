@@ -722,6 +722,187 @@ const app = {
       .reviewVoidRequest(this.session.token, voidId, 'REJECTED', reason);
   },
 
+  // APP VERSION & UPDATE CONTROL PANEL (MANAGER)
+  openModalAppVersionManager: function() {
+    const modal = document.getElementById('modal-app-version-manager');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    this.loadAppVersionConfig();
+  },
+
+  closeModalAppVersionManager: function() {
+    const modal = document.getElementById('modal-app-version-manager');
+    if (modal) modal.classList.add('hidden');
+  },
+
+  loadAppVersionConfig: function() {
+    this.showLoading(true);
+    google.script.run
+      .withSuccessHandler((res) => {
+        this.showLoading(false);
+        if (res && res.success && res.data) {
+          const d = res.data;
+          const vInput = document.getElementById('ver-input-latest-version');
+          const bInput = document.getElementById('ver-input-latest-build');
+          const minVInput = document.getElementById('ver-input-min-version');
+          const minBInput = document.getElementById('ver-input-min-build');
+          const tInput = document.getElementById('ver-input-title');
+          const nInput = document.getElementById('ver-input-notes');
+          const uInput = document.getElementById('ver-input-url');
+          const aInput = document.getElementById('ver-input-active');
+          const rRequired = document.getElementById('ver-radio-required');
+          const rOptional = document.getElementById('ver-radio-optional');
+
+          if (vInput) vInput.value = d.latest_version || '1.0.0';
+          if (bInput) bInput.value = d.latest_build_number || 1;
+          if (minVInput) minVInput.value = d.min_required_version || '1.0.0';
+          if (minBInput) minBInput.value = d.min_required_build_number || 1;
+          if (tInput) tInput.value = d.update_title || 'Pembaruan SATUS Mobile Tersedia';
+          if (nInput) nInput.value = d.release_notes || '';
+          if (uInput) uInput.value = d.play_store_url || 'https://play.google.com/store/apps/details?id=com.satus.app';
+          if (aInput) aInput.checked = (d.is_active !== false);
+
+          if (d.is_required) {
+            if (rRequired) rRequired.checked = true;
+          } else {
+            if (rOptional) rOptional.checked = true;
+          }
+
+          const badgeAction = document.getElementById('m-badge-version-type');
+          if (badgeAction) {
+            badgeAction.innerText = 'v' + (d.latest_version || '1.0.0');
+          }
+
+          const lastUpdated = document.getElementById('ver-last-updated-text');
+          if (lastUpdated && d.updated_at) {
+            try {
+              lastUpdated.innerText = 'Terakhir disimpan: ' + new Date(d.updated_at).toLocaleString('id-ID');
+            } catch(e) {}
+          }
+
+          this.updateVersionModalPreview();
+        } else {
+          this.showToast((res && res.message) || 'Gagal memuat konfigurasi versi', 'error');
+        }
+      })
+      .withFailureHandler((err) => {
+        this.showLoading(false);
+        this.handleError(err);
+      })
+      .getAppVersionConfig({ platform: 'ANDROID' });
+  },
+
+  updateVersionModalPreview: function() {
+    const vInput = document.getElementById('ver-input-latest-version');
+    const tInput = document.getElementById('ver-input-title');
+    const nInput = document.getElementById('ver-input-notes');
+    const rRequired = document.getElementById('ver-radio-required');
+
+    const prevVersion = document.getElementById('prev-version');
+    const prevTitle = document.getElementById('prev-title');
+    const prevNotes = document.getElementById('prev-notes');
+    const prevBadge = document.getElementById('prev-badge-type');
+    const prevIcon = document.getElementById('prev-icon-container');
+    const prevLaterBtn = document.getElementById('prev-btn-later');
+
+    const isReq = rRequired && rRequired.checked;
+    const verText = (vInput && vInput.value.trim()) || '1.0.1';
+    const titleText = (tInput && tInput.value.trim()) || 'Pembaruan SATUS Mobile Tersedia';
+    const notesText = (nInput && nInput.value.trim()) || '- Peningkatan performa & perbaikan bug';
+
+    if (prevVersion) prevVersion.innerText = 'v' + verText;
+    if (prevTitle) prevTitle.innerText = titleText;
+    if (prevNotes) prevNotes.innerText = notesText;
+
+    if (prevBadge && prevIcon && prevLaterBtn) {
+      if (isReq) {
+        prevBadge.className = 'text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-rose-100 text-rose-800';
+        prevBadge.innerText = 'Pembaruan Wajib (Required)';
+        prevIcon.className = 'w-11 h-11 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-2 shadow-inner';
+        prevLaterBtn.classList.add('hidden');
+      } else {
+        prevBadge.className = 'text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800';
+        prevBadge.innerText = 'Pembaruan Opsional (Flexible)';
+        prevIcon.className = 'w-11 h-11 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center mx-auto mb-2 shadow-inner';
+        prevLaterBtn.classList.remove('hidden');
+      }
+    }
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  },
+
+  saveAppVersionConfig: function() {
+    if (!this.session || !this.session.token) {
+      this.showToast('Sesi berakhir, silakan login kembali', 'error');
+      return;
+    }
+
+    const vInput = document.getElementById('ver-input-latest-version');
+    const bInput = document.getElementById('ver-input-latest-build');
+    const minVInput = document.getElementById('ver-input-min-version');
+    const minBInput = document.getElementById('ver-input-min-build');
+    const tInput = document.getElementById('ver-input-title');
+    const nInput = document.getElementById('ver-input-notes');
+    const uInput = document.getElementById('ver-input-url');
+    const aInput = document.getElementById('ver-input-active');
+    const rRequired = document.getElementById('ver-radio-required');
+
+    const latestVersion = (vInput && vInput.value.trim()) || '1.0.0';
+    const latestBuild = parseInt(bInput && bInput.value, 10) || 1;
+    const minVersion = (minVInput && minVInput.value.trim()) || '1.0.0';
+    const minBuild = parseInt(minBInput && minBInput.value, 10) || 1;
+    const isRequired = rRequired ? rRequired.checked : false;
+    const updateTitle = (tInput && tInput.value.trim()) || 'Pembaruan SATUS Mobile Tersedia';
+    const releaseNotes = (nInput && nInput.value.trim()) || '';
+    const playStoreUrl = (uInput && uInput.value.trim()) || '';
+    const isActive = aInput ? aInput.checked : true;
+
+    const btn = document.getElementById('btn-save-app-version');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="inline-block animate-spin mr-1.5">&#9696;</span> Menyimpan...';
+    }
+
+    const payload = {
+      platform: 'ANDROID',
+      latest_version: latestVersion,
+      latest_build_number: latestBuild,
+      min_required_version: minVersion,
+      min_required_build_number: minBuild,
+      is_required: isRequired,
+      update_title: updateTitle,
+      release_notes: releaseNotes,
+      play_store_url: playStoreUrl,
+      is_active: isActive
+    };
+
+    google.script.run
+      .withSuccessHandler((res) => {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i><span>Simpan Konfigurasi Versi</span>';
+          if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+        if (res && res.success) {
+          this.showToast('Konfigurasi rilis Play Store berhasil disimpan!', 'success');
+          const badgeAction = document.getElementById('m-badge-version-type');
+          if (badgeAction) badgeAction.innerText = 'v' + latestVersion;
+          this.closeModalAppVersionManager();
+        } else {
+          this.showToast((res && res.message) || 'Gagal menyimpan konfigurasi', 'error');
+        }
+      })
+      .withFailureHandler((err) => {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i><span>Simpan Konfigurasi Versi</span>';
+          if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+        this.handleError(err);
+      })
+      .updateAppVersionConfig(this.session.token, payload);
+  },
+
   // WHATSAPP RECEIPT COPY
   copyReceiptWhatsApp: function() {
     if (!this.lastKwitansiData) return;

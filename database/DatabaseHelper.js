@@ -24,7 +24,8 @@ const DATABASE_SCHEMAS = {
   'Audit_Log': ['log_id','timestamp','user_id','role','action','reference_id','description'],
   'Seeds': ['seed_id','seed_name','seed_type','conversion_value','stock','status'],
   'Seed_Requests': ['request_id','member_id','seed_id','quantity','total_value','status','requested_at','reviewed_by','reviewed_at','reject_reason'],
-  'Void_Requests': ['void_id','transaction_id','member_id','wallet_type','amount','reason','cashier_id','status','requested_at','reviewed_by','reviewed_at','reject_reason']
+  'Void_Requests': ['void_id','transaction_id','member_id','wallet_type','amount','reason','cashier_id','status','requested_at','reviewed_by','reviewed_at','reject_reason'],
+  'App_Version': ['config_key','latest_version','latest_build_number','min_required_version','min_required_build_number','is_required','update_title','release_notes','play_store_url','is_active','updated_at']
 };
 
 function ensureSheetHeaders(sheet, sheetName) {

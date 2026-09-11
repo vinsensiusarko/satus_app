@@ -29,6 +29,11 @@
           <i data-lucide="globe" class="w-4 h-4 text-yellow-300"></i>
           <span>Impact Report</span>
         </button>
+        <button onclick="app.openModalAppVersionManager()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2.5 rounded-xl shadow-sm transition text-xs font-bold flex items-center space-x-1.5 active:scale-95">
+          <i data-lucide="smartphone" class="w-4 h-4 text-indigo-200"></i>
+          <span>Kontrol Versi Mobile</span>
+          <span id="m-badge-version-type" class="ml-1 bg-indigo-200 text-indigo-950 px-1.5 py-0.5 rounded-full font-bold text-[9px]">v1.0.0</span>
+        </button>
       </div>
     </div>
 
@@ -751,6 +756,226 @@
             </tbody>
           </table>
         </div>
+    <!-- Modal Control Panel Versioning (Mobile App Version & In-App Update) -->
+    <div id="modal-app-version-manager" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden animate-fade-in">
+      <div class="bg-white rounded-3xl p-6 w-full max-w-5xl max-h-[92vh] overflow-y-auto shadow-2xl animate-scale-in">
+        <!-- Modal Header -->
+        <div class="flex justify-between items-center border-b pb-3 mb-5">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold shadow-sm">
+              <i data-lucide="smartphone" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="text-base font-black text-slate-800">Kontrol Versi & Update SATUS Mobile</h3>
+                <span id="ver-modal-status-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">Live Config</span>
+              </div>
+              <p class="text-xs text-slate-500">Kelola rilis Play Store dan notifikasi in-app update untuk pengguna mobile</p>
+            </div>
+          </div>
+          <button onclick="app.closeModalAppVersionManager()" class="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <!-- Grid 2 Kolom: Form Input vs Live Mobile Preview -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          <!-- Kolom Kiri: Form Input (7 Kolom) -->
+          <div class="lg:col-span-7 space-y-4">
+            
+            <!-- Card Pengaturan Versi -->
+            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-3">
+              <div class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                <i data-lucide="tag" class="w-3.5 h-3.5 text-indigo-600"></i>
+                <span>Nomor Versi Rilis Play Store</span>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-600 mb-1">Versi Terbaru (Version Name) *</label>
+                  <input type="text" id="ver-input-latest-version" oninput="app.updateVersionModalPreview()" placeholder="misal: 1.0.1" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-mono">
+                  <span class="text-[10px] text-slate-400">Format: Major.Minor.Patch (1.0.1)</span>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-600 mb-1">Build Number Terbaru (Version Code) *</label>
+                  <input type="number" id="ver-input-latest-build" oninput="app.updateVersionModalPreview()" placeholder="misal: 2" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-mono">
+                  <span class="text-[10px] text-slate-400">Angka integer naik tiap rilis (1, 2, 3...)</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Card Tipe Pembaruan (Required vs Optional) -->
+            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-3">
+              <div class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-indigo-600"></i>
+                <span>Tipe Pembaruan (Update Urgency) *</span>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <!-- Option: Required -->
+                <label class="relative flex flex-col p-3 rounded-xl border-2 cursor-pointer transition select-none has-[:checked]:border-rose-500 has-[:checked]:bg-rose-50/50 border-slate-200 bg-white">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs font-black text-rose-700 flex items-center gap-1">
+                      <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+                      Wajib (Required)
+                    </span>
+                    <input type="radio" name="ver-update-type" id="ver-radio-required" value="true" onchange="app.updateVersionModalPreview()" class="text-rose-600 focus:ring-rose-500 w-4 h-4">
+                  </div>
+                  <p class="text-[11px] text-slate-500 leading-snug">
+                    Force Update / Layar dikunci. Pengguna tidak bisa menggunakan aplikasi sebelum update di Play Store.
+                  </p>
+                </label>
+
+                <!-- Option: Optional / Flexible -->
+                <label class="relative flex flex-col p-3 rounded-xl border-2 cursor-pointer transition select-none has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50/50 border-slate-200 bg-white">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs font-black text-emerald-700 flex items-center gap-1">
+                      <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                      Opsional (Flexible)
+                    </span>
+                    <input type="radio" name="ver-update-type" id="ver-radio-optional" value="false" onchange="app.updateVersionModalPreview()" checked class="text-emerald-600 focus:ring-emerald-500 w-4 h-4">
+                  </div>
+                  <p class="text-[11px] text-slate-500 leading-snug">
+                    Fleksibel. Pengguna dapat memilih "Nanti Saja" untuk menunda, atau "Perbarui" dari dalam aplikasi.
+                  </p>
+                </label>
+              </div>
+
+              <!-- Batas Minimum Versi -->
+              <div class="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200/60">
+                <div>
+                  <label class="block text-[10px] font-bold text-slate-600 mb-0.5">Min. Versi Wajib</label>
+                  <input type="text" id="ver-input-min-version" oninput="app.updateVersionModalPreview()" placeholder="1.0.0" class="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-mono">
+                  <span class="text-[9px] text-slate-400">Versi di bawah ini otomatis dipaksa update</span>
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold text-slate-600 mb-0.5">Min. Build Wajib</label>
+                  <input type="number" id="ver-input-min-build" oninput="app.updateVersionModalPreview()" placeholder="1" class="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-mono">
+                  <span class="text-[9px] text-slate-400">Build di bawah ini otomatis dipaksa update</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Card Konten Notifikasi & URL -->
+            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-3">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-600 mb-1">Judul Pop-Up Notifikasi</label>
+                <input type="text" id="ver-input-title" oninput="app.updateVersionModalPreview()" placeholder="misal: Pembaruan SATUS Mobile Tersedia" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800">
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-bold text-slate-600 mb-1">Catatan Rilis / Changelog (Release Notes)</label>
+                <textarea id="ver-input-notes" rows="3" oninput="app.updateVersionModalPreview()" placeholder="- Perbaikan scan barcode kamera&#10;- Peningkatan kecepatan transaksi&#10;- Struk digital model baru" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-sans leading-relaxed"></textarea>
+                <span class="text-[10px] text-slate-400">Gunakan tanda hubung (-) untuk tiap poin perubahan.</span>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-bold text-slate-600 mb-1">URL Google Play Store / Download</label>
+                <input type="url" id="ver-input-url" oninput="app.updateVersionModalPreview()" placeholder="https://play.google.com/store/apps/details?id=com.satus.app" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-700">
+              </div>
+
+              <div class="flex items-center justify-between pt-1">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" id="ver-input-active" onchange="app.updateVersionModalPreview()" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500">
+                  <span class="text-xs font-bold text-slate-700">Aktifkan Notifikasi Pembaruan</span>
+                </label>
+                <span class="text-[10px] text-slate-400" id="ver-last-updated-text">Terakhir diperbarui: -</span>
+              </div>
+            </div>
+
+            <!-- Tombol Simpan -->
+            <div class="pt-2 flex justify-end gap-2">
+              <button type="button" onclick="app.closeModalAppVersionManager()" class="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition">
+                Batal
+              </button>
+              <button type="button" id="btn-save-app-version" onclick="app.saveAppVersionConfig()" class="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-600/20 transition flex items-center gap-2 active:scale-95">
+                <i data-lucide="save" class="w-4 h-4"></i>
+                <span>Simpan Konfigurasi Versi</span>
+              </button>
+            </div>
+
+          </div>
+
+          <!-- Kolom Kanan: Live Mobile Preview (5 Kolom) -->
+          <div class="lg:col-span-5 flex flex-col items-center">
+            <div class="text-[11px] font-bold text-slate-500 uppercase mb-2 flex items-center gap-1">
+              <i data-lucide="eye" class="w-3.5 h-3.5 text-indigo-500"></i>
+              <span>Simulasi Tampilan di HP Pengguna</span>
+            </div>
+
+            <!-- Frame Mockup HP -->
+            <div class="w-full max-w-[300px] bg-slate-900 rounded-[36px] p-3 shadow-2xl border-4 border-slate-800">
+              <!-- Notch / Speaker -->
+              <div class="w-20 h-3 bg-slate-800 rounded-full mx-auto mb-2 flex items-center justify-center">
+                <div class="w-2 h-2 rounded-full bg-slate-700 mr-1"></div>
+                <div class="w-8 h-1 rounded-full bg-slate-700"></div>
+              </div>
+
+              <!-- Layar HP Simulator -->
+              <div class="bg-slate-100 rounded-[28px] overflow-hidden min-h-[420px] flex flex-col justify-center p-3 relative">
+                <!-- Dimmer Overlay -->
+                <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-[1px]"></div>
+
+                <!-- Modal Dialog Simulator -->
+                <div class="relative bg-white rounded-2xl p-4 shadow-xl border border-slate-100 text-center">
+                  <!-- Icon Update -->
+                  <div id="prev-icon-container" class="w-11 h-11 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center mx-auto mb-2 shadow-inner">
+                    <i data-lucide="rocket" class="w-5 h-5"></i>
+                  </div>
+
+                  <!-- Badge Status -->
+                  <div class="mb-1">
+                    <span id="prev-badge-type" class="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                      Pembaruan Opsional
+                    </span>
+                  </div>
+
+                  <!-- Judul Dialog -->
+                  <h4 id="prev-title" class="text-xs font-black text-slate-800 leading-snug mb-1">
+                    Pembaruan SATUS Mobile Tersedia
+                  </h4>
+
+                  <!-- Chip Versi -->
+                  <div class="bg-slate-50 rounded-lg p-1.5 border border-slate-100 my-2 flex items-center justify-center gap-1.5 text-[10px] font-mono text-slate-600">
+                    <span>v1.0.0</span>
+                    <i data-lucide="arrow-right" class="w-3 h-3 text-indigo-500"></i>
+                    <b id="prev-version" class="text-indigo-600 font-bold">v1.0.1</b>
+                  </div>
+
+                  <!-- Release Notes Box -->
+                  <div class="text-left bg-slate-50 rounded-xl p-2 border border-slate-100 mb-3 max-h-24 overflow-y-auto">
+                    <span class="text-[9px] font-bold text-slate-400 uppercase block mb-0.5">Apa yang baru:</span>
+                    <div id="prev-notes" class="text-[10px] text-slate-600 space-y-0.5 whitespace-pre-line leading-tight">
+                      - Perbaikan sistem & performa
+                    </div>
+                  </div>
+
+                  <!-- Tombol Aksi HP -->
+                  <div id="prev-buttons-container" class="space-y-1.5">
+                    <button class="w-full py-2 rounded-xl bg-indigo-600 text-white text-[11px] font-bold shadow-sm flex items-center justify-center gap-1 pointer-events-none">
+                      <i data-lucide="download-cloud" class="w-3.5 h-3.5"></i>
+                      <span>Perbarui Sekarang</span>
+                    </button>
+                    <button id="prev-btn-later" class="w-full py-0.5 text-[10px] font-bold text-slate-400 pointer-events-none">
+                      Nanti Saja
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+              <!-- Bottom Bar HP -->
+              <div class="w-24 h-1 bg-slate-700 rounded-full mx-auto mt-2"></div>
+            </div>
+
+            <div class="mt-2 text-[10px] text-slate-400 text-center px-2">
+              💡 Pada Android pengguna Play Store, dialog Google Play native (Immediate/Flexible) akan dipicu secara otomatis.
+            </div>
+
+          </div>
+
+        </div>
+
       </div>
     </div>
   

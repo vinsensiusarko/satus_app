@@ -22,7 +22,22 @@ const CONFIG = {
     AUDIT_LOG: 'Audit_Log',
     SEEDS: 'Seeds',
     SEED_REQUESTS: 'Seed_Requests',
-    VOID_REQUESTS: 'Void_Requests'
+    VOID_REQUESTS: 'Void_Requests',
+    APP_VERSION: 'App_Version'
+  },
+  
+  // Konfigurasi Default Versi Mobile App (Fallback)
+  APP_VERSION_DEFAULT: {
+    config_key: 'ANDROID',
+    latest_version: '1.0.0',
+    latest_build_number: 1,
+    min_required_version: '1.0.0',
+    min_required_build_number: 1,
+    is_required: false,
+    update_title: 'Pembaruan SATUS Mobile Tersedia',
+    release_notes: 'Pembaruan stabilitas dan peningkatan performa.',
+    play_store_url: 'https://play.google.com/store/apps/details?id=com.satus.app',
+    is_active: true
   },
   
   ROLES: {
