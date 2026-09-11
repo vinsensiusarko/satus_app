@@ -366,3 +366,86 @@ function sendBroadcastNotification(title, body, role) {
     CONFIG.FIREBASE && CONFIG.FIREBASE.CHANNELS ? CONFIG.FIREBASE.CHANNELS.INFO : 'satus_info_channel'
   );
 }
+
+/**
+ * Memeriksa status konfigurasi kredensial Firebase di Apps Script
+ */
+function getFirebaseConfigStatus() {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const sa = props.getProperty('FIREBASE_SERVICE_ACCOUNT');
+    const clientEmail = props.getProperty('FIREBASE_CLIENT_EMAIL');
+    const privateKey = props.getProperty('FIREBASE_PRIVATE_KEY');
+    const serverKey = props.getProperty('FIREBASE_SERVER_KEY');
+
+    const hasServiceAccount = !!(sa || (clientEmail && privateKey));
+    const hasServerKey = !!serverKey;
+
+    let mode = 'NONE';
+    if (hasServiceAccount) mode = 'SERVICE_ACCOUNT';
+    else if (hasServerKey) mode = 'SERVER_KEY';
+
+    return {
+      success: true,
+      isConfigured: hasServiceAccount || hasServerKey,
+      mode: mode,
+      projectId: (CONFIG.FIREBASE && CONFIG.FIREBASE.PROJECT_ID) ? CONFIG.FIREBASE.PROJECT_ID : 'satus-mobile-mhsm1',
+      channels: CONFIG.FIREBASE ? CONFIG.FIREBASE.CHANNELS : {}
+    };
+  } catch (e) {
+    return { success: false, isConfigured: false, mode: 'ERROR', error: e.message };
+  }
+}
+
+/**
+ * Mengirim notifikasi pengujian langsung dari Dashboard Manager
+ */
+function sendTestPushNotification(params) {
+  params = params || {};
+  const target = params.target || 'all_users';
+  const customId = params.customId || '';
+  const title = params.title || 'Tes Notifikasi SATUS 🔔';
+  const body = params.body || 'Halo! Ini adalah pesan pengujian notifikasi SATUS Mobile.';
+  const channelId = params.channelId || 'satus_transaksi_channel';
+  const actionType = params.actionType || 'TEST';
+
+  let topic = target;
+  if (target === 'custom' && customId) {
+    topic = 'user_' + sanitizeFcmTopic(customId);
+  } else if (!topic.startsWith('role_') && !topic.startsWith('user_') && topic !== 'all_users') {
+    if (topic.toUpperCase() === 'SISWA') topic = 'role_siswa';
+    else if (topic.toUpperCase() === 'KASIR') topic = 'role_kasir';
+    else if (topic.toUpperCase() === 'MANAGER') topic = 'role_manager';
+    else topic = 'user_' + sanitizeFcmTopic(topic);
+  }
+
+  const payload = {
+    type: actionType,
+    action: 'TEST_NOTIFICATION',
+    sender: 'MANAGER_DASHBOARD',
+    timestamp: new Date().toISOString()
+  };
+
+  const status = getFirebaseConfigStatus();
+  const result = sendFcmTopicMessage(topic, title, body, payload, channelId);
+
+  let message = '';
+  if (result.success) {
+    message = 'Tes notifikasi berhasil dikirim ke topik "' + topic + '"!';
+  } else if (status.isConfigured) {
+    message = 'Gagal mengirim notifikasi via FCM: ' + (result.message || 'Periksa log server');
+  } else {
+    message = 'Kredensial Firebase belum terkonfigurasi di Script Properties. Notifikasi dicoba kirim namun membutuhkan FIREBASE_SERVICE_ACCOUNT atau FIREBASE_SERVER_KEY di Settings Apps Script.';
+  }
+
+  return {
+    success: result.success,
+    isConfigured: status.isConfigured,
+    mode: status.mode,
+    topic: topic,
+    channelId: channelId,
+    message: message,
+    fcmResult: result
+  };
+}
+

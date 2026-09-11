@@ -903,6 +903,211 @@ const app = {
       .updateAppVersionConfig(this.session.token, payload);
   },
 
+  // ============================================================
+  // PUSH NOTIFICATION TEST CONTROL PANEL (MANAGER)
+  // ============================================================
+  openModalTestNotification: function() {
+    const modal = document.getElementById('modal-test-notification');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    this.checkFirebaseNotificationStatus();
+    this.updateTestNotificationPreview();
+  },
+
+  closeModalTestNotification: function() {
+    const modal = document.getElementById('modal-test-notification');
+    if (modal) modal.classList.add('hidden');
+  },
+
+  checkFirebaseNotificationStatus: function() {
+    const badge = document.getElementById('notif-badge-config');
+    const alertBox = document.getElementById('notif-config-alert');
+    const desc = document.getElementById('notif-config-desc');
+
+    if (badge) {
+      badge.innerText = 'Memeriksa...';
+      badge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500/40 text-amber-100 border border-amber-300/30';
+    }
+
+    google.script.run
+      .withSuccessHandler((res) => {
+        if (!badge || !desc) return;
+        if (res && res.isConfigured) {
+          badge.innerText = res.mode === 'SERVICE_ACCOUNT' ? 'FCM v1 Aktif (OAuth2)' : 'FCM Server Key Aktif';
+          badge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500 text-white shadow-sm';
+          if (alertBox) {
+            alertBox.className = 'p-4 rounded-2xl border text-xs flex items-start gap-3 bg-emerald-50 border-emerald-200 text-emerald-900';
+          }
+          desc.innerHTML = `✅ Kredensial Firebase Cloud Messaging terhubung (${res.mode}). Siap mengirim notifikasi push langsung ke perangkat Android SATUS Mobile.`;
+        } else {
+          badge.innerText = 'Kredensial Belum Diset';
+          badge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500 text-white shadow-sm';
+          if (alertBox) {
+            alertBox.className = 'p-4 rounded-2xl border text-xs flex items-start gap-3 bg-amber-50 border-amber-200 text-amber-900';
+          }
+          desc.innerHTML = `⚠️ <b>Kredensial Firebase belum disimpan di Script Properties.</b><br>Untuk mengaktifkan pengiriman langsung ke HP, buka <i>Apps Script &gt; Project Settings &gt; Script Properties</i>, lalu tambahkan properti <code>FIREBASE_SERVICE_ACCOUNT</code> (isi JSON Service Account) atau <code>FIREBASE_SERVER_KEY</code>.`;
+        }
+      })
+      .withFailureHandler((err) => {
+        if (desc) desc.innerText = 'Gagal memeriksa status kredensial: ' + (err.message || err);
+      })
+      .getFirebaseConfigStatus();
+  },
+
+  onTestNotifTargetChange: function() {
+    const targetSel = document.getElementById('test-notif-target');
+    const customContainer = document.getElementById('test-notif-custom-container');
+    if (targetSel && customContainer) {
+      if (targetSel.value === 'custom') {
+        customContainer.classList.remove('hidden');
+      } else {
+        customContainer.classList.add('hidden');
+      }
+    }
+    this.updateTestNotificationPreview();
+  },
+
+  applyTestNotificationPreset: function(presetKey) {
+    const targetSel = document.getElementById('test-notif-target');
+    const channelSel = document.getElementById('test-notif-channel');
+    const titleInput = document.getElementById('test-notif-title');
+    const bodyInput = document.getElementById('test-notif-body');
+    const customContainer = document.getElementById('test-notif-custom-container');
+
+    if (presetKey === 'SETOR_TUNAI') {
+      if (targetSel) targetSel.value = 'role_siswa';
+      if (channelSel) channelSel.value = 'satus_transaksi_channel';
+      if (titleInput) titleInput.value = 'Setor Tunai Berhasil 💰';
+      if (bodyInput) bodyInput.value = 'Setoran tunai sebesar Rp 50.000 telah masuk ke Saldo Tabungan Anda. Total saldo: Rp 150.000';
+      if (customContainer) customContainer.classList.add('hidden');
+    } else if (presetKey === 'SETOR_SAMPAH') {
+      if (targetSel) targetSel.value = 'role_siswa';
+      if (channelSel) channelSel.value = 'satus_transaksi_channel';
+      if (titleInput) titleInput.value = 'Setor Sampah Berhasil 🌱';
+      if (bodyInput) bodyInput.value = 'Setor sampah (Plastik 2.5 Kg) senilai Rp 12.500 telah ditambahkan ke Saldo Hijau Anda. Total saldo: Rp 35.000';
+      if (customContainer) customContainer.classList.add('hidden');
+    } else if (presetKey === 'VOID_REQUEST') {
+      if (targetSel) targetSel.value = 'role_manager';
+      if (channelSel) channelSel.value = 'satus_approval_channel';
+      if (titleInput) titleInput.value = 'Pengajuan Void Transaksi ⚠️';
+      if (bodyInput) bodyInput.value = 'Kasir KSR-01 mengajukan pembatalan transaksi TRX-20260912-0001. Alasan: Salah input nominal';
+      if (customContainer) customContainer.classList.add('hidden');
+    } else if (presetKey === 'SEED_APPROVAL') {
+      if (targetSel) targetSel.value = 'role_siswa';
+      if (channelSel) channelSel.value = 'satus_approval_channel';
+      if (titleInput) titleInput.value = 'Pengajuan Bibit Disetujui! 🌳';
+      if (bodyInput) bodyInput.value = 'Selamat! Pengajuan bibit Bibit Mangga Anda telah disetujui. Silakan ambil di pihak sekolah.';
+      if (customContainer) customContainer.classList.add('hidden');
+    }
+
+    this.updateTestNotificationPreview();
+  },
+
+  updateTestNotificationPreview: function() {
+    const titleInput = document.getElementById('test-notif-title');
+    const bodyInput = document.getElementById('test-notif-body');
+    const targetSel = document.getElementById('test-notif-target');
+    const customIdInput = document.getElementById('test-notif-custom-id');
+    const channelSel = document.getElementById('test-notif-channel');
+
+    const prevTitle = document.getElementById('prev-notif-title');
+    const prevBody = document.getElementById('prev-notif-body');
+    const prevChannelBadge = document.getElementById('prev-notif-badge-channel');
+    const prevTopic = document.getElementById('prev-notif-topic');
+
+    const titleText = (titleInput && titleInput.value.trim()) || 'Tes Notifikasi SATUS 🔔';
+    const bodyText = (bodyInput && bodyInput.value.trim()) || 'Halo! Ini adalah pesan uji coba push notification.';
+    
+    let topicText = 'all_users';
+    if (targetSel) {
+      if (targetSel.value === 'custom') {
+        const cId = (customIdInput && customIdInput.value.trim()) || 'KH-001';
+        topicText = 'user_' + cId.replace(/[^a-zA-Z0-9-_.~%]/g, '_');
+      } else {
+        topicText = targetSel.value;
+      }
+    }
+
+    let channelName = 'Transaksi';
+    let channelColor = 'bg-emerald-100 text-emerald-800';
+    if (channelSel && channelSel.value === 'satus_approval_channel') {
+      channelName = 'Persetujuan';
+      channelColor = 'bg-rose-100 text-rose-800';
+    } else if (channelSel && channelSel.value === 'satus_info_channel') {
+      channelName = 'Edukasi / Info';
+      channelColor = 'bg-blue-100 text-blue-800';
+    }
+
+    if (prevTitle) prevTitle.innerText = titleText;
+    if (prevBody) prevBody.innerText = bodyText;
+    if (prevTopic) prevTopic.innerText = topicText;
+    if (prevChannelBadge) {
+      prevChannelBadge.innerText = channelName;
+      prevChannelBadge.className = 'text-[8px] font-bold px-1.5 py-0.5 rounded-full ' + channelColor;
+    }
+  },
+
+  sendTestNotificationSubmit: function() {
+    const btn = document.getElementById('btn-send-test-notif');
+    const targetSel = document.getElementById('test-notif-target');
+    const customIdInput = document.getElementById('test-notif-custom-id');
+    const channelSel = document.getElementById('test-notif-channel');
+    const titleInput = document.getElementById('test-notif-title');
+    const bodyInput = document.getElementById('test-notif-body');
+
+    const target = targetSel ? targetSel.value : 'all_users';
+    const customId = (customIdInput && target === 'custom') ? customIdInput.value.trim() : '';
+    const channelId = channelSel ? channelSel.value : 'satus_transaksi_channel';
+    const title = (titleInput && titleInput.value.trim()) || 'Tes Notifikasi SATUS 🔔';
+    const body = (bodyInput && bodyInput.value.trim()) || 'Halo! Ini adalah pesan uji coba push notification.';
+
+    if (target === 'custom' && !customId) {
+      this.showToast('Silakan isi ID Anggota atau Username tujuan!', 'error');
+      if (customIdInput) customIdInput.focus();
+      return;
+    }
+
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="inline-block animate-spin mr-2">⏳</span><span>Mengirim ke FCM...</span>';
+    }
+
+    const payload = {
+      target: target,
+      customId: customId,
+      channelId: channelId,
+      title: title,
+      body: body
+    };
+
+    google.script.run
+      .withSuccessHandler((res) => {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i data-lucide="send" class="w-4 h-4 text-amber-200"></i><span>Kirim Tes Notifikasi Sekarang</span>';
+          if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        if (res && res.success) {
+          this.showToast(res.message || 'Notifikasi berhasil dikirim ke perangkat!', 'success');
+        } else if (res && !res.isConfigured) {
+          this.showToast('Pengujian diproses: Kredensial Firebase belum disimpan di Script Properties. Notifikasi lokal foreground tetap aktif di app.', 'warning');
+        } else {
+          this.showToast((res && res.message) || 'Gagal mengirim notifikasi', 'error');
+        }
+      })
+      .withFailureHandler((err) => {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i data-lucide="send" class="w-4 h-4 text-amber-200"></i><span>Kirim Tes Notifikasi Sekarang</span>';
+          if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+        this.handleError(err);
+      })
+      .sendTestPushNotification(payload);
+  },
+
   // WHATSAPP RECEIPT COPY
   copyReceiptWhatsApp: function() {
     if (!this.lastKwitansiData) return;

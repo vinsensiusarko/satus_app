@@ -69,7 +69,8 @@ function isMutationAction(action) {
     'find_member', 'search_member', 'findmember', 'searchmember',
     'member_recent_transactions', 'getmemberrecenttransactions',
     'transactions', 'get_transactions', 'gettransactions', 'kasir_transactions',
-    'app_version', 'check_update', 'get_app_version', 'version'
+    'app_version', 'check_update', 'get_app_version', 'version',
+    'firebase_status', 'get_firebase_status', 'test_notification', 'send_test_notification'
   ];
 
   return !READ_ONLY_ACTIONS.includes(action);
@@ -504,7 +505,18 @@ function dispatchApiAction(action, params, method) {
         result = updateAppVersionConfig(params.token, params);
         break;
 
-      // 19. UNKNOWN ENDPOINT
+      // 19. FIREBASE PUSH NOTIFICATION TEST & STATUS
+      case 'firebase_status':
+      case 'get_firebase_status':
+        result = getFirebaseConfigStatus();
+        break;
+
+      case 'test_notification':
+      case 'send_test_notification':
+        result = sendTestPushNotification(params);
+        break;
+
+      // 20. UNKNOWN ENDPOINT
       default:
         result = {
           success: false,
