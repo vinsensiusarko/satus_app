@@ -639,3 +639,22 @@ function sendTestPushNotification(params) {
   };
 }
 
+/**
+ * Fungsi khusus untuk memicu dialog otorisasi izin OAuth scope (UrlFetchApp) di Google Apps Script
+ * Jalankan fungsi ini 1 KALI dari Google Apps Script Editor (pilih dari dropdown lalu klik Run/Jalankan ▶)
+ */
+function authorizeExternalRequests() {
+  console.log('--- MEMULAI OTORISASI IZIN URLFETCHAPP ---');
+  try {
+    const res = UrlFetchApp.fetch('https://www.google.com', { muteHttpExceptions: true });
+    console.log('✅ Izin UrlFetchApp berhasil diotorisasi! Status HTTP: ' + res.getResponseCode());
+    console.log('Melanjutkan ke pengujian koneksi Firebase...');
+    const result = testFirebaseConnection();
+    console.log('Hasil Uji Koneksi Firebase:', JSON.stringify(result, null, 2));
+    return result;
+  } catch (e) {
+    console.error('❌ Gagal otorisasi atau koneksi:', e);
+    throw e;
+  }
+}
+

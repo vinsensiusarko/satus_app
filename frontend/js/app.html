@@ -1015,8 +1015,14 @@ const app = {
             }
             const errMsg = (report && report.summary) || 'Gagal memverifikasi kredensial Firebase.';
             const projId = (report && report.projectId) || 'satus-mobile-mhsm1';
+            let guideHint = `Pastikan <code>FIREBASE_SERVICE_ACCOUNT</code> di Script Properties valid dan API FCM berstatus Enabled di <a href="https://console.cloud.google.com/apis/library/fcm.googleapis.com?project=${projId}" target="_blank" class="underline font-bold text-rose-900">Google Cloud Console</a>.`;
+
+            if (errMsg.includes('UrlFetchApp') || errMsg.includes('external_request')) {
+              guideHint = `<b>Langkah Otorisasi Diperlukan:</b> Buka editor Google Apps Script, pilih fungsi <code>authorizeExternalRequests</code> di toolbar atas, lalu klik <b>Run / Jalankan ▶</b> untuk menyetujui izin Google (hanya perlu 1 kali). Kemudian lakukan Deploy &gt; Manage Deployments &gt; Edit &gt; New Version.`;
+            }
+
             if (desc) {
-              desc.innerHTML = `❌ <b>Kendala Kredensial:</b> ${errMsg}<br><span class="text-[11px] text-rose-700">Pastikan <code>FIREBASE_SERVICE_ACCOUNT</code> di Script Properties valid dan API FCM berstatus Enabled di <a href="https://console.cloud.google.com/apis/library/fcm.googleapis.com?project=${projId}" target="_blank" class="underline font-bold text-rose-900">Google Cloud Console</a>.</span>`;
+              desc.innerHTML = `❌ <b>Kendala Kredensial / Izin:</b> ${errMsg}<br><span class="text-[11px] text-rose-700">${guideHint}</span>`;
             }
             this.showToast(errMsg, 'error');
           }
