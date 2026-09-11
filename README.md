@@ -177,17 +177,21 @@ graph LR
 | File Modul | Peran & Tanggung Jawab Utama |
 |---|---|
 | [`Code.js`](file:///D:/Project/Satus/satus_app/Code.js) | Entry point Google Apps Script untuk `doGet()`, `doPost()`, dan rendering antarmuka web. |
-| [`Config.js`](file:///D:/Project/Satus/satus_app/Config.js) | Konfigurasi global nama sheet, role enum, prefix ID, dan setting `LOCK_CONFIG`. |
-| [`DatabaseHelper.js`](file:///D:/Project/Satus/satus_app/DatabaseHelper.js) | Abstraksi CRUD spreadsheet, manajemen cache in-memory, dan wrapper `withScriptLock()`. |
-| [`Auth.js`](file:///D:/Project/Satus/satus_app/Auth.js) | Enkripsi kata sandi, verifikasi login, pembuatan token HMAC-SHA256, dan validasi sesi. |
-| [`TransactionService.js`](file:///D:/Project/Satus/satus_app/TransactionService.js) | Logika setor tunai, tarik tunai, pengajuan pembatalan (void), dan otorisasi PIN manager. |
-| [`WasteService.js`](file:///D:/Project/Satus/satus_app/WasteService.js) | Pengelolaan master sampah, konversi berat (kg) ke nominal poin, dan kalkulasi dampak lingkungan. |
-| [`ProductService.js`](file:///D:/Project/Satus/satus_app/ProductService.js) | POS koperasi sekolah, pengurangan stok otomatis, dan pembayaran via Saldo Utama atau Poin Hijau. |
-| [`SeedService.js`](file:///D:/Project/Satus/satus_app/SeedService.js) | Katalog bibit tanaman, pengajuan klaim oleh siswa, persetujuan manager, dan pelacakan pohon tertanam. |
-| [`AuditService.js`](file:///D:/Project/Satus/satus_app/AuditService.js) | Pencatatan rekam jejak aktivitas (*audit trail*) dan filtering log multi-kategori. |
-| [`ReportService.js`](file:///D:/Project/Satus/satus_app/ReportService.js) | Agregasi data laporan keuangan harian/bulanan, volume sampah, dan rasio partisipasi siswa. |
-| [`Setup.js`](file:///D:/Project/Satus/satus_app/Setup.js) | Inisialisasi struktur sheet, pembuatan header kolom, dan pengisian data demo awal. |
+| [`config/Config.js`](file:///D:/Project/Satus/satus_app/config/Config.js) | Konfigurasi global nama sheet, role enum, prefix ID, dan setting `LOCK_CONFIG`. |
+| [`database/DatabaseHelper.js`](file:///D:/Project/Satus/satus_app/database/DatabaseHelper.js) | Abstraksi CRUD spreadsheet, manajemen cache in-memory, dan wrapper `withScriptLock()`. |
+| [`database/MigrationService.js`](file:///D:/Project/Satus/satus_app/database/MigrationService.js) | Inisialisasi dan migrasi skema tabel spreadsheet. |
+| [`services/AuthService.js`](file:///D:/Project/Satus/satus_app/services/AuthService.js) | Enkripsi kata sandi, verifikasi login, pembuatan token HMAC-SHA256, dan validasi sesi. |
+| [`services/MemberService.js`](file:///D:/Project/Satus/satus_app/services/MemberService.js) | Manajemen siswa & anggota koperasi, verifikasi pendaftaran, dan mutasi saldo. |
+| [`services/TransactionService.js`](file:///D:/Project/Satus/satus_app/services/TransactionService.js) | Logika setor tunai, tarik tunai, pengajuan pembatalan (void), dan otorisasi PIN manager. |
+| [`services/BalanceService.js`](file:///D:/Project/Satus/satus_app/services/BalanceService.js) | Kalkulasi saldo ganda (Tabungan & Saldo Hijau) real-time. |
+| [`services/WasteService.js`](file:///D:/Project/Satus/satus_app/services/WasteService.js) | Pengelolaan master sampah, konversi berat (kg) ke nominal poin, dan kalkulasi dampak lingkungan. |
+| [`services/ProductService.js`](file:///D:/Project/Satus/satus_app/services/ProductService.js) | POS koperasi sekolah, pengurangan stok otomatis, dan pembayaran via Saldo Utama atau Poin Hijau. |
+| [`services/SeedService.js`](file:///D:/Project/Satus/satus_app/services/SeedService.js) | Katalog bibit tanaman, pengajuan klaim oleh siswa, persetujuan manager, dan pelacakan pohon tertanam. |
+| [`services/AuditService.js`](file:///D:/Project/Satus/satus_app/services/AuditService.js) | Pencatatan rekam jejak aktivitas (*audit trail*) dan filtering log multi-kategori. |
+| [`services/ReportService.js`](file:///D:/Project/Satus/satus_app/services/ReportService.js) | Agregasi data laporan keuangan harian/bulanan, volume sampah, dan rasio partisipasi siswa. |
+| [`services/SetupService.js`](file:///D:/Project/Satus/satus_app/services/SetupService.js) | Inisialisasi struktur sheet, pembuatan header kolom, dan pengisian data demo awal. |
 | [`api/ApiRouter.js`](file:///D:/Project/Satus/satus_app/api/ApiRouter.js) | Dispatcher REST API yang menghubungkan endpoint HTTP POST mobile ke layanan terkait. |
+| [`api/AuthApi.js`](file:///D:/Project/Satus/satus_app/api/AuthApi.js) | Endpoint API autentikasi, registrasi, verifikasi token, dan profil untuk aplikasi Flutter. |
 
 ---
 
@@ -277,24 +281,31 @@ POST https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec
 ```text
 satus_app/
 ├── .clasp.json              # Konfigurasi Google Clasp CLI
+├── .claspignore             # Filter file yang diabaikan saat push ke Apps Script
 ├── appsscript.json          # Manifest izin dan runtime Google Apps Script
 ├── Code.js                  # Entrypoint doGet / doPost & template rendering
-├── Config.js                # Konfigurasi konstanta sistem & lock settings
-├── DatabaseHelper.js        # Utilitas spreadsheet & mutex lock handler
-├── Auth.js                  # Layanan otentikasi & token security
-├── TransactionService.js    # Layanan transaksi finansial & void request
-├── WasteService.js          # Layanan kalkulasi & harga sampah sirkular
-├── ProductService.js        # Layanan kasir koperasi sekolah
-├── SeedService.js           # Layanan program bibit pohon sekolah
-├── AuditService.js          # Layanan pencatatan audit aktivitas
-├── ReportService.js         # Layanan pelaporan analitik
-├── Setup.js                 # Inisialisasi database sheet baru
-├── api/
+├── config/                  # Konfigurasi sistem
+│   └── Config.js            # Konfigurasi konstanta sistem & lock settings
+├── database/                # Lapisan database spreadsheet
+│   ├── DatabaseHelper.js    # Utilitas spreadsheet & mutex lock handler
+│   └── MigrationService.js  # Skema tabel & migrasi database
+├── services/                # Layanan logika bisnis per domain
+│   ├── AuthService.js       # Layanan otentikasi & token security
+│   ├── MemberService.js     # Layanan data siswa & anggota koperasi
+│   ├── TransactionService.js# Layanan transaksi finansial & void request
+│   ├── BalanceService.js    # Layanan perhitungan dual wallet (Tabungan & Hijau)
+│   ├── WasteService.js      # Layanan kalkulasi & harga sampah sirkular
+│   ├── ProductService.js    # Layanan kasir koperasi sekolah
+│   ├── SeedService.js       # Layanan program bibit pohon sekolah
+│   ├── AuditService.js      # Layanan pencatatan audit aktivitas
+│   ├── ReportService.js     # Layanan pelaporan analitik
+│   └── SetupService.js      # Inisialisasi database sheet baru
+├── api/                     # Lapisan API mobile (Flutter)
 │   ├── ApiRouter.js         # Dispatcher REST API mobile
+│   ├── AuthApi.js           # Handler autentikasi mobile
 │   └── README.md            # Spesifikasi lengkap request/response API
 ├── asset/                   # Aset logo, favicon, dan identitas visual
-├── docs/
-│   └── images/              # Banner dan ilustrasi arsitektur sistem
+├── docs/                    # Dokumentasi arsitektur & gambar
 └── frontend/                # Antarmuka web responsif (TailwindCSS)
     ├── index.html           # Layout utama portal web
     ├── js/app.html          # Skrip logika aplikasi web

@@ -1,0 +1,11 @@
+﻿# Clasp Ignore Configuration
+**/*.md
+**/*.docx
+**/*.txt
+document/**
+docs/**
+asset/**
+.git/**
+.github/**
+node_modules/**
+package*.json
