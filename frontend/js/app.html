@@ -930,29 +930,39 @@ const app = {
       badge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500/40 text-amber-100 border border-amber-300/30';
     }
 
-    google.script.run
-      .withSuccessHandler((res) => {
-        if (!badge || !desc) return;
-        if (res && res.isConfigured) {
-          badge.innerText = res.mode === 'SERVICE_ACCOUNT' ? 'FCM v1 Aktif (OAuth2)' : 'FCM Server Key Aktif';
-          badge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500 text-white shadow-sm';
-          if (alertBox) {
-            alertBox.className = 'p-4 rounded-2xl border text-xs flex items-start gap-3 bg-emerald-50 border-emerald-200 text-emerald-900';
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler((res) => {
+          if (!badge || !desc) return;
+          if (res && res.isConfigured) {
+            badge.innerText = res.mode === 'SERVICE_ACCOUNT' ? 'FCM v1 Aktif (OAuth2)' : 'FCM Server Key Aktif';
+            badge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500 text-white shadow-sm';
+            if (alertBox) {
+              alertBox.className = 'p-4 rounded-2xl border text-xs flex items-start gap-3 bg-emerald-50 border-emerald-200 text-emerald-900';
+            }
+            desc.innerHTML = `✅ Kredensial Firebase Cloud Messaging terhubung (${res.mode}). Siap mengirim notifikasi push langsung ke perangkat Android SATUS Mobile.`;
+          } else {
+            badge.innerText = 'Kredensial Belum Diset';
+            badge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500 text-white shadow-sm';
+            if (alertBox) {
+              alertBox.className = 'p-4 rounded-2xl border text-xs flex items-start gap-3 bg-amber-50 border-amber-200 text-amber-900';
+            }
+            desc.innerHTML = `⚠️ <b>Kredensial Firebase belum disimpan di Script Properties.</b><br>Untuk mengaktifkan pengiriman langsung ke HP, buka <i>Apps Script &gt; Project Settings &gt; Script Properties</i>, lalu tambahkan properti <code>FIREBASE_SERVICE_ACCOUNT</code> (isi JSON Service Account) atau <code>FIREBASE_SERVER_KEY</code>.`;
           }
-          desc.innerHTML = `✅ Kredensial Firebase Cloud Messaging terhubung (${res.mode}). Siap mengirim notifikasi push langsung ke perangkat Android SATUS Mobile.`;
-        } else {
-          badge.innerText = 'Kredensial Belum Diset';
-          badge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500 text-white shadow-sm';
-          if (alertBox) {
-            alertBox.className = 'p-4 rounded-2xl border text-xs flex items-start gap-3 bg-amber-50 border-amber-200 text-amber-900';
-          }
-          desc.innerHTML = `⚠️ <b>Kredensial Firebase belum disimpan di Script Properties.</b><br>Untuk mengaktifkan pengiriman langsung ke HP, buka <i>Apps Script &gt; Project Settings &gt; Script Properties</i>, lalu tambahkan properti <code>FIREBASE_SERVICE_ACCOUNT</code> (isi JSON Service Account) atau <code>FIREBASE_SERVER_KEY</code>.`;
-        }
-      })
-      .withFailureHandler((err) => {
-        if (desc) desc.innerText = 'Gagal memeriksa status kredensial: ' + (err.message || err);
-      })
-      .getFirebaseConfigStatus();
+        })
+        .withFailureHandler((err) => {
+          if (desc) desc.innerText = 'Gagal memeriksa status kredensial: ' + (err.message || err);
+        })
+        .getFirebaseConfigStatus();
+    } else {
+      if (badge) {
+        badge.innerText = 'Mode Simulator';
+        badge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-blue-500 text-white shadow-sm';
+      }
+      if (desc) {
+        desc.innerHTML = 'ℹ️ <b>Mode Uji Coba:</b> Google Apps Script API terhubung saat aplikasi dideploy ke cloud.';
+      }
+    }
   },
 
   onTestNotifTargetChange: function() {
@@ -1081,31 +1091,42 @@ const app = {
       body: body
     };
 
-    google.script.run
-      .withSuccessHandler((res) => {
-        if (btn) {
-          btn.disabled = false;
-          btn.innerHTML = '<i data-lucide="send" class="w-4 h-4 text-amber-200"></i><span>Kirim Tes Notifikasi Sekarang</span>';
-          if (typeof lucide !== 'undefined') lucide.createIcons();
-        }
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler((res) => {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="send" class="w-4 h-4 text-amber-200"></i><span>Kirim Tes Notifikasi Sekarang</span>';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+          }
 
-        if (res && res.success) {
-          this.showToast(res.message || 'Notifikasi berhasil dikirim ke perangkat!', 'success');
-        } else if (res && !res.isConfigured) {
-          this.showToast('Pengujian diproses: Kredensial Firebase belum disimpan di Script Properties. Notifikasi lokal foreground tetap aktif di app.', 'warning');
-        } else {
-          this.showToast((res && res.message) || 'Gagal mengirim notifikasi', 'error');
-        }
-      })
-      .withFailureHandler((err) => {
+          if (res && res.success) {
+            this.showToast(res.message || 'Notifikasi berhasil dikirim ke perangkat!', 'success');
+          } else if (res && !res.isConfigured) {
+            this.showToast('Pengujian diproses: Kredensial Firebase belum disimpan di Script Properties. Notifikasi lokal foreground tetap aktif di app.', 'warning');
+          } else {
+            this.showToast((res && res.message) || 'Gagal mengirim notifikasi', 'error');
+          }
+        })
+        .withFailureHandler((err) => {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="send" class="w-4 h-4 text-amber-200"></i><span>Kirim Tes Notifikasi Sekarang</span>';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+          }
+          this.handleError(err);
+        })
+        .sendTestPushNotification(payload);
+    } else {
+      setTimeout(() => {
         if (btn) {
           btn.disabled = false;
           btn.innerHTML = '<i data-lucide="send" class="w-4 h-4 text-amber-200"></i><span>Kirim Tes Notifikasi Sekarang</span>';
           if (typeof lucide !== 'undefined') lucide.createIcons();
         }
-        this.handleError(err);
-      })
-      .sendTestPushNotification(payload);
+        this.showToast('Simulasi: Notifikasi berhasil diuji coba untuk target ' + target, 'success');
+      }, 600);
+    }
   },
 
   // WHATSAPP RECEIPT COPY
