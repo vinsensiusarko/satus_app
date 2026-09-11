@@ -1,4 +1,4 @@
-﻿# Clasp Ignore Configuration
+# Clasp Ignore Configuration
 **/*.md
 **/*.docx
 **/*.txt
@@ -9,3 +9,4 @@ asset/**
 .github/**
 node_modules/**
 package*.json
+gas_response.html

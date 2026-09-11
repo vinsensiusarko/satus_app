@@ -760,7 +760,7 @@ const app = {
           if (minBInput) minBInput.value = d.min_required_build_number || 1;
           if (tInput) tInput.value = d.update_title || 'Pembaruan SATUS Mobile Tersedia';
           if (nInput) nInput.value = d.release_notes || '';
-          if (uInput) uInput.value = d.play_store_url || 'https://play.google.com/store/apps/details?id=com.satus.app';
+          if (uInput) uInput.value = d.play_store_url || '';
           if (aInput) aInput.checked = (d.is_active !== false);
 
           if (d.is_required) {
@@ -1318,45 +1318,52 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
   },
   
   init: function() {
-    const currentYear = new Date().getFullYear();
-    const fYear = document.getElementById('footer-year');
-    if (fYear) fYear.innerText = currentYear;
-    const lYear = document.getElementById('login-footer-year');
-    if (lYear) lYear.innerText = currentYear;
-
-    // Load session: prioritize sessionStorage for tab isolation, fallback to localStorage
-    const stored = sessionStorage.getItem('satus_session') || localStorage.getItem('satus_session');
     try {
-      this.session = JSON.parse(stored);
-      if (this.session) {
-        sessionStorage.setItem('satus_session', JSON.stringify(this.session));
+      const currentYear = new Date().getFullYear();
+      const fYear = document.getElementById('footer-year');
+      if (fYear) fYear.innerText = currentYear;
+      const lYear = document.getElementById('login-footer-year');
+      if (lYear) lYear.innerText = currentYear;
+
+      // Load session: prioritize sessionStorage for tab isolation, fallback to localStorage
+      const stored = sessionStorage.getItem('satus_session') || localStorage.getItem('satus_session');
+      try {
+        this.session = JSON.parse(stored);
+        if (this.session) {
+          sessionStorage.setItem('satus_session', JSON.stringify(this.session));
+        }
+      } catch(e) {
+        this.session = null;
       }
-    } catch(e) {
-      this.session = null;
-    }
 
-    this.updateNavProfile();
-    this.route();
+      this.updateNavProfile();
+      this.route();
 
-    // Background session verification and photo sync (non-blocking)
-    if (this.session && this.session.token) {
-      const activeToken = this.session.token;
-      google.script.run
-        .withSuccessHandler((res) => {
-          if (res && res.success && res.data) {
-            this.session = {
-              ...this.session,
-              ...res.data,
-              token: activeToken // Guarantee token is preserved
-            };
-            this.saveSession(this.session);
-            this.updateNavProfile();
-          }
-        })
-        .withFailureHandler((err) => {
-          console.warn('Silent session validation check:', err);
-        })
-        .getCurrentSession(activeToken);
+      // Background session verification and photo sync (non-blocking)
+      if (this.session && this.session.token) {
+        const activeToken = this.session.token;
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          google.script.run
+            .withSuccessHandler((res) => {
+              if (res && res.success && res.data) {
+                this.session = {
+                  ...this.session,
+                  ...res.data,
+                  token: activeToken // Guarantee token is preserved
+                };
+                this.saveSession(this.session);
+                this.updateNavProfile();
+              }
+            })
+            .withFailureHandler((err) => {
+              console.warn('Silent session validation check:', err);
+            })
+            .getCurrentSession(activeToken);
+        }
+      }
+    } catch (initErr) {
+      console.error('Fatal error during app.init():', initErr);
+      try { this.renderPage('tpl-login'); } catch(e) {}
     }
   },
 
@@ -1376,23 +1383,29 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
   },
 
   route: function() {
-    const navbar = document.getElementById('navbar');
-    if (!this.session) {
-      if (navbar) navbar.classList.add('hidden');
-      this.renderPage('tpl-login');
-      setTimeout(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); }, 50);
-    } else {
-      if (navbar) navbar.classList.remove('hidden');
-      const userEl = document.getElementById('nav-username');
-      if (userEl) userEl.innerText = this.session.nama + ' (' + this.session.role + ')';
-      
-      if (this.session.role === 'MANAGER') this.renderPage('tpl-dashboard-manager');
-      else if (this.session.role === 'KASIR') this.renderPage('tpl-dashboard-kasir');
-      else if (this.session.role === 'SISWA') this.renderPage('tpl-dashboard-siswa');
-      else {
-        this.logout();
-        this.showToast('Role tidak valid', 'error');
+    try {
+      const navbar = document.getElementById('navbar');
+      if (!this.session) {
+        if (navbar) navbar.classList.add('hidden');
+        this.renderPage('tpl-login');
+        setTimeout(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); }, 50);
+      } else {
+        if (navbar) navbar.classList.remove('hidden');
+        const userEl = document.getElementById('nav-username');
+        const role = String(this.session.role || '').toUpperCase();
+        if (userEl) userEl.innerText = (this.session.nama || this.session.username) + ' (' + role + ')';
+        
+        if (role === 'MANAGER') this.renderPage('tpl-dashboard-manager');
+        else if (role === 'KASIR') this.renderPage('tpl-dashboard-kasir');
+        else if (role === 'SISWA') this.renderPage('tpl-dashboard-siswa');
+        else {
+          this.logout();
+          this.showToast('Role tidak valid', 'error');
+        }
       }
+    } catch (routeErr) {
+      console.error('Fatal error during app.route():', routeErr);
+      try { this.renderPage('tpl-login'); } catch(e) {}
     }
   },
 
