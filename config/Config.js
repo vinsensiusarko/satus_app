@@ -107,8 +107,8 @@ const CONFIG = {
         username: 'admin-dev',
         password: 'manager123',
         role: 'MANAGER',
-        nama: 'Admin Dev (Testing)',
-        userId: 'DEV-MGR-001',
+        nama: 'Super Admin Dev',
+        userId: 'USR-000',
         status: 'AKTIF',
         isDev: true,
         photoUrl: 'https://ui-avatars.com/api/?name=Admin+Dev&background=7c3aed&color=fff&bold=true'
@@ -117,8 +117,8 @@ const CONFIG = {
         username: 'kasir-dev',
         password: 'kasir123',
         role: 'KASIR',
-        nama: 'Kasir Dev (Testing)',
-        userId: 'DEV-KSR-001',
+        nama: 'Kasir Dev',
+        userId: 'USR-000000',
         status: 'AKTIF',
         isDev: true,
         photoUrl: 'https://ui-avatars.com/api/?name=Kasir+Dev&background=0284c7&color=fff&bold=true'
@@ -127,9 +127,9 @@ const CONFIG = {
         username: 'siswa-dev',
         password: 'siswa123',
         role: 'SISWA',
-        nama: 'Siswa Dev (Testing)',
-        userId: 'DEV-SIS-001',
-        memberId: 'DEV-SIS-001',
+        nama: 'Siswa Dev',
+        userId: 'KH-2026-000',
+        memberId: 'KH-2026-000',
         nis: 'DEV-001',
         kelas: 'DEV',
         status: 'AKTIF',
@@ -153,6 +153,7 @@ function isDevUserId(userId) {
   const id = String(userId).trim().toUpperCase();
   return id.startsWith('DEV-') || id.startsWith('DEV_') || id.endsWith('-DEV') ||
          id === 'DEV' || id === 'DEV-SIS-001' || id === 'DEV-MGR-001' || id === 'DEV-KSR-001' ||
+         id === 'USR-000' || id === 'USR-000000' || id === 'KH-2026-000' ||
          id === 'SISWA-DEV' || id === 'ADMIN-DEV' || id === 'KASIR-DEV';
 }
 

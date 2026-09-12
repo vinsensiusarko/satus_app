@@ -16,6 +16,7 @@ function getUsersForChat(token, query, roleFilter) {
     }
 
     const currentUserId = String(session.userId || '');
+    const currentUsername = String(session.username || '').toLowerCase();
     const users = getSheetData(CONFIG.SHEETS.USERS);
     const members = getSheetData(CONFIG.SHEETS.MEMBERS);
 
@@ -39,11 +40,12 @@ function getUsersForChat(token, query, roleFilter) {
       const uid = String(u.user_id || '');
       const ustatus = String(u.status || '').toUpperCase();
       const urole = String(u.role || '').toUpperCase();
-      const unama = String(u.nama || '');
-      const uphoto = String(u.photo_url || '');
+      const unama = String(u.nama || u.username || 'Pengguna');
+      const uusername = String(u.username || '').toLowerCase();
+      const uphoto = String(u.photo_url || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(unama) + '&background=10b981&color=fff&bold=true&format=png'));
 
-      // Lewati akun sendiri atau akun yang tidak aktif
-      if (!uid || uid === currentUserId || ustatus !== 'AKTIF') {
+      // Lewati akun sendiri (berdasarkan userId atau username) atau akun yang tidak aktif
+      if (!uid || uid === currentUserId || (uusername && uusername === currentUsername) || ustatus !== 'AKTIF') {
         return;
       }
 
@@ -61,7 +63,7 @@ function getUsersForChat(token, query, roleFilter) {
       if (q) {
         const matchesNama = unama.toLowerCase().includes(q);
         const matchesNis = nis.toLowerCase().includes(q);
-        const matchesUsername = String(u.username || '').toLowerCase().includes(q);
+        const matchesUsername = uusername.includes(q);
         if (!matchesNama && !matchesNis && !matchesUsername) {
           return;
         }

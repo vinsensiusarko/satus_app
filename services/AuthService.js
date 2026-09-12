@@ -102,6 +102,15 @@ function login(username, password) {
         return { success: false, message: 'Password akun dev salah' };
       }
 
+      let actualUserId = devAcc.userId;
+      try {
+        const users = getSheetData(CONFIG.SHEETS.USERS);
+        const matched = users.find(u => String(u.username || '').toLowerCase() === cleanUsername);
+        if (matched && matched.user_id) {
+          actualUserId = String(matched.user_id);
+        }
+      } catch (e) {}
+
       let customPhoto = devAcc.photoUrl;
       try {
         const cached = CacheService.getScriptCache().get('dev_photo_' + cleanUsername);
@@ -109,7 +118,7 @@ function login(username, password) {
       } catch (e) {}
 
       const sessionData = {
-        userId: devAcc.userId,
+        userId: actualUserId,
         username: devAcc.username,
         role: devAcc.role,
         nama: devAcc.nama,
