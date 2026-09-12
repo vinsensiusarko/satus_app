@@ -189,6 +189,8 @@ graph LR
 | [`services/SeedService.js`](file:///D:/Project/Satus/satus_app/services/SeedService.js) | Katalog bibit tanaman, pengajuan klaim oleh siswa, persetujuan manager, dan pelacakan pohon tertanam. |
 | [`services/AuditService.js`](file:///D:/Project/Satus/satus_app/services/AuditService.js) | Pencatatan rekam jejak aktivitas (*audit trail*) dan filtering log multi-kategori. |
 | [`services/ReportService.js`](file:///D:/Project/Satus/satus_app/services/ReportService.js) | Agregasi data laporan keuangan harian/bulanan, volume sampah, dan rasio partisipasi siswa. |
+| [`services/NotificationService.js`](file:///D:/Project/Satus/satus_app/services/NotificationService.js) | Layanan integrasi Firebase Cloud Messaging (FCM HTTP v1) via OAuth2 Service Account untuk push notifikasi. |
+| [`services/ChatService.js`](file:///D:/Project/Satus/satus_app/services/ChatService.js) | Layanan kontak pengguna obrolan (fuzzy search & filter peran) dan pemicu notifikasi chat FCM. |
 | [`services/SetupService.js`](file:///D:/Project/Satus/satus_app/services/SetupService.js) | Inisialisasi struktur sheet, pembuatan header kolom, dan pengisian data demo awal. |
 | [`api/ApiRouter.js`](file:///D:/Project/Satus/satus_app/api/ApiRouter.js) | Dispatcher REST API yang menghubungkan endpoint HTTP POST mobile ke layanan terkait. |
 | [`api/AuthApi.js`](file:///D:/Project/Satus/satus_app/api/AuthApi.js) | Endpoint API autentikasi, registrasi, verifikasi token, dan profil untuk aplikasi Flutter. |
@@ -233,6 +235,8 @@ POST https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec
 | `void_requests` | POST | `{ token }` | Ya (Manager) |
 | `review_void` | POST | `{ token, request_id, action, pin, reason }` | Ya (Manager) |
 | `audit_logs` | POST | `{ token, page, limit, role, category }` | Ya (Manager) |
+| `get_users_for_chat` | GET / POST | `{ token, query, role }` | Ya |
+| `send_chat_notification` | POST | `{ token, recipientId, message, roomId, messageId }` | Ya |
 
 > 📖 *Dokumentasi lengkap format request/response JSON dapat dilihat pada file [`api/README.md`](file:///D:/Project/Satus/satus_app/api/README.md).*
 
@@ -276,6 +280,22 @@ POST https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec
 
 ---
 
+## 🔔 Integrasi Firebase Cloud Messaging (FCM HTTP v1)
+
+Untuk mendukung notifikasi realtime ke aplikasi mobile SATUS, backend Apps Script terintegrasi langsung dengan Firebase Cloud Messaging via HTTP v1 API:
+
+1. **Konfigurasi Script Properties di Apps Script**:
+   - `FIREBASE_PROJECT_ID`: ID project Firebase GCP (misal: `satus-mobile-app`).
+   - `FIREBASE_SERVICE_ACCOUNT`: String JSON Service Account Google Cloud dengan peran *Firebase Cloud Messaging Admin*.
+2. **Pertukaran Token Otentikasi OAuth2 Otomatis**:
+   - `NotificationService.js` melakukan *handshake* JWT bearer token dengan server Google OAuth2 (`https://oauth2.googleapis.com/token`) secara otomatis.
+   - Menggunakan scope `https://www.googleapis.com/auth/firebase.messaging`.
+3. **Pengiriman Berbasis Topik (Topic Messaging)**:
+   - Notifikasi obrolan dikirimkan ke topik pengguna unik: `user_{recipientId}`.
+   - Notifikasi massal dikirimkan ke topik peran: `role_siswa`, `role_kasir`, `role_manager`, atau `all_users`.
+
+---
+
 ## 📁 Struktur Direktori
 
 ```text
@@ -299,6 +319,8 @@ satus_app/
 │   ├── SeedService.js       # Layanan program bibit pohon sekolah
 │   ├── AuditService.js      # Layanan pencatatan audit aktivitas
 │   ├── ReportService.js     # Layanan pelaporan analitik
+│   ├── NotificationService.js# Layanan FCM v1 OAuth2 Push Notification
+│   ├── ChatService.js       # Layanan kontak obrolan & trigger FCM chat
 │   └── SetupService.js      # Inisialisasi database sheet baru
 ├── api/                     # Lapisan API mobile (Flutter)
 │   ├── ApiRouter.js         # Dispatcher REST API mobile
