@@ -228,9 +228,14 @@
         <!-- Right Session Profile & Logout -->
         <div class="flex items-center space-x-2.5">
           <button onclick="app.openProfileModal()" class="flex items-center space-x-2.5 bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-xl border border-white/20 backdrop-blur-sm transition active:scale-95 text-left" title="Kelola Profil & Ganti Password">
-            <img id="nav-user-avatar" src="https://ui-avatars.com/api/?name=User&background=10b981&color=fff&bold=true" class="w-7 h-7 rounded-full border border-white/40 object-cover shadow-sm">
+            <div class="relative">
+              <img id="nav-user-avatar" src="https://ui-avatars.com/api/?name=User&background=10b981&color=fff&bold=true" class="w-7 h-7 rounded-full border border-white/40 object-cover shadow-sm">
+            </div>
             <div class="hidden sm:block">
-              <span id="nav-username" class="text-xs font-bold text-white tracking-wide block leading-tight">Nama User</span>
+              <div class="flex items-center gap-1.5">
+                <span id="nav-username" class="text-xs font-bold text-white tracking-wide block leading-tight">Nama User</span>
+                <span id="nav-dev-badge" class="hidden bg-amber-400 text-amber-950 text-[9px] px-1.5 py-0.2 rounded-full font-black uppercase tracking-wider border border-amber-300 shadow-sm">DEV</span>
+              </div>
               <span id="nav-user-role" class="text-[10px] text-green-200 font-medium block leading-tight">ROLE</span>
             </div>
             <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-green-200 hidden sm:block"></i>
@@ -276,11 +281,17 @@
   <div id="modal-profile" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center z-[70] p-4">
     <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-slate-100 animate-scale-in">
       <div class="flex justify-between items-center border-b pb-3 mb-4">
-        <div class="flex items-center space-x-2">
-          <div class="w-8 h-8 rounded-xl bg-green-100 text-green-700 flex items-center justify-center font-bold">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-9 h-9 rounded-xl bg-green-100 text-green-700 flex items-center justify-center font-bold">
             <i data-lucide="user" class="w-4 h-4"></i>
           </div>
-          <h3 class="text-base font-black text-slate-800">Profil & Keamanan Akun</h3>
+          <div>
+            <div class="flex items-center gap-1.5">
+              <h3 class="text-base font-black text-slate-800">Profil & Keamanan Akun</h3>
+              <span id="profile-modal-dev-badge" class="hidden bg-amber-400 text-amber-950 text-[9px] px-1.5 py-0.2 rounded-full font-black uppercase tracking-wider border border-amber-300 shadow-sm">DEV</span>
+            </div>
+            <p id="profile-modal-user-desc" class="text-[11px] text-slate-500 font-medium leading-tight mt-0.5">Memuat akun...</p>
+          </div>
         </div>
         <button onclick="app.closeProfileModal()" class="text-slate-400 hover:text-slate-600">
           <i data-lucide="x" class="w-5 h-5"></i>

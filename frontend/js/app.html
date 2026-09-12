@@ -19,6 +19,19 @@ const app = {
     const avatar = this.formatPhotoUrl(this.session.photoUrl || this.session.photo_url, this.session.nama || this.session.username);
     if (preview) preview.src = avatar;
 
+    const userDesc = document.getElementById('profile-modal-user-desc');
+    const modalDevBadge = document.getElementById('profile-modal-dev-badge');
+    const isDev = this.isDevAccount();
+    if (userDesc) {
+      const uName = this.session.nama || this.session.username || 'User';
+      const uRole = this.session.role || '';
+      const uId = this.session.userId || this.session.user_id || this.session.memberId || this.session.member_id || '';
+      userDesc.innerText = `${uName} • ${uRole}${uId ? ' (' + uId + ')' : ''}`;
+    }
+    if (modalDevBadge) {
+      modalDevBadge.classList.toggle('hidden', !isDev);
+    }
+
     modal.classList.remove('hidden');
     if (typeof lucide !== 'undefined') lucide.createIcons();
   },
@@ -128,13 +141,9 @@ const app = {
             this.saveSession(this.session);
           }
           this.updateNavProfile();
+          this.renderUserProfileCards();
           this.closeProfileModal();
           this.showToast(res.message || 'Foto profil berhasil diperbarui!', 'success');
-          
-          const sAvatar = document.getElementById('s-avatar');
-          if (sAvatar) {
-            sAvatar.src = this.formatPhotoUrl(newPhoto, this.session ? (this.session.nama || this.session.username) : 'Siswa');
-          }
         } else {
           this.showToast(res.message || 'Gagal memperbarui foto profil', 'error');
         }
@@ -191,28 +200,102 @@ const app = {
     return cleanUrl;
   },
 
-  updateNavProfile: function() {
-    const navUsername = document.getElementById('nav-username');
-    const navRole = document.getElementById('nav-user-role');
-    const navAvatar = document.getElementById('nav-user-avatar');
+  isDevAccount: function() {
+    if (!this.session) return false;
+    if (this.session.isDev === true || this.session.is_dev === true) return true;
+    const u = String(this.session.username || '').toLowerCase();
+    const id = String(this.session.userId || this.session.user_id || '').toLowerCase();
+    const n = String(this.session.nama || '').toLowerCase();
+    return u.includes('dev') || id.includes('dev') || n.includes('dev') || n.includes('(testing)');
+  },
 
+  renderUserProfileCards: function() {
     if (!this.session) {
+      const navUsername = document.getElementById('nav-username');
+      const navRole = document.getElementById('nav-user-role');
+      const navAvatar = document.getElementById('nav-user-avatar');
+      const navDevBadge = document.getElementById('nav-dev-badge');
       if (navUsername) navUsername.innerText = '';
       if (navRole) navRole.innerText = '';
       if (navAvatar) navAvatar.src = 'https://ui-avatars.com/api/?name=User&background=10b981&color=fff&bold=true';
+      if (navDevBadge) navDevBadge.classList.add('hidden');
       return;
     }
 
-    if (navUsername) navUsername.innerText = this.session.nama || this.session.username;
-    if (navRole) navRole.innerText = this.session.role;
+    const isDev = this.isDevAccount();
+    const nama = this.session.nama || this.session.username || 'Pengguna';
+    const username = this.session.username || '-';
+    const userId = this.session.userId || this.session.user_id || this.session.memberId || this.session.member_id || '--';
+    const role = String(this.session.role || '').toUpperCase();
+    const photo = this.session.photoUrl || this.session.photo_url;
+    const avatarUrl = this.formatPhotoUrl(photo, nama);
+
+    // 1. Top Navbar
+    const navUsername = document.getElementById('nav-username');
+    const navRole = document.getElementById('nav-user-role');
+    const navAvatar = document.getElementById('nav-user-avatar');
+    const navDevBadge = document.getElementById('nav-dev-badge');
+
+    if (navUsername) navUsername.innerText = nama;
+    if (navRole) navRole.innerText = role;
     if (navAvatar) {
-      const defaultAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(this.session.nama || this.session.username) + '&background=10b981&color=fff&bold=true';
-      navAvatar.src = this.formatPhotoUrl(this.session.photoUrl || this.session.photo_url, this.session.nama || this.session.username);
+      navAvatar.src = avatarUrl;
       navAvatar.onerror = function() {
         this.onerror = null;
-        this.src = defaultAvatar;
+        this.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(nama) + '&background=10b981&color=fff&bold=true';
       };
     }
+    if (navDevBadge) {
+      navDevBadge.classList.toggle('hidden', !isDev);
+    }
+
+    // 2. Manager Dashboard Profile Card
+    const mAvatar = document.getElementById('m-avatar');
+    const mNama = document.getElementById('m-nama');
+    const mInfo = document.getElementById('m-info');
+    const mRoleBadge = document.getElementById('m-role-badge');
+    const mDevBadge = document.getElementById('m-dev-badge');
+
+    if (mAvatar) {
+      mAvatar.src = avatarUrl;
+      mAvatar.onerror = function() {
+        this.onerror = null;
+        this.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(nama) + '&background=10b981&color=fff&bold=true';
+      };
+    }
+    if (mNama) mNama.innerText = nama;
+    if (mInfo) mInfo.innerText = `ID: ${userId} | Username: @${username}`;
+    if (mRoleBadge) mRoleBadge.innerText = (role === 'MANAGER' ? 'Manager Koperasi' : (role === 'ADMIN' ? 'Administrator' : role));
+    if (mDevBadge) mDevBadge.classList.toggle('hidden', !isDev);
+
+    // 3. Kasir Dashboard Profile Card
+    const kAvatar = document.getElementById('k-avatar');
+    const kNama = document.getElementById('k-nama');
+    const kInfo = document.getElementById('k-info');
+    const kRoleBadge = document.getElementById('k-role-badge');
+    const kDevBadge = document.getElementById('k-dev-badge');
+
+    if (kAvatar) {
+      kAvatar.src = avatarUrl;
+      kAvatar.onerror = function() {
+        this.onerror = null;
+        this.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(nama) + '&background=0284c7&color=fff&bold=true';
+      };
+    }
+    if (kNama) kNama.innerText = nama;
+    if (kInfo) kInfo.innerText = `ID: ${userId} | Username: @${username}`;
+    if (kRoleBadge) kRoleBadge.innerText = 'Kasir Koperasi';
+    if (kDevBadge) kDevBadge.classList.toggle('hidden', !isDev);
+
+    // 4. Siswa Dashboard Dev Badge
+    const sDevBadge = document.getElementById('s-dev-badge');
+    if (sDevBadge) sDevBadge.classList.toggle('hidden', !isDev);
+
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  },
+
+  updateNavProfile: function() {
+    this.renderUserProfileCards();
   },
 
 
@@ -1700,9 +1783,8 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
         setTimeout(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); }, 50);
       } else {
         if (navbar) navbar.classList.remove('hidden');
-        const userEl = document.getElementById('nav-username');
+        this.renderUserProfileCards();
         const role = String(this.session.role || '').toUpperCase();
-        if (userEl) userEl.innerText = (this.session.nama || this.session.username) + ' (' + role + ')';
         
         if (role === 'MANAGER') this.renderPage('tpl-dashboard-manager');
         else if (role === 'KASIR') this.renderPage('tpl-dashboard-kasir');
@@ -1729,6 +1811,7 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
     const template = document.getElementById(templateId);
     if(template) {
       content.innerHTML = template.innerHTML;
+      this.renderUserProfileCards();
       if (typeof lucide !== 'undefined') lucide.createIcons();
       if(templateId === 'tpl-dashboard-manager') this.loadManagerDashboard();
       if(templateId === 'tpl-dashboard-kasir') this.loadKasirDashboard();
@@ -1828,6 +1911,7 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
   // MANAGER DASHBOARD & REPORTS
   // ==========================================
   loadManagerDashboard: function() {
+    this.renderUserProfileCards();
     this.showLoading(true);
     google.script.run
       .withSuccessHandler((res) => {
@@ -2608,6 +2692,7 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
   },
 
   loadKasirDashboard: function() {
+    this.renderUserProfileCards();
     this.showLoading(true);
     google.script.run
       .withSuccessHandler((res) => {
@@ -2966,6 +3051,7 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
   availableSeedsForSiswa: [],
   
   loadSiswaDashboard: function() {
+    this.renderUserProfileCards();
     this.showLoading(true);
     google.script.run
       .withSuccessHandler((res) => {
