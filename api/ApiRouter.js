@@ -526,7 +526,11 @@ function dispatchApiAction(action, params, method) {
       case 'get_users_for_chat':
       case 'getusersforchat':
       case 'chat_users':
-        result = getUsersForChat(params.token, params.query, params.role);
+        result = getUsersForChat(
+          params.token || params.authToken || params.auth_token,
+          params.query || params.q,
+          params.role || params.roleFilter
+        );
         break;
 
       case 'send_chat_notification':

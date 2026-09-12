@@ -10,12 +10,16 @@
  */
 function getUsersForChat(token, query, roleFilter) {
   try {
+    if (!token) {
+      return { success: false, message: 'Token otentikasi tidak disertakan atau sesi telah kedaluwarsa' };
+    }
+
     const session = verifyToken(token);
     if (!session) {
       return { success: false, message: 'Sesi tidak valid atau telah kedaluwarsa' };
     }
 
-    const currentUserId = String(session.userId || '').trim();
+    const currentUserId = String(session.userId || session.user_id || '').trim().toLowerCase();
     const currentUsername = String(session.username || '').toLowerCase().trim();
     const isDevSession = session.isDev === true || (typeof isDevAccount === 'function' && isDevAccount(session));
 
@@ -26,12 +30,14 @@ function getUsersForChat(token, query, roleFilter) {
     const memberMap = {};
     if (Array.isArray(members)) {
       members.forEach(m => {
-        const uid = String(m.user_id || m.member_id || '').trim();
+        const uid = String(m.user_id || m.userId || m.member_id || m.memberId || m.id || m.ID || '').trim();
         if (uid) {
           memberMap[uid] = m;
+          memberMap[uid.toLowerCase()] = m;
         }
-        if (m.nama) {
-          memberMap['name_' + String(m.nama).toLowerCase().trim()] = m;
+        const mn = String(m.nama || m.Nama || m.name || '').toLowerCase().trim();
+        if (mn) {
+          memberMap['name_' + mn] = m;
         }
       });
     }
@@ -51,7 +57,7 @@ function getUsersForChat(token, query, roleFilter) {
         const accRole = String(acc.role || '').toUpperCase().trim();
         const accNama = String(acc.nama || acc.username || 'Pengguna Dev');
 
-        if (!accUid || accUid === currentUserId || (accUsername && accUsername === currentUsername)) {
+        if (!accUid || accUid.toLowerCase() === currentUserId || (accUsername && accUsername === currentUsername)) {
           return;
         }
 
@@ -67,6 +73,7 @@ function getUsersForChat(token, query, roleFilter) {
         }
 
         seenUserIds[accUid] = true;
+        seenUserIds[accUid.toLowerCase()] = true;
         if (accUsername) seenUserIds[accUsername] = true;
 
         results.push({
@@ -85,16 +92,16 @@ function getUsersForChat(token, query, roleFilter) {
     // 2. Iterasi sheet Users
     if (Array.isArray(users)) {
       users.forEach(u => {
-        const uid = String(u.user_id || '').trim();
-        const uusername = String(u.username || '').toLowerCase().trim();
-        const urole = String(u.role || '').toUpperCase().trim();
-        const unama = String(u.nama || u.username || 'Pengguna');
+        const uid = String(u.user_id || u.userId || u.ID || u.id || u.member_id || u.memberId || '').trim();
+        const uusername = String(u.username || u.Username || '').toLowerCase().trim();
+        const urole = String(u.role || u.Role || 'SISWA').toUpperCase().trim();
+        const unama = String(u.nama || u.Nama || u.name || u.displayName || u.username || 'Pengguna').trim();
 
         // Lewati akun sendiri atau akun yang sudah diproses
-        if (!uid || uid === currentUserId || (uusername && uusername === currentUsername)) {
+        if (!uid || uid.toLowerCase() === currentUserId || (uusername && uusername === currentUsername)) {
           return;
         }
-        if (seenUserIds[uid] || (uusername && seenUserIds[uusername])) {
+        if (seenUserIds[uid] || seenUserIds[uid.toLowerCase()] || (uusername && seenUserIds[uusername])) {
           return;
         }
 
@@ -104,7 +111,7 @@ function getUsersForChat(token, query, roleFilter) {
         }
 
         // Normalisasi status: jika kosong default ke 'AKTIF'
-        let rawStatus = String(u.status || '').trim().toUpperCase();
+        let rawStatus = String(u.status || u.Status || '').trim().toUpperCase();
         if (!rawStatus) rawStatus = 'AKTIF';
 
         // Lewati akun yang statusnya dihapus
@@ -125,7 +132,7 @@ function getUsersForChat(token, query, roleFilter) {
         }
 
         // Cari metadata kelas & nis untuk siswa dari memberMap
-        const memberInfo = memberMap[uid] || memberMap['name_' + unama.toLowerCase().trim()] || {};
+        const memberInfo = memberMap[uid] || memberMap[uid.toLowerCase()] || memberMap['name_' + unama.toLowerCase().trim()] || {};
         const nis = memberInfo.nis ? String(memberInfo.nis) : (u.nis ? String(u.nis) : '');
         const kelas = memberInfo.kelas ? String(memberInfo.kelas) : (u.kelas ? String(u.kelas) : '');
 
@@ -139,10 +146,11 @@ function getUsersForChat(token, query, roleFilter) {
           }
         }
 
-        const rawPhoto = u.photo_url || memberInfo.photo_url;
+        const rawPhoto = u.photo_url || u.photoUrl || u.foto || memberInfo.photo_url || memberInfo.photoUrl;
         const uphoto = String(rawPhoto || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(unama) + '&background=10b981&color=fff&bold=true&format=png'));
 
         seenUserIds[uid] = true;
+        seenUserIds[uid.toLowerCase()] = true;
         if (uusername) seenUserIds[uusername] = true;
 
         results.push({
@@ -161,10 +169,10 @@ function getUsersForChat(token, query, roleFilter) {
     // 3. Fallback: sertakan anggota dari sheet Members yang belum tercatat di Users
     if (Array.isArray(members) && (!rf || rf === 'ALL' || rf === 'SISWA')) {
       members.forEach(m => {
-        const mUid = String(m.user_id || m.member_id || '').trim();
-        const mnama = String(m.nama || 'Siswa').trim();
+        const mUid = String(m.user_id || m.userId || m.member_id || m.memberId || m.id || m.ID || '').trim();
+        const mnama = String(m.nama || m.Nama || m.name || 'Siswa').trim();
 
-        if (!mUid || mUid === currentUserId || seenUserIds[mUid]) {
+        if (!mUid || mUid.toLowerCase() === currentUserId || seenUserIds[mUid] || seenUserIds[mUid.toLowerCase()]) {
           return;
         }
 
@@ -172,7 +180,7 @@ function getUsersForChat(token, query, roleFilter) {
           return;
         }
 
-        let rawStatus = String(m.status || '').trim().toUpperCase();
+        let rawStatus = String(m.status || m.Status || '').trim().toUpperCase();
         if (!rawStatus) rawStatus = 'AKTIF';
 
         if (rawStatus === 'DELETED' || rawStatus === 'HAPUS' || rawStatus === 'TERHAPUS') {
@@ -197,9 +205,10 @@ function getUsersForChat(token, query, roleFilter) {
           }
         }
 
-        const mphoto = String(m.photo_url || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(mnama) + '&background=10b981&color=fff&bold=true&format=png'));
+        const mphoto = String(m.photo_url || m.photoUrl || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(mnama) + '&background=10b981&color=fff&bold=true&format=png'));
 
         seenUserIds[mUid] = true;
+        seenUserIds[mUid.toLowerCase()] = true;
 
         results.push({
           userId: mUid,
