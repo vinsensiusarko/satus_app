@@ -376,48 +376,25 @@ function updateMyProfile(token, dataUpdate) {
     
     ensureUserPhotoColumn();
 
-    if (session.isDev || (typeof isDevAccount === 'function' && isDevAccount(session))) {
-      const devKey = String(session.username || '').toLowerCase().trim();
-      if (dataUpdate.nama) session.nama = dataUpdate.nama;
-      if (dataUpdate.photo_url !== undefined) {
-        session.photoUrl = dataUpdate.photo_url;
-        session.photo_url = dataUpdate.photo_url;
-        try {
-          CacheService.getScriptCache().put('dev_photo_' + devKey, dataUpdate.photo_url, 21600);
-        } catch(e) {
-          console.warn('Cache put dev photo warning:', e);
-        }
-      }
-
-      // Terbitkan token bertanda tangan baru yang membawa foto baru
-      const newToken = generateSignedToken(session);
-      session.token = newToken;
-      try {
-        CacheService.getScriptCache().put(newToken, JSON.stringify(session), 21600);
-      } catch(e) {}
-
-      return { 
-        success: true, 
-        message: 'Foto profil dev berhasil diperbarui!', 
-        data: session, 
-        token: newToken 
-      };
-    }
-
     const sheet = getSheet(CONFIG.SHEETS.USERS);
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
     const uIdIdx = headers.indexOf('user_id');
+    const uNameIdx = headers.indexOf('username');
     const photoIdx = headers.indexOf('photo_url');
     const namaIdx = headers.indexOf('nama');
     
+    let matchedRow = -1;
     for (let i = 1; i < data.length; i++) {
-      if (data[i][uIdIdx] === session.userId) {
+      const matchId = uIdIdx !== -1 && String(data[i][uIdIdx]).trim() === String(session.userId).trim();
+      const matchUsername = uNameIdx !== -1 && String(data[i][uNameIdx]).toLowerCase().trim() === String(session.username).toLowerCase().trim();
+      if (matchId || matchUsername) {
+        matchedRow = i + 1;
         if (dataUpdate.photo_url !== undefined && photoIdx !== -1) {
-          sheet.getRange(i + 1, photoIdx + 1).setValue(dataUpdate.photo_url);
+          sheet.getRange(matchedRow, photoIdx + 1).setValue(dataUpdate.photo_url);
         }
         if (dataUpdate.nama && namaIdx !== -1) {
-          sheet.getRange(i + 1, namaIdx + 1).setValue(dataUpdate.nama);
+          sheet.getRange(matchedRow, namaIdx + 1).setValue(dataUpdate.nama);
           session.nama = dataUpdate.nama;
         }
         
@@ -447,12 +424,21 @@ function updateMyProfile(token, dataUpdate) {
         
         const photoUrl = dataUpdate.photo_url || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(session.nama) + '&background=10b981&color=fff&bold=true&format=png');
         session.photoUrl = photoUrl;
-        session.token = token; // Guarantee token is preserved!
+        session.photo_url = photoUrl;
         
-        // Update cache
+        // Terbitkan token bertanda tangan baru
+        const newToken = generateSignedToken(session);
+        session.token = newToken;
+        
+        // Update cache (termasuk cache dev photo jika akun dev)
         try {
           const cache = CacheService.getScriptCache();
+          cache.put(newToken, JSON.stringify(session), 21600);
           cache.put(token, JSON.stringify(session), 21600);
+          if (session.isDev || (typeof isDevAccount === 'function' && isDevAccount(session))) {
+            const devKey = String(session.username || '').toLowerCase().trim();
+            cache.put('dev_photo_' + devKey, photoUrl, 21600);
+          }
         } catch(e) {}
         
         auditLog(session.userId, session.role, 'UPDATE_PROFILE', session.userId, 'Perbarui foto/profil akun');
@@ -460,10 +446,37 @@ function updateMyProfile(token, dataUpdate) {
           success: true, 
           message: 'Profil berhasil diperbarui!',
           data: session,
-          token: token
+          token: newToken
         };
       }
     }
+
+    // Fallback jika akun dev belum memiliki baris spreadsheet (in-memory update)
+    if (session.isDev || (typeof isDevAccount === 'function' && isDevAccount(session))) {
+      const devKey = String(session.username || '').toLowerCase().trim();
+      if (dataUpdate.nama) session.nama = dataUpdate.nama;
+      if (dataUpdate.photo_url !== undefined) {
+        session.photoUrl = dataUpdate.photo_url;
+        session.photo_url = dataUpdate.photo_url;
+        try {
+          CacheService.getScriptCache().put('dev_photo_' + devKey, dataUpdate.photo_url, 21600);
+        } catch(e) {}
+      }
+
+      const newToken = generateSignedToken(session);
+      session.token = newToken;
+      try {
+        CacheService.getScriptCache().put(newToken, JSON.stringify(session), 21600);
+      } catch(e) {}
+
+      return { 
+        success: true, 
+        message: 'Foto profil dev berhasil diperbarui!', 
+        data: session, 
+        token: newToken 
+      };
+    }
+
     throw new Error('User tidak ditemukan');
   } catch (error) {
     if (error.message.includes("Unauthorized")) throw error;

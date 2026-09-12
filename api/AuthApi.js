@@ -61,9 +61,28 @@ function apiLogin(params) {
 
       let customPhoto = devAcc.photoUrl;
       try {
-        const cached = CacheService.getScriptCache().get('dev_photo_' + identifier.toLowerCase());
-        if (cached) customPhoto = cached;
-      } catch (e) {}
+        const uSheet = getSheet(CONFIG.SHEETS.USERS);
+        const uData = uSheet.getDataRange().getValues();
+        const uHeaders = uData[0];
+        const uIdIdx = uHeaders.indexOf('user_id');
+        const uNameIdx = uHeaders.indexOf('username');
+        const uPhotoIdx = uHeaders.indexOf('photo_url');
+        for (let i = 1; i < uData.length; i++) {
+          const matchId = uIdIdx !== -1 && String(uData[i][uIdIdx]).trim() === String(devAcc.userId).trim();
+          const matchUser = uNameIdx !== -1 && String(uData[i][uNameIdx]).toLowerCase().trim() === identifier.toLowerCase().trim();
+          if (matchId || matchUser) {
+            if (uPhotoIdx !== -1 && uData[i][uPhotoIdx]) {
+              customPhoto = String(uData[i][uPhotoIdx]).trim();
+            }
+            break;
+          }
+        }
+      } catch (e) {
+        try {
+          const cached = CacheService.getScriptCache().get('dev_photo_' + identifier.toLowerCase());
+          if (cached) customPhoto = cached;
+        } catch (err) {}
+      }
 
       const sessionData = {
         userId: devAcc.userId,
