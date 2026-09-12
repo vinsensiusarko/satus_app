@@ -15,18 +15,23 @@ function getUsersForChat(token, query, roleFilter) {
       return { success: false, message: 'Sesi tidak valid atau telah kedaluwarsa' };
     }
 
-    const currentUserId = String(session.userId || '');
-    const currentUsername = String(session.username || '').toLowerCase();
-    const users = getSheetData(CONFIG.SHEETS.USERS);
-    const members = getSheetData(CONFIG.SHEETS.MEMBERS);
+    const currentUserId = String(session.userId || '').trim();
+    const currentUsername = String(session.username || '').toLowerCase().trim();
+    const isDevSession = session.isDev === true || (typeof isDevAccount === 'function' && isDevAccount(session));
 
-    // Map data member untuk lookup cepat berdasarkan user_id
+    const users = getSheetData(CONFIG.SHEETS.USERS) || [];
+    const members = getSheetData(CONFIG.SHEETS.MEMBERS) || [];
+
+    // Map data member untuk lookup cepat berdasarkan user_id atau member_id
     const memberMap = {};
     if (Array.isArray(members)) {
       members.forEach(m => {
-        const uid = String(m.user_id || m.member_id || '');
+        const uid = String(m.user_id || m.member_id || '').trim();
         if (uid) {
           memberMap[uid] = m;
+        }
+        if (m.nama) {
+          memberMap['name_' + String(m.nama).toLowerCase().trim()] = m;
         }
       });
     }
@@ -35,49 +40,179 @@ function getUsersForChat(token, query, roleFilter) {
     const rf = roleFilter ? String(roleFilter).toUpperCase().trim() : '';
 
     const results = [];
+    const seenUserIds = {};
 
-    users.forEach(u => {
-      const uid = String(u.user_id || '');
-      const ustatus = String(u.status || '').toUpperCase();
-      const urole = String(u.role || '').toUpperCase();
-      const unama = String(u.nama || u.username || 'Pengguna');
-      const uusername = String(u.username || '').toLowerCase();
-      const uphoto = String(u.photo_url || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(unama) + '&background=10b981&color=fff&bold=true&format=png'));
+    // 1. Dukungan Akun Dev jika dalam sesi dev
+    if (isDevSession && CONFIG.DEV_CONFIG && CONFIG.DEV_CONFIG.ACCOUNTS) {
+      Object.keys(CONFIG.DEV_CONFIG.ACCOUNTS).forEach(key => {
+        const acc = CONFIG.DEV_CONFIG.ACCOUNTS[key];
+        const accUid = String(acc.userId || acc.memberId || '').trim();
+        const accUsername = String(acc.username || '').toLowerCase().trim();
+        const accRole = String(acc.role || '').toUpperCase().trim();
+        const accNama = String(acc.nama || acc.username || 'Pengguna Dev');
 
-      // Lewati akun sendiri (berdasarkan userId atau username) atau akun yang tidak aktif
-      if (!uid || uid === currentUserId || (uusername && uusername === currentUsername) || ustatus !== 'AKTIF') {
-        return;
-      }
-
-      // Filter role jika diminta
-      if (rf && rf !== 'ALL' && urole !== rf) {
-        return;
-      }
-
-      // Cari metadata kelas & nis untuk siswa
-      const memberInfo = memberMap[uid] || {};
-      const nis = memberInfo.nis ? String(memberInfo.nis) : '';
-      const kelas = memberInfo.kelas ? String(memberInfo.kelas) : '';
-
-      // Filter query pencarian (nama, nis, username)
-      if (q) {
-        const matchesNama = unama.toLowerCase().includes(q);
-        const matchesNis = nis.toLowerCase().includes(q);
-        const matchesUsername = uusername.includes(q);
-        if (!matchesNama && !matchesNis && !matchesUsername) {
+        if (!accUid || accUid === currentUserId || (accUsername && accUsername === currentUsername)) {
           return;
         }
-      }
 
-      results.push({
-        userId: uid,
-        nama: unama,
-        role: urole,
-        photoUrl: uphoto,
-        nis: nis,
-        kelas: kelas
+        if (rf && rf !== 'ALL' && accRole !== rf) {
+          return;
+        }
+
+        if (q) {
+          const matchNama = accNama.toLowerCase().includes(q);
+          const matchUser = accUsername.includes(q);
+          const matchNis = acc.nis ? String(acc.nis).toLowerCase().includes(q) : false;
+          if (!matchNama && !matchUser && !matchNis) return;
+        }
+
+        seenUserIds[accUid] = true;
+        if (accUsername) seenUserIds[accUsername] = true;
+
+        results.push({
+          userId: accUid,
+          nama: accNama,
+          username: accUsername,
+          role: accRole,
+          status: 'AKTIF',
+          photoUrl: acc.photoUrl || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(accNama) + '&background=10b981&color=fff&bold=true&format=png'),
+          nis: acc.nis ? String(acc.nis) : '',
+          kelas: acc.kelas ? String(acc.kelas) : ''
+        });
       });
-    });
+    }
+
+    // 2. Iterasi sheet Users
+    if (Array.isArray(users)) {
+      users.forEach(u => {
+        const uid = String(u.user_id || '').trim();
+        const uusername = String(u.username || '').toLowerCase().trim();
+        const urole = String(u.role || '').toUpperCase().trim();
+        const unama = String(u.nama || u.username || 'Pengguna');
+
+        // Lewati akun sendiri atau akun yang sudah diproses
+        if (!uid || uid === currentUserId || (uusername && uusername === currentUsername)) {
+          return;
+        }
+        if (seenUserIds[uid] || (uusername && seenUserIds[uusername])) {
+          return;
+        }
+
+        // Filter akun dev dari tabel prod jika bukan sesi dev
+        if (!isDevSession && typeof isDevAccount === 'function' && isDevAccount(u)) {
+          return;
+        }
+
+        // Normalisasi status: jika kosong default ke 'AKTIF'
+        let rawStatus = String(u.status || '').trim().toUpperCase();
+        if (!rawStatus) rawStatus = 'AKTIF';
+
+        // Lewati akun yang statusnya dihapus
+        if (rawStatus === 'DELETED' || rawStatus === 'HAPUS' || rawStatus === 'TERHAPUS') {
+          return;
+        }
+
+        let ustatus = 'AKTIF';
+        if (rawStatus === 'NONAKTIF' || rawStatus === 'INACTIVE' || rawStatus === 'BLOCKED') {
+          ustatus = 'NONAKTIF';
+        } else if (rawStatus === 'MENUNGGU' || rawStatus === 'PENDING' || rawStatus === 'UNVERIFIED') {
+          ustatus = 'MENUNGGU';
+        }
+
+        // Filter role jika diminta
+        if (rf && rf !== 'ALL' && urole !== rf) {
+          return;
+        }
+
+        // Cari metadata kelas & nis untuk siswa dari memberMap
+        const memberInfo = memberMap[uid] || memberMap['name_' + unama.toLowerCase().trim()] || {};
+        const nis = memberInfo.nis ? String(memberInfo.nis) : (u.nis ? String(u.nis) : '');
+        const kelas = memberInfo.kelas ? String(memberInfo.kelas) : (u.kelas ? String(u.kelas) : '');
+
+        // Filter query pencarian (nama, nis, username)
+        if (q) {
+          const matchesNama = unama.toLowerCase().includes(q);
+          const matchesNis = nis.toLowerCase().includes(q);
+          const matchesUsername = uusername.includes(q);
+          if (!matchesNama && !matchesNis && !matchesUsername) {
+            return;
+          }
+        }
+
+        const rawPhoto = u.photo_url || memberInfo.photo_url;
+        const uphoto = String(rawPhoto || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(unama) + '&background=10b981&color=fff&bold=true&format=png'));
+
+        seenUserIds[uid] = true;
+        if (uusername) seenUserIds[uusername] = true;
+
+        results.push({
+          userId: uid,
+          nama: unama,
+          username: uusername,
+          role: urole,
+          status: ustatus,
+          photoUrl: uphoto,
+          nis: nis,
+          kelas: kelas
+        });
+      });
+    }
+
+    // 3. Fallback: sertakan anggota dari sheet Members yang belum tercatat di Users
+    if (Array.isArray(members) && (!rf || rf === 'ALL' || rf === 'SISWA')) {
+      members.forEach(m => {
+        const mUid = String(m.user_id || m.member_id || '').trim();
+        const mnama = String(m.nama || 'Siswa').trim();
+
+        if (!mUid || mUid === currentUserId || seenUserIds[mUid]) {
+          return;
+        }
+
+        if (!isDevSession && typeof isDevAccount === 'function' && isDevAccount(m)) {
+          return;
+        }
+
+        let rawStatus = String(m.status || '').trim().toUpperCase();
+        if (!rawStatus) rawStatus = 'AKTIF';
+
+        if (rawStatus === 'DELETED' || rawStatus === 'HAPUS' || rawStatus === 'TERHAPUS') {
+          return;
+        }
+
+        let mstatus = 'AKTIF';
+        if (rawStatus === 'NONAKTIF' || rawStatus === 'INACTIVE' || rawStatus === 'BLOCKED') {
+          mstatus = 'NONAKTIF';
+        } else if (rawStatus === 'MENUNGGU' || rawStatus === 'PENDING' || rawStatus === 'UNVERIFIED') {
+          mstatus = 'MENUNGGU';
+        }
+
+        const nis = m.nis ? String(m.nis) : '';
+        const kelas = m.kelas ? String(m.kelas) : '';
+
+        if (q) {
+          const matchesNama = mnama.toLowerCase().includes(q);
+          const matchesNis = nis.toLowerCase().includes(q);
+          if (!matchesNama && !matchesNis) {
+            return;
+          }
+        }
+
+        const mphoto = String(m.photo_url || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(mnama) + '&background=10b981&color=fff&bold=true&format=png'));
+
+        seenUserIds[mUid] = true;
+
+        results.push({
+          userId: mUid,
+          nama: mnama,
+          username: '',
+          role: 'SISWA',
+          status: mstatus,
+          photoUrl: mphoto,
+          nis: nis,
+          kelas: kelas
+        });
+      });
+    }
 
     // Urutkan berdasarkan Nama alfabetis
     results.sort((a, b) => a.nama.localeCompare(b.nama));
