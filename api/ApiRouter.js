@@ -70,7 +70,8 @@ function isMutationAction(action) {
     'member_recent_transactions', 'getmemberrecenttransactions',
     'transactions', 'get_transactions', 'gettransactions', 'kasir_transactions',
     'app_version', 'check_update', 'get_app_version', 'version',
-    'firebase_status', 'get_firebase_status', 'test_notification', 'send_test_notification'
+    'firebase_status', 'get_firebase_status', 'test_notification', 'send_test_notification',
+    'get_users_for_chat', 'getusersforchat', 'chat_users', 'send_chat_notification'
   ];
 
   return !READ_ONLY_ACTIONS.includes(action);
@@ -521,7 +522,25 @@ function dispatchApiAction(action, params, method) {
         result = sendTestPushNotification(params);
         break;
 
-      // 20. UNKNOWN ENDPOINT
+      // 20. CHAT & CONTACTS
+      case 'get_users_for_chat':
+      case 'getusersforchat':
+      case 'chat_users':
+        result = getUsersForChat(params.token, params.query, params.role);
+        break;
+
+      case 'send_chat_notification':
+      case 'sendchatnotification':
+        result = sendChatPushNotification(
+          params.token,
+          params.recipientId || params.recipient_id,
+          params.message || params.text,
+          params.roomId || params.room_id,
+          params.messageId || params.message_id
+        );
+        break;
+
+      // 21. UNKNOWN ENDPOINT
       default:
         result = {
           success: false,

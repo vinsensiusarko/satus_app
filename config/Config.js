@@ -47,7 +47,8 @@ const CONFIG = {
     CHANNELS: {
       TRANSAKSI: 'satus_transaksi_channel',
       APPROVAL: 'satus_approval_channel',
-      INFO: 'satus_info_channel'
+      INFO: 'satus_info_channel',
+      CHAT: 'satus_chat_channel'
     }
   },
   
