@@ -401,6 +401,32 @@ function dispatchApiAction(action, params, method) {
         result = getProductList(params.token);
         break;
 
+      case 'add_product':
+      case 'addproduct':
+        result = addProduct(params.token, {
+          name: params.name || params.product_name || params.productName,
+          category: params.category || 'ATK',
+          price: parseFloat(params.price || params.harga || 0),
+          green_price: params.green_price !== undefined 
+            ? parseFloat(params.green_price) 
+            : (params.greenPrice !== undefined ? parseFloat(params.greenPrice) : parseFloat(params.price || 0)),
+          stock: parseInt(params.stock || params.stok || 0, 10)
+        });
+        break;
+
+      case 'update_product':
+      case 'updateproduct':
+        result = updateProduct(params.token, params.productId || params.product_id, {
+          name: params.name || params.product_name || params.productName,
+          category: params.category,
+          price: params.price !== undefined ? parseFloat(params.price) : undefined,
+          green_price: params.green_price !== undefined 
+            ? parseFloat(params.green_price) 
+            : (params.greenPrice !== undefined ? parseFloat(params.greenPrice) : undefined),
+          stock: params.stock !== undefined ? parseInt(params.stock, 10) : undefined
+        });
+        break;
+
       // 14. LAPORAN PERIODIK
       case 'laporan':
       case 'get_laporan':
