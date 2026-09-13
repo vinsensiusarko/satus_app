@@ -189,7 +189,7 @@ graph LR
 | [`services/SeedService.js`](file:///D:/Project/Satus/satus_app/services/SeedService.js) | Katalog bibit tanaman, pengajuan klaim oleh siswa, persetujuan manager, dan pelacakan pohon tertanam. |
 | [`services/AuditService.js`](file:///D:/Project/Satus/satus_app/services/AuditService.js) | Pencatatan rekam jejak aktivitas (*audit trail*) dan filtering log multi-kategori. |
 | [`services/ReportService.js`](file:///D:/Project/Satus/satus_app/services/ReportService.js) | Agregasi data laporan keuangan harian/bulanan, volume sampah, dan rasio partisipasi siswa. |
-| [`services/NotificationService.js`](file:///D:/Project/Satus/satus_app/services/NotificationService.js) | Layanan integrasi Firebase Cloud Messaging (FCM HTTP v1) via OAuth2 Service Account untuk push notifikasi. |
+| [`services/NotificationService.js`](file:///D:/Project/Satus/satus_app/services/NotificationService.js) | Layanan integrasi Firebase Cloud Messaging (FCM HTTP v1) via OAuth2 Service Account untuk push notifikasi pesan obrolan, siaran pengumuman (`broadcast_notification`), dan pembaruan sistem ke topik global maupun per-user. |
 | [`services/ChatService.js`](file:///D:/Project/Satus/satus_app/services/ChatService.js) | Layanan kontak pengguna obrolan (fuzzy search & filter peran) dan pemicu notifikasi chat FCM. |
 | [`services/SetupService.js`](file:///D:/Project/Satus/satus_app/services/SetupService.js) | Inisialisasi struktur sheet, pembuatan header kolom, dan pengisian data demo awal. |
 | [`api/ApiRouter.js`](file:///D:/Project/Satus/satus_app/api/ApiRouter.js) | Dispatcher REST API yang menghubungkan endpoint HTTP POST mobile ke layanan terkait. |
@@ -206,7 +206,7 @@ Frontend web terintegrasi langsung di dalam Google Apps Script HTML Service meng
 - **Dashboard Kasir** ([`frontend/pages/dashboard-kasir.html`](file:///D:/Project/Satus/satus_app/frontend/pages/dashboard-kasir.html)): Antarmuka POS cepat untuk penimbangan sampah, setor/tarik, dan kasir barang.
 - **Dashboard Manager** ([`frontend/pages/dashboard-manager.html`](file:///D:/Project/Satus/satus_app/frontend/pages/dashboard-manager.html)): Monitoring metrik ekonomi sirkular, persetujuan void, dan statistik.
 - **Audit Log Inspector** ([`frontend/pages/audit-log.html`](file:///D:/Project/Satus/satus_app/frontend/pages/audit-log.html)): Pelacakan histori aktivitas transaksi dengan pencarian teks dan filter peran.
-- **Master Data Pengguna & Sampah** ([`frontend/pages/member-list.html`](file:///D:/Project/Satus/satus_app/frontend/pages/member-list.html), [`waste-price.html`](file:///D:/Project/Satus/satus_app/frontend/pages/waste-price.html)): Pengelolaan data anggota siswa dan tarif harga sampah per kg.
+- **Master Data Pengguna & Sampah** ([`frontend/pages/member-list.html`](file:///D:/Project/Satus/satus_app/frontend/pages/member-list.html), [`waste-price.html`](file:///D:/Project/Satus/satus_app/frontend/pages/waste-price.html)): Pengelolaan data anggota siswa dan penyesuaian tarif harga sampah per kg.
 
 ---
 
@@ -235,8 +235,11 @@ POST https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec
 | `void_requests` | POST | `{ token }` | Ya (Manager) |
 | `review_void` | POST | `{ token, request_id, action, pin, reason }` | Ya (Manager) |
 | `audit_logs` | POST | `{ token, page, limit, role, category }` | Ya (Manager) |
+| `update_waste_price` | POST | `{ token, waste_id, new_price, notes }` | Ya (Manager) |
+| `update_product_price` | POST | `{ token, product_id, new_price, notes }` | Ya (Manager) |
 | `get_users_for_chat` | GET / POST | `{ token, query, role }` | Ya |
 | `send_chat_notification` | POST | `{ token, recipientId, message, roomId, messageId }` | Ya |
+| `broadcast_notification` | POST | `{ token, title, body, topic, data }` | Ya (Manager / Kasir) |
 
 > 📖 *Dokumentasi lengkap format request/response JSON dapat dilihat pada file [`api/README.md`](file:///D:/Project/Satus/satus_app/api/README.md).*
 
@@ -289,10 +292,20 @@ Untuk mendukung notifikasi realtime ke aplikasi mobile SATUS, backend Apps Scrip
    - `FIREBASE_SERVICE_ACCOUNT`: String JSON Service Account Google Cloud dengan peran *Firebase Cloud Messaging Admin*.
 2. **Pertukaran Token Otentikasi OAuth2 Otomatis**:
    - `NotificationService.js` melakukan *handshake* JWT bearer token dengan server Google OAuth2 (`https://oauth2.googleapis.com/token`) secara otomatis.
-   - Menggunakan scope `https://www.googleapis.com/auth/firebase.messaging`.
+   - Menggunakan scope `https://www.googleapis.com/auth/firebase.messaging` dengan masa aktif token yang diperbarui secara mandiri.
 3. **Pengiriman Berbasis Topik (Topic Messaging)**:
-   - Notifikasi obrolan dikirimkan ke topik pengguna unik: `user_{recipientId}`.
-   - Notifikasi massal dikirimkan ke topik peran: `role_siswa`, `role_kasir`, `role_manager`, atau `all_users`.
+   - **Obrolan Personal**: Notifikasi pesan dikirim langsung ke topik pengguna spesifik: `user_{recipientId}`.
+   - **Siaran Massal & Pengumuman Sekolah**: Dikirim ke topik grup:
+     - `all_users` : Seluruh siswa, kasir, dan manajer.
+     - `role_siswa` : Seluruh siswa (misal: info reward bibit baru, pengumuman sekolah).
+     - `role_kasir` : Seluruh petugas kasir koperasi.
+     - `role_manager` : Seluruh staf manajer (misal: ada pengajuan void baru).
+4. **Format Payload Data untuk Deep Linking Mobile**:
+   - FCM HTTP v1 mengirimkan payload data terstruktur yang dibaca oleh `NotificationService` Flutter:
+     - Obrolan: `{ "click_action": "FLUTTER_NOTIFICATION_CLICK", "type": "chat", "roomId": "...", "senderId": "...", "senderName": "..." }`
+     - Pengumuman: `{ "click_action": "FLUTTER_NOTIFICATION_CLICK", "type": "announcement", "bannerId": "...", "title": "..." }`
+     - Linimasa Komunitas: `{ "click_action": "FLUTTER_NOTIFICATION_CLICK", "type": "social", "postId": "...", "authorId": "..." }`
+     - Transaksi / Void: `{ "click_action": "FLUTTER_NOTIFICATION_CLICK", "type": "transaction", "transactionId": "..." }`
 
 ---
 
