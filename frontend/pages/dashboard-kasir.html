@@ -43,14 +43,20 @@
 
     <!-- Top Scanner & Search Card -->
     <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80">
-      <div class="flex items-center space-x-2.5 mb-4">
-        <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
-          <i data-lucide="scan-line" class="w-5 h-5"></i>
+      <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
+            <i data-lucide="scan-line" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h2 class="text-lg font-black text-slate-800">Kasir: Mulai Transaksi</h2>
+            <p class="text-xs text-slate-500">Cari nomor anggota / scan kartu QR siswa untuk memulai transaksi</p>
+          </div>
         </div>
-        <div>
-          <h2 class="text-lg font-black text-slate-800">Kasir: Mulai Transaksi</h2>
-          <p class="text-xs text-slate-500">Cari nomor anggota / scan kartu QR siswa untuk memulai transaksi</p>
-        </div>
+        <button onclick="app.openModalAnnouncement()" class="bg-purple-600 hover:bg-purple-700 text-white px-3.5 py-2 rounded-xl shadow-sm transition text-xs font-bold flex items-center space-x-1.5 active:scale-95">
+          <i data-lucide="megaphone" class="w-4 h-4 text-purple-200"></i>
+          <span>Buat Pengumuman</span>
+        </button>
       </div>
       
       <!-- Pencarian Member ID / NIS Siswa -->
@@ -521,6 +527,72 @@
             </button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- Modal Buat Pengumuman Multi-Platform -->
+    <div id="modal-announcement" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden animate-fade-in">
+      <div class="bg-white rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden border border-slate-100 flex flex-col animate-scale-in">
+        <!-- Header Modal -->
+        <div class="p-5 bg-gradient-to-r from-purple-700 via-indigo-600 to-purple-800 text-white flex justify-between items-center">
+          <div class="flex items-center space-x-2.5">
+            <div class="p-2 bg-white/20 rounded-xl backdrop-blur-md">
+              <i data-lucide="megaphone" class="w-5 h-5 text-white"></i>
+            </div>
+            <div>
+              <h3 class="text-sm font-black">Buat Pengumuman Koperasi</h3>
+              <p class="text-[11px] text-purple-100">Disiarkan ke Mobile App Siswa & Web</p>
+            </div>
+          </div>
+          <button onclick="app.closeModalAnnouncement()" class="text-white/70 hover:text-white p-1 rounded-lg transition">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <!-- Body Form -->
+        <div class="p-6 space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Judul Pengumuman</label>
+            <input type="text" id="ann-title-input" placeholder="Contoh: Stok Baru Koperasi Tersedia" class="w-full text-xs border border-slate-200 rounded-xl p-2.5 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 font-semibold text-slate-800">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Isi Pengumuman / Pesan</label>
+            <textarea id="ann-content-input" rows="4" placeholder="Tuliskan detail pengumuman atau informasi untuk siswa..." class="w-full text-xs border border-slate-200 rounded-xl p-2.5 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-slate-700"></textarea>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Target Penerima</label>
+              <select id="ann-target-select" class="w-full text-xs border border-slate-200 rounded-xl p-2.5 focus:ring-2 focus:ring-purple-500/20 text-slate-700 font-medium">
+                <option value="SISWA" selected>Semua Siswa</option>
+                <option value="ALL">Seluruh Pengguna</option>
+              </select>
+            </div>
+            <div class="flex items-end pb-2">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" id="ann-pin-checkbox" class="w-4 h-4 text-purple-600 rounded border-slate-300 focus:ring-purple-500" checked>
+                <span class="text-xs font-bold text-slate-700">Pin di Beranda</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="bg-purple-50 border border-purple-200/80 p-3 rounded-xl flex items-start gap-2 text-[11px] text-purple-900">
+            <i data-lucide="info" class="w-4 h-4 text-purple-600 shrink-0 mt-0.5"></i>
+            <span>Pengumuman ini otomatis terkirim via Push Notification (FCM) dan muncul pada slider dashboard siswa.</span>
+          </div>
+        </div>
+
+        <!-- Footer Modal -->
+        <div class="px-6 py-4 bg-slate-50 border-t border-slate-200/80 flex justify-between items-center">
+          <button onclick="app.closeModalAnnouncement()" class="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 transition">
+            Batal
+          </button>
+          <button id="btn-submit-announcement" onclick="app.createAnnouncementSubmit()" class="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-sm transition flex items-center space-x-1.5 active:scale-95">
+            <i data-lucide="send" class="w-4 h-4"></i>
+            <span>Terbitkan Pengumuman</span>
+          </button>
+        </div>
       </div>
     </div>
 

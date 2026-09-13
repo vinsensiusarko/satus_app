@@ -987,6 +987,87 @@ const app = {
   },
 
   // ============================================================
+  // PENGUMUMAN MULTI-PLATFORM (WEB MANAGER & KASIR)
+  // ============================================================
+  openModalAnnouncement: function() {
+    const modal = document.getElementById('modal-announcement');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  },
+
+  closeModalAnnouncement: function() {
+    const modal = document.getElementById('modal-announcement');
+    if (modal) modal.classList.add('hidden');
+  },
+
+  createAnnouncementSubmit: function() {
+    const titleInput = document.getElementById('ann-title-input');
+    const contentInput = document.getElementById('ann-content-input');
+    const targetSelect = document.getElementById('ann-target-select');
+    const pinCheckbox = document.getElementById('ann-pin-checkbox');
+    const btn = document.getElementById('btn-submit-announcement');
+
+    const title = titleInput ? titleInput.value.trim() : '';
+    const content = contentInput ? contentInput.value.trim() : '';
+    const targetRole = targetSelect ? targetSelect.value : 'SISWA';
+    const isPinned = pinCheckbox ? pinCheckbox.checked : false;
+
+    if (!content) {
+      this.showToast('Isi pengumuman wajib diisi', 'error');
+      return;
+    }
+
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span>Menerbitkan...</span>';
+    }
+
+    const payload = {
+      title: title || 'Pengumuman Resmi SATUS',
+      content: content,
+      targetRole: targetRole,
+      isPinned: isPinned
+    };
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler((res) => {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i><span>Terbitkan Pengumuman</span>';
+          }
+          if (res && res.success) {
+            this.showToast(res.message || 'Pengumuman berhasil diterbitkan!', 'success');
+            this.closeModalAnnouncement();
+            if (titleInput) titleInput.value = '';
+            if (contentInput) contentInput.value = '';
+          } else {
+            this.showToast((res && res.message) || 'Gagal membuat pengumuman', 'error');
+          }
+          if (typeof lucide !== 'undefined') lucide.createIcons();
+        })
+        .withFailureHandler((err) => {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i><span>Terbitkan Pengumuman</span>';
+          }
+          this.showToast('Error: ' + (err.message || err), 'error');
+          if (typeof lucide !== 'undefined') lucide.createIcons();
+        })
+        .createAnnouncement(this.session.token, payload);
+    } else {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i><span>Terbitkan Pengumuman</span>';
+      }
+      this.showToast('Pengumuman berhasil diterbitkan!', 'success');
+      this.closeModalAnnouncement();
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+  },
+
+  // ============================================================
   // PUSH NOTIFICATION TEST CONTROL PANEL (MANAGER)
   // ============================================================
   openModalTestNotification: function() {

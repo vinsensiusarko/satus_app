@@ -71,7 +71,8 @@ function isMutationAction(action) {
     'transactions', 'get_transactions', 'gettransactions', 'kasir_transactions',
     'app_version', 'check_update', 'get_app_version', 'version',
     'firebase_status', 'get_firebase_status', 'test_notification', 'send_test_notification',
-    'get_users_for_chat', 'getusersforchat', 'chat_users', 'send_chat_notification'
+    'get_users_for_chat', 'getusersforchat', 'chat_users', 'send_chat_notification',
+    'get_announcements', 'getannouncements', 'announcements'
   ];
 
   return !READ_ONLY_ACTIONS.includes(action);
@@ -544,7 +545,28 @@ function dispatchApiAction(action, params, method) {
         );
         break;
 
-      // 21. UNKNOWN ENDPOINT
+      // 21. ANNOUNCEMENTS & BROADCAST
+      case 'broadcast_notification':
+      case 'send_broadcast_notification':
+        result = sendBroadcastNotification(
+          params.title || 'Pengumuman Resmi SATUS',
+          params.body || params.message || params.text,
+          params.role || params.targetRole
+        );
+        break;
+
+      case 'create_announcement':
+      case 'createannouncement':
+        result = createAnnouncement(params.token, params);
+        break;
+
+      case 'get_announcements':
+      case 'getannouncements':
+      case 'announcements':
+        result = getAnnouncements(params.token, params);
+        break;
+
+      // 22. UNKNOWN ENDPOINT
       default:
         result = {
           success: false,
