@@ -24,7 +24,8 @@ const CONFIG = {
     SEED_REQUESTS: 'Seed_Requests',
     VOID_REQUESTS: 'Void_Requests',
     APP_VERSION: 'App_Version',
-    ANNOUNCEMENTS: 'Announcements'
+    ANNOUNCEMENTS: 'Announcements',
+    SCHEDULED_NOTIFICATIONS: 'Scheduled_Notifications'
   },
   
   // Konfigurasi Default Versi Mobile App (Fallback)

@@ -640,6 +640,60 @@ function sendTestPushNotification(params) {
 }
 
 /**
+ * Mengirim Push Notifikasi Interaksi Sosial (Like, Komentar, Postingan Baru)
+ */
+function sendSocialPushNotification(token, params) {
+  try {
+    const session = verifyToken(token);
+    if (!session) {
+      return { success: false, error_code: 'UNAUTHORIZED', message: 'Sesi login telah berakhir' };
+    }
+
+    params = params || {};
+    const type = String(params.type || 'COMMUNITY_POST').trim().toUpperCase();
+    const title = String(params.title || 'Pemberitahuan Sosial SATUS').trim();
+    const body = String(params.body || '').trim();
+    const postId = String(params.postId || params.post_id || '').trim();
+    const commentId = String(params.commentId || params.comment_id || '').trim();
+    const openComments = String(params.openComments || params.open_comments || 'false').toLowerCase() === 'true';
+    const recipientId = String(params.recipientId || params.recipient_id || '').trim();
+    const targetTopicParam = String(params.targetTopic || params.target_topic || '').trim();
+
+    let targetTopic = '';
+    if (recipientId) {
+      targetTopic = 'user_' + sanitizeFcmTopic(recipientId);
+    } else if (targetTopicParam) {
+      targetTopic = sanitizeFcmTopic(targetTopicParam);
+    } else {
+      targetTopic = 'all_users';
+    }
+
+    const channel = (CONFIG.FIREBASE && CONFIG.FIREBASE.CHANNELS && CONFIG.FIREBASE.CHANNELS.INFO) || 'satus_info_channel';
+
+    const payload = {
+      click_action: 'FLUTTER_NOTIFICATION_CLICK',
+      type: type,
+      postId: postId,
+      commentId: commentId,
+      openComments: openComments ? 'true' : 'false',
+      senderId: String(session.user_id || session.username || ''),
+      senderName: String(session.nama || session.username || 'Pengguna SATUS'),
+      timestamp: new Date().toISOString()
+    };
+
+    const result = sendFcmTopicMessage(targetTopic, title, body, payload, channel);
+    return {
+      success: result.success,
+      topic: targetTopic,
+      message: result.success ? 'Push notifikasi sosial berhasil dikirim' : (result.message || 'Gagal mengirim push notifikasi')
+    };
+  } catch (err) {
+    console.error('sendSocialPushNotification error:', err);
+    return { success: false, message: 'Gagal mengirim notifikasi sosial: ' + err.message };
+  }
+}
+
+/**
  * Fungsi khusus untuk memicu dialog otorisasi izin OAuth scope (UrlFetchApp) di Google Apps Script
  * Jalankan fungsi ini 1 KALI dari Google Apps Script Editor (pilih dari dropdown lalu klik Run/Jalankan ▶)
  */

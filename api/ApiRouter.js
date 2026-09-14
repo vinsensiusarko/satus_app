@@ -72,7 +72,8 @@ function isMutationAction(action) {
     'app_version', 'check_update', 'get_app_version', 'version',
     'firebase_status', 'get_firebase_status', 'test_notification', 'send_test_notification',
     'get_users_for_chat', 'getusersforchat', 'chat_users', 'send_chat_notification',
-    'get_announcements', 'getannouncements', 'announcements'
+    'get_announcements', 'getannouncements', 'announcements',
+    'get_scheduled_notifications', 'scheduled_notifications'
   ];
 
   return !READ_ONLY_ACTIONS.includes(action);
@@ -592,7 +593,31 @@ function dispatchApiAction(action, params, method) {
         result = getAnnouncements(params.token, params);
         break;
 
-      // 22. UNKNOWN ENDPOINT
+      // 22. SCHEDULED NOTIFICATIONS & PUSH SCHEDULING
+      case 'get_scheduled_notifications':
+      case 'scheduled_notifications':
+        result = getScheduledNotifications(params.token);
+        break;
+
+      case 'save_scheduled_notification':
+        result = saveScheduledNotification(params.token, params);
+        break;
+
+      case 'delete_scheduled_notification':
+        result = deleteScheduledNotification(params.token, params.schedule_id || params.scheduleId);
+        break;
+
+      case 'send_scheduled_notification_now':
+        result = sendScheduledNotificationNow(params.token, params.schedule_id || params.scheduleId);
+        break;
+
+      // 23. SOCIAL INTERACTIONS PUSH NOTIFICATION (Like, Comment, Post)
+      case 'send_social_notification':
+      case 'sendsocialnotification':
+        result = sendSocialPushNotification(params.token, params);
+        break;
+
+      // 24. UNKNOWN ENDPOINT
       default:
         result = {
           success: false,

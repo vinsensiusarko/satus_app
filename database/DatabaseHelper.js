@@ -25,7 +25,8 @@ const DATABASE_SCHEMAS = {
   'Seeds': ['seed_id','seed_name','seed_type','conversion_value','stock','status'],
   'Seed_Requests': ['request_id','member_id','seed_id','quantity','total_value','status','requested_at','reviewed_by','reviewed_at','reject_reason'],
   'Void_Requests': ['void_id','transaction_id','member_id','wallet_type','amount','reason','cashier_id','status','requested_at','reviewed_by','reviewed_at','reject_reason'],
-  'App_Version': ['config_key','latest_version','latest_build_number','min_required_version','min_required_build_number','is_required','update_title','release_notes','play_store_url','is_active','updated_at']
+  'App_Version': ['config_key','latest_version','latest_build_number','min_required_version','min_required_build_number','is_required','update_title','release_notes','play_store_url','is_active','updated_at'],
+  'Scheduled_Notifications': ['schedule_id','title','body','target_role','trigger_time','frequency','is_active','last_sent_at','created_by','created_at']
 };
 
 function ensureSheetHeaders(sheet, sheetName) {

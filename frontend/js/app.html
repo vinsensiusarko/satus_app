@@ -828,8 +828,6 @@ const app = {
           const d = res.data;
           const vInput = document.getElementById('ver-input-latest-version');
           const bInput = document.getElementById('ver-input-latest-build');
-          const minVInput = document.getElementById('ver-input-min-version');
-          const minBInput = document.getElementById('ver-input-min-build');
           const tInput = document.getElementById('ver-input-title');
           const nInput = document.getElementById('ver-input-notes');
           const uInput = document.getElementById('ver-input-url');
@@ -837,10 +835,8 @@ const app = {
           const rRequired = document.getElementById('ver-radio-required');
           const rOptional = document.getElementById('ver-radio-optional');
 
-          if (vInput) vInput.value = d.latest_version || '1.0.0';
+          if (vInput) vInput.value = d.latest_version || '2.0.0';
           if (bInput) bInput.value = d.latest_build_number || 1;
-          if (minVInput) minVInput.value = d.min_required_version || '1.0.0';
-          if (minBInput) minBInput.value = d.min_required_build_number || 1;
           if (tInput) tInput.value = d.update_title || 'Pembaruan SATUS Mobile Tersedia';
           if (nInput) nInput.value = d.release_notes || '';
           if (uInput) uInput.value = d.play_store_url || '';
@@ -854,7 +850,7 @@ const app = {
 
           const badgeAction = document.getElementById('m-badge-version-type');
           if (badgeAction) {
-            badgeAction.innerText = 'v' + (d.latest_version || '1.0.0');
+            badgeAction.innerText = 'v' + (d.latest_version || '2.0.0');
           }
 
           const lastUpdated = document.getElementById('ver-last-updated-text');
@@ -890,7 +886,7 @@ const app = {
     const prevLaterBtn = document.getElementById('prev-btn-later');
 
     const isReq = rRequired && rRequired.checked;
-    const verText = (vInput && vInput.value.trim()) || '1.0.1';
+    const verText = (vInput && vInput.value.trim()) || '2.0.0';
     const titleText = (tInput && tInput.value.trim()) || 'Pembaruan SATUS Mobile Tersedia';
     const notesText = (nInput && nInput.value.trim()) || '- Peningkatan performa & perbaikan bug';
 
@@ -922,19 +918,17 @@ const app = {
 
     const vInput = document.getElementById('ver-input-latest-version');
     const bInput = document.getElementById('ver-input-latest-build');
-    const minVInput = document.getElementById('ver-input-min-version');
-    const minBInput = document.getElementById('ver-input-min-build');
     const tInput = document.getElementById('ver-input-title');
     const nInput = document.getElementById('ver-input-notes');
     const uInput = document.getElementById('ver-input-url');
     const aInput = document.getElementById('ver-input-active');
     const rRequired = document.getElementById('ver-radio-required');
 
-    const latestVersion = (vInput && vInput.value.trim()) || '1.0.0';
+    const latestVersion = (vInput && vInput.value.trim()) || '2.0.0';
     const latestBuild = parseInt(bInput && bInput.value, 10) || 1;
-    const minVersion = (minVInput && minVInput.value.trim()) || '1.0.0';
-    const minBuild = parseInt(minBInput && minBInput.value, 10) || 1;
     const isRequired = rRequired ? rRequired.checked : false;
+    const minVersion = isRequired ? latestVersion : '1.0.0';
+    const minBuild = isRequired ? latestBuild : 1;
     const updateTitle = (tInput && tInput.value.trim()) || 'Pembaruan SATUS Mobile Tersedia';
     const releaseNotes = (nInput && nInput.value.trim()) || '';
     const playStoreUrl = (uInput && uInput.value.trim()) || '';
@@ -1064,6 +1058,343 @@ const app = {
       this.showToast('Pengumuman berhasil diterbitkan!', 'success');
       this.closeModalAnnouncement();
       if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+  },
+
+  // ============================================================
+  // PUSH NOTIFICATION SCHEDULE & BROADCAST (MANAGER)
+  // ============================================================
+  openModalScheduleNotification: function() {
+    const modal = document.getElementById('modal-schedule-notification');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    this.updateScheduleNotificationPreview();
+    this.loadScheduledNotifications();
+  },
+
+  closeModalScheduleNotification: function() {
+    const modal = document.getElementById('modal-schedule-notification');
+    if (modal) modal.classList.add('hidden');
+  },
+
+  resetScheduleForm: function() {
+    const idInput = document.getElementById('sched-input-id');
+    const formTitle = document.getElementById('sched-form-title');
+    const targetSel = document.getElementById('sched-input-target');
+    const timeSel = document.getElementById('sched-input-time');
+    const titleInput = document.getElementById('sched-input-title');
+    const bodyInput = document.getElementById('sched-input-body');
+
+    if (idInput) idInput.value = '';
+    if (formTitle) formTitle.innerText = 'Buat Jadwal Notifikasi Baru';
+    if (targetSel) targetSel.value = 'all_users';
+    if (timeSel) timeSel.value = '06:00';
+    if (titleInput) titleInput.value = '🌱 Selamat Pagi Warga SATUS!';
+    if (bodyInput) bodyInput.value = 'Awali hari dengan pilah sampah plastik & botol dari rumah. Setorkan ke Bank Sampah SATUS hari ini dan tukarkan dengan saldo hijau!';
+    this.updateScheduleNotificationPreview();
+  },
+
+  applySchedulePreset: function(presetKey) {
+    const targetSel = document.getElementById('sched-input-target');
+    const timeSel = document.getElementById('sched-input-time');
+    const titleInput = document.getElementById('sched-input-title');
+    const bodyInput = document.getElementById('sched-input-body');
+
+    if (presetKey === 'PAGI_GLOBAL') {
+      if (targetSel) targetSel.value = 'all_users';
+      if (timeSel) timeSel.value = '06:00';
+      if (titleInput) titleInput.value = '🌱 Selamat Pagi Warga SATUS!';
+      if (bodyInput) bodyInput.value = 'Awali hari dengan pilah sampah plastik & botol dari rumah. Setorkan ke Bank Sampah SATUS hari ini dan tukarkan dengan saldo hijau!';
+    } else if (presetKey === 'INGAT_SETOR_SISWA') {
+      if (targetSel) targetSel.value = 'role_siswa';
+      if (timeSel) timeSel.value = '07:00';
+      if (titleInput) titleInput.value = '🔔 Pengingat Bank Sampah Sekolah';
+      if (bodyInput) bodyInput.value = 'Halo Sobat Hijau! Jangan lupa bawa setoran botol dan sampah terpilahmu ke pos SATUS hari ini untuk menambah saldo tabunganmu!';
+    }
+    this.updateScheduleNotificationPreview();
+  },
+
+  updateScheduleNotificationPreview: function() {
+    const titleInput = document.getElementById('sched-input-title');
+    const bodyInput = document.getElementById('sched-input-body');
+    const targetSel = document.getElementById('sched-input-target');
+    const timeSel = document.getElementById('sched-input-time');
+
+    const prevTitle = document.getElementById('prev-sched-notif-title');
+    const prevBody = document.getElementById('prev-sched-notif-body');
+    const prevTopic = document.getElementById('prev-sched-notif-topic');
+    const prevBadge = document.getElementById('prev-sched-badge-target');
+    const prevClock = document.getElementById('prev-sched-clock-time');
+    const prevLockClock = document.getElementById('prev-sched-lock-clock');
+
+    const titleText = (titleInput && titleInput.value.trim()) || '🌱 Selamat Pagi Warga SATUS!';
+    const bodyText = (bodyInput && bodyInput.value.trim()) || 'Awali hari dengan pilah sampah plastik & botol dari rumah...';
+    const target = targetSel ? targetSel.value : 'all_users';
+    const timeVal = timeSel ? timeSel.value : '06:00';
+
+    if (prevTitle) prevTitle.innerText = titleText;
+    if (prevBody) prevBody.innerText = bodyText;
+    if (prevTopic) prevTopic.innerText = target;
+    if (prevClock) prevClock.innerText = timeVal;
+    if (prevLockClock) prevLockClock.innerText = timeVal;
+
+    if (prevBadge) {
+      if (target === 'role_siswa') {
+        prevBadge.innerText = 'Khusus Siswa';
+        prevBadge.className = 'text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800';
+      } else {
+        prevBadge.innerText = 'Global (Semua)';
+        prevBadge.className = 'text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800';
+      }
+    }
+  },
+
+  loadScheduledNotifications: function() {
+    const tbody = document.getElementById('sched-table-body');
+    if (!tbody) return;
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler((res) => {
+          if (res && res.success && Array.isArray(res.data)) {
+            if (res.data.length === 0) {
+              tbody.innerHTML = '<tr><td colspan="5" class="text-center py-6 text-slate-400">Belum ada jadwal notifikasi yang tersimpan.</td></tr>';
+              return;
+            }
+
+            let html = '';
+            res.data.forEach((s) => {
+              const targetLabel = s.target_role === 'role_siswa' ? '<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">Siswa</span>' : '<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold text-[10px]">Global</span>';
+              const statusBadge = s.is_active ? '<span class="px-2 py-0.5 rounded-full bg-emerald-500 text-white font-bold text-[9px]">Aktif</span>' : '<span class="px-2 py-0.5 rounded-full bg-slate-300 text-slate-700 font-bold text-[9px]">Mati</span>';
+
+              html += `
+                <tr class="hover:bg-slate-50/80 transition">
+                  <td class="py-2.5 px-3 font-mono font-bold text-slate-800">${s.trigger_time} WIB</td>
+                  <td class="py-2.5 px-3">${targetLabel}</td>
+                  <td class="py-2.5 px-3 max-w-[240px]">
+                    <div class="font-bold text-slate-800 truncate">${s.title}</div>
+                    <div class="text-[11px] text-slate-500 truncate">${s.body}</div>
+                  </td>
+                  <td class="py-2.5 px-3 text-center">${statusBadge}</td>
+                  <td class="py-2.5 px-3 text-right space-x-1">
+                    <button type="button" onclick="app.sendScheduledNotificationDirect('${s.schedule_id}')" title="Kirim Sekarang" class="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 transition">
+                      <i data-lucide="send" class="w-3.5 h-3.5 inline"></i>
+                    </button>
+                    <button type="button" onclick="app.deleteScheduledNotification('${s.schedule_id}')" title="Hapus Jadwal" class="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 transition">
+                      <i data-lucide="trash-2" class="w-3.5 h-3.5 inline"></i>
+                    </button>
+                  </td>
+                </tr>
+              `;
+            });
+            tbody.innerHTML = html;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+          } else {
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-rose-500 font-medium">${(res && res.message) || 'Gagal memuat daftar jadwal'}</td></tr>`;
+          }
+        })
+        .withFailureHandler((err) => {
+          tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-rose-500 font-medium">Error: ${err.message || err}</td></tr>`;
+        })
+        .getScheduledNotifications(this.session.token);
+    } else {
+      tbody.innerHTML = `
+        <tr class="hover:bg-slate-50/80 transition">
+          <td class="py-2.5 px-3 font-mono font-bold text-slate-800">06:00 WIB</td>
+          <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold text-[10px]">Global</span></td>
+          <td class="py-2.5 px-3 max-w-[240px]">
+            <div class="font-bold text-slate-800 truncate">🌱 Selamat Pagi Warga SATUS!</div>
+            <div class="text-[11px] text-slate-500 truncate">Awali hari dengan pilah sampah plastik & botol dari rumah...</div>
+          </td>
+          <td class="py-2.5 px-3 text-center"><span class="px-2 py-0.5 rounded-full bg-emerald-500 text-white font-bold text-[9px]">Aktif</span></td>
+          <td class="py-2.5 px-3 text-right space-x-1">
+            <button type="button" class="p-1.5 rounded-lg bg-amber-50 text-amber-800"><i data-lucide="send" class="w-3.5 h-3.5 inline"></i></button>
+          </td>
+        </tr>
+      `;
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+  },
+
+  saveScheduledNotificationSubmit: function() {
+    const idInput = document.getElementById('sched-input-id');
+    const targetSel = document.getElementById('sched-input-target');
+    const timeSel = document.getElementById('sched-input-time');
+    const titleInput = document.getElementById('sched-input-title');
+    const bodyInput = document.getElementById('sched-input-body');
+    const btn = document.getElementById('btn-save-sched');
+
+    const title = titleInput ? titleInput.value.trim() : '';
+    const body = bodyInput ? bodyInput.value.trim() : '';
+    const targetRole = targetSel ? targetSel.value : 'all_users';
+    const triggerTime = timeSel ? timeSel.value : '06:00';
+    const scheduleId = idInput ? idInput.value.trim() : '';
+
+    if (!title || !body) {
+      this.showToast('Judul dan isi pesan notifikasi wajib diisi', 'error');
+      return;
+    }
+
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="inline-block animate-spin mr-1.5">&#9696;</span> Menyimpan...';
+    }
+
+    const payload = {
+      schedule_id: scheduleId,
+      title: title,
+      body: body,
+      target_role: targetRole,
+      trigger_time: triggerTime,
+      frequency: 'DAILY',
+      is_active: true
+    };
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler((res) => {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="save" class="w-3.5 h-3.5"></i><span>Simpan Jadwal</span>';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+          }
+          if (res && res.success) {
+            this.showToast(res.message || 'Jadwal notifikasi berhasil disimpan!', 'success');
+            this.resetScheduleForm();
+            this.loadScheduledNotifications();
+          } else {
+            this.showToast((res && res.message) || 'Gagal menyimpan jadwal', 'error');
+          }
+        })
+        .withFailureHandler((err) => {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="save" class="w-3.5 h-3.5"></i><span>Simpan Jadwal</span>';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+          }
+          this.handleError(err);
+        })
+        .saveScheduledNotification(this.session.token, payload);
+    } else {
+      setTimeout(() => {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i data-lucide="save" class="w-3.5 h-3.5"></i><span>Simpan Jadwal</span>';
+          if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+        this.showToast('Jadwal notifikasi berhasil disimpan (Simulasi)', 'success');
+      }, 500);
+    }
+  },
+
+  deleteScheduledNotification: function(scheduleId) {
+    if (!confirm('Apakah Anda yakin ingin menghapus jadwal notifikasi ini?')) return;
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      this.showLoading(true);
+      google.script.run
+        .withSuccessHandler((res) => {
+          this.showLoading(false);
+          if (res && res.success) {
+            this.showToast(res.message || 'Jadwal berhasil dihapus', 'success');
+            this.loadScheduledNotifications();
+          } else {
+            this.showToast((res && res.message) || 'Gagal menghapus jadwal', 'error');
+          }
+        })
+        .withFailureHandler((err) => {
+          this.showLoading(false);
+          this.handleError(err);
+        })
+        .deleteScheduledNotification(this.session.token, scheduleId);
+    } else {
+      this.showToast('Jadwal berhasil dihapus (Simulasi)', 'success');
+    }
+  },
+
+  sendCurrentScheduleNow: function() {
+    const targetSel = document.getElementById('sched-input-target');
+    const titleInput = document.getElementById('sched-input-title');
+    const bodyInput = document.getElementById('sched-input-body');
+    const btn = document.getElementById('btn-send-sched-now');
+
+    const title = titleInput ? titleInput.value.trim() : '';
+    const body = bodyInput ? bodyInput.value.trim() : '';
+    const target = targetSel ? targetSel.value : 'all_users';
+
+    if (!title || !body) {
+      this.showToast('Judul dan isi pesan wajib diisi terlebih dahulu', 'error');
+      return;
+    }
+
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="inline-block animate-spin mr-1">⏳</span><span>Mengirim...</span>';
+    }
+
+    const payload = {
+      target: target,
+      channelId: 'satus_info_channel',
+      title: title,
+      body: body
+    };
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler((res) => {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="send" class="w-3.5 h-3.5 text-amber-700"></i><span>Kirim Sekarang (Tes Cepat)</span>';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+          }
+          if (res && res.success) {
+            this.showToast(res.message || 'Push notifikasi berhasil dikirim!', 'success');
+          } else {
+            this.showToast((res && res.message) || 'Gagal mengirim push notifikasi', 'error');
+          }
+        })
+        .withFailureHandler((err) => {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="send" class="w-3.5 h-3.5 text-amber-700"></i><span>Kirim Sekarang (Tes Cepat)</span>';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+          }
+          this.handleError(err);
+        })
+        .sendTestPushNotification(payload);
+    } else {
+      setTimeout(() => {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i data-lucide="send" class="w-3.5 h-3.5 text-amber-700"></i><span>Kirim Sekarang (Tes Cepat)</span>';
+          if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+        this.showToast('Push notifikasi berhasil dikirim (Simulasi)', 'success');
+      }, 500);
+    }
+  },
+
+  sendScheduledNotificationDirect: function(scheduleId) {
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      this.showLoading(true);
+      google.script.run
+        .withSuccessHandler((res) => {
+          this.showLoading(false);
+          if (res && res.success) {
+            this.showToast(res.message || 'Notifikasi berhasil dikirim!', 'success');
+            this.loadScheduledNotifications();
+          } else {
+            this.showToast((res && res.message) || 'Gagal mengirim notifikasi', 'error');
+          }
+        })
+        .withFailureHandler((err) => {
+          this.showLoading(false);
+          this.handleError(err);
+        })
+        .sendScheduledNotificationNow(this.session.token, scheduleId);
+    } else {
+      this.showToast('Notifikasi berhasil dikirim (Simulasi)', 'success');
     }
   },
 

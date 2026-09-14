@@ -74,9 +74,9 @@
           <span>Kontrol Versi Mobile</span>
           <span id="m-badge-version-type" class="ml-1 bg-indigo-200 text-indigo-950 px-1.5 py-0.5 rounded-full font-bold text-[9px]">v1.0.0</span>
         </button>
-        <button onclick="app.openModalTestNotification()" class="bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-2.5 rounded-xl shadow-sm transition text-xs font-bold flex items-center space-x-1.5 active:scale-95">
-          <i data-lucide="bell-ring" class="w-4 h-4 text-amber-200"></i>
-          <span>Tes Notifikasi</span>
+        <button onclick="app.openModalScheduleNotification()" class="bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-2.5 rounded-xl shadow-sm transition text-xs font-bold flex items-center space-x-1.5 active:scale-95">
+          <i data-lucide="clock" class="w-4 h-4 text-amber-200"></i>
+          <span>Jadwal Notifikasi</span>
         </button>
         <button onclick="app.openModalAnnouncement()" class="bg-purple-600 hover:bg-purple-700 text-white px-3.5 py-2.5 rounded-xl shadow-sm transition text-xs font-bold flex items-center space-x-1.5 active:scale-95">
           <i data-lucide="megaphone" class="w-4 h-4 text-purple-200"></i>
@@ -844,14 +844,14 @@
 
               <div class="grid grid-cols-2 gap-3">
                 <div>
-                  <label class="block text-[11px] font-bold text-slate-600 mb-1">Versi Terbaru (Version Name) *</label>
-                  <input type="text" id="ver-input-latest-version" oninput="app.updateVersionModalPreview()" placeholder="misal: 1.0.1" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-mono">
-                  <span class="text-[10px] text-slate-400">Format: Major.Minor.Patch (1.0.1)</span>
+                  <label class="block text-[11px] font-bold text-slate-600 mb-1">Versi Target (Version Name) *</label>
+                  <input type="text" id="ver-input-latest-version" oninput="app.updateVersionModalPreview()" placeholder="misal: 2.0.0" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-mono">
+                  <span class="text-[10px] text-slate-400">Sesuai <code>pubspec.yaml</code> (misal: 2.0.0)</span>
                 </div>
                 <div>
-                  <label class="block text-[11px] font-bold text-slate-600 mb-1">Build Number Terbaru (Version Code) *</label>
+                  <label class="block text-[11px] font-bold text-slate-600 mb-1">Build Number Target (Version Code) *</label>
                   <input type="number" id="ver-input-latest-build" oninput="app.updateVersionModalPreview()" placeholder="misal: 2" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-mono">
-                  <span class="text-[10px] text-slate-400">Angka integer naik tiap rilis (1, 2, 3...)</span>
+                  <span class="text-[10px] text-slate-400">Angka build di <code>pubspec.yaml</code> (+2)</span>
                 </div>
               </div>
             </div>
@@ -874,7 +874,7 @@
                     <input type="radio" name="ver-update-type" id="ver-radio-required" value="true" onchange="app.updateVersionModalPreview()" class="text-rose-600 focus:ring-rose-500 w-4 h-4">
                   </div>
                   <p class="text-[11px] text-slate-500 leading-snug">
-                    Force Update / Layar dikunci. Pengguna tidak bisa menggunakan aplikasi sebelum update di Play Store.
+                    Force Update / Layar dikunci. Pengguna dengan build aplikasi lebih rendah dari target wajib memperbarui aplikasi.
                   </p>
                 </label>
 
@@ -891,20 +891,6 @@
                     Fleksibel. Pengguna dapat memilih "Nanti Saja" untuk menunda, atau "Perbarui" dari dalam aplikasi.
                   </p>
                 </label>
-              </div>
-
-              <!-- Batas Minimum Versi -->
-              <div class="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200/60">
-                <div>
-                  <label class="block text-[10px] font-bold text-slate-600 mb-0.5">Min. Versi Wajib</label>
-                  <input type="text" id="ver-input-min-version" oninput="app.updateVersionModalPreview()" placeholder="1.0.0" class="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-mono">
-                  <span class="text-[9px] text-slate-400">Versi di bawah ini otomatis dipaksa update</span>
-                </div>
-                <div>
-                  <label class="block text-[10px] font-bold text-slate-600 mb-0.5">Min. Build Wajib</label>
-                  <input type="number" id="ver-input-min-build" oninput="app.updateVersionModalPreview()" placeholder="1" class="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-mono">
-                  <span class="text-[9px] text-slate-400">Build di bawah ini otomatis dipaksa update</span>
-                </div>
               </div>
             </div>
 
@@ -1031,28 +1017,28 @@
     </div>
 
     <!-- ============================================================ -->
-    <!-- MODAL TES NOTIFIKASI MOBILE (MANAGER) -->
+    <!-- MODAL JADWAL & TES NOTIFIKASI MOBILE (MANAGER) -->
     <!-- ============================================================ -->
-    <div id="modal-test-notification" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
-      <div class="bg-white w-full max-w-4xl rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[92vh]">
+    <div id="modal-schedule-notification" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden animate-fade-in">
+      <div class="bg-white w-full max-w-5xl rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[92vh]">
         
         <!-- Header Modal -->
         <div class="px-6 py-4 bg-gradient-to-r from-amber-600 via-amber-700 to-orange-700 text-white flex justify-between items-center shrink-0 shadow-sm">
           <div class="flex items-center space-x-3">
             <div class="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center border border-white/20 shadow-inner">
-              <i data-lucide="bell-ring" class="w-5 h-5 text-amber-200"></i>
+              <i data-lucide="clock" class="w-5 h-5 text-amber-200"></i>
             </div>
             <div>
               <div class="flex items-center gap-2">
-                <h3 class="font-black text-base md:text-lg tracking-tight">Tes Push Notification Real-time</h3>
+                <h3 class="font-black text-base md:text-lg tracking-tight">Jadwal & Kirim Notifikasi Terjadwal</h3>
                 <span id="notif-badge-config" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500/40 text-amber-100 border border-amber-300/30">
-                  Memeriksa...
+                  Live Scheduler
                 </span>
               </div>
-              <p class="text-xs text-amber-100 font-medium">Uji coba pengiriman notifikasi FCM ke perangkat aplikasi SATUS Mobile</p>
+              <p class="text-xs text-amber-100 font-medium">Atur push notifikasi otomatis (misal: salam pagi jam 06:00 WIB) untuk seluruh warga SATUS atau khusus siswa</p>
             </div>
           </div>
-          <button onclick="app.closeModalTestNotification()" class="p-2 text-white/80 hover:text-white rounded-xl hover:bg-white/10 transition">
+          <button onclick="app.closeModalScheduleNotification()" class="p-2 text-white/80 hover:text-white rounded-xl hover:bg-white/10 transition">
             <i data-lucide="x" class="w-5 h-5"></i>
           </button>
         </div>
@@ -1060,95 +1046,126 @@
         <!-- Body Modal -->
         <div class="p-6 overflow-y-auto space-y-6 flex-1 bg-slate-50/50">
 
-          <!-- Info Box Kredensial Firebase -->
-          <div id="notif-config-alert" class="p-4 rounded-2xl border text-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-amber-50 border-amber-200 text-amber-900">
-            <div class="flex items-start gap-3 flex-1">
-              <i data-lucide="info" class="w-5 h-5 text-amber-600 shrink-0 mt-0.5"></i>
-              <div class="space-y-1">
-                <p class="font-bold text-amber-950">Status Kredensial Firebase Cloud Messaging:</p>
-                <p id="notif-config-desc" class="text-amber-800 leading-relaxed">
-                  Memuat informasi kredensial...
-                </p>
-              </div>
-            </div>
-            <button id="btn-test-fcm-connection" onclick="app.testFirebaseConnection()" type="button" class="shrink-0 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs shadow-sm flex items-center gap-1.5 transition">
-              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
-              <span>Uji Koneksi Kredensial</span>
-            </button>
-          </div>
-
           <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             
-            <!-- Kolom Kiri: Form Kontrol (7 Kolom) -->
+            <!-- Kolom Kiri: Form & Daftar Jadwal (7 Kolom) -->
             <div class="lg:col-span-7 space-y-4">
               
-              <!-- Quick Presets -->
-              <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm space-y-2">
-                <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                  <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-500"></i>
-                  <span>Pilihan Cepat Skenario (Preset)</span>
-                </label>
-                <div class="grid grid-cols-2 gap-2">
-                  <button type="button" onclick="app.applyTestNotificationPreset('SETOR_TUNAI')" class="px-3 py-2 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 text-left transition text-xs group">
-                    <span class="font-bold text-slate-700 group-hover:text-emerald-700 block">💰 Setor Tunai</span>
-                    <span class="text-[10px] text-slate-400">Saldo Tabungan +Rp 50.000</span>
-                  </button>
-                  <button type="button" onclick="app.applyTestNotificationPreset('SETOR_SAMPAH')" class="px-3 py-2 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 text-left transition text-xs group">
-                    <span class="font-bold text-slate-700 group-hover:text-emerald-700 block">🌱 Setor Sampah</span>
-                    <span class="text-[10px] text-slate-400">Saldo Hijau Plastik 2.5 Kg</span>
-                  </button>
-                  <button type="button" onclick="app.applyTestNotificationPreset('VOID_REQUEST')" class="px-3 py-2 rounded-xl border border-slate-200 hover:border-rose-500 hover:bg-rose-50/50 text-left transition text-xs group">
-                    <span class="font-bold text-slate-700 group-hover:text-rose-700 block">⚠️ Void Request</span>
-                    <span class="text-[10px] text-slate-400">Kasir minta batal transaksi</span>
-                  </button>
-                  <button type="button" onclick="app.applyTestNotificationPreset('SEED_APPROVAL')" class="px-3 py-2 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/50 text-left transition text-xs group">
-                    <span class="font-bold text-slate-700 group-hover:text-indigo-700 block">🌳 Approval Bibit</span>
-                    <span class="text-[10px] text-slate-400">Bibit disetujui untuk siswa</span>
-                  </button>
-                </div>
-              </div>
-
-              <!-- Form Pengaturan -->
+              <!-- Card Form Tambah/Ubah Jadwal -->
               <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
-                <!-- Target Penerima -->
-                <div>
-                  <label class="block text-xs font-bold text-slate-700 mb-1">Target Penerima (Topik FCM)</label>
-                  <select id="test-notif-target" onchange="app.onTestNotifTargetChange()" class="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none transition">
-                    <option value="all_users">Semua Pengguna HP (all_users)</option>
-                    <option value="role_siswa">Seluruh Siswa (role_siswa)</option>
-                    <option value="role_kasir">Seluruh Kasir (role_kasir)</option>
-                    <option value="role_manager">Seluruh Manager (role_manager)</option>
-                    <option value="custom">Pengguna Spesifik (Member ID / User ID)</option>
-                  </select>
+                <div class="flex items-center justify-between border-b pb-2">
+                  <span class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <i data-lucide="plus-circle" class="w-3.5 h-3.5 text-amber-600"></i>
+                    <span id="sched-form-title">Buat Jadwal Notifikasi Baru</span>
+                  </span>
+                  <button type="button" onclick="app.resetScheduleForm()" class="text-[11px] font-semibold text-slate-500 hover:text-amber-700">
+                    Reset Form
+                  </button>
                 </div>
 
-                <!-- Custom Member ID Field (Hidden by default) -->
-                <div id="test-notif-custom-container" class="hidden">
-                  <label class="block text-xs font-bold text-slate-700 mb-1">ID Anggota / Username Target</label>
-                  <input type="text" id="test-notif-custom-id" placeholder="Misal: KH-2026-001 atau DEV-SIS-001" oninput="app.updateTestNotificationPreview()" class="w-full text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none transition">
-                  <p class="text-[10px] text-slate-400 mt-1">Topik otomatis diformat: <code class="font-mono text-amber-700">user_{ID}</code></p>
+                <input type="hidden" id="sched-input-id" value="">
+
+                <!-- Quick Preset Waktu & Pesan -->
+                <div>
+                  <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-500"></i>
+                    <span>Template Cepat</span>
+                  </label>
+                  <div class="grid grid-cols-2 gap-2">
+                    <button type="button" onclick="app.applySchedulePreset('PAGI_GLOBAL')" class="px-2.5 py-1.5 rounded-xl border border-slate-200 hover:border-amber-500 hover:bg-amber-50/50 text-left transition text-xs">
+                      <span class="font-bold text-slate-700 block">🌅 Salam Pagi (06:00 WIB)</span>
+                      <span class="text-[10px] text-slate-400">Target: Semua Pengguna</span>
+                    </button>
+                    <button type="button" onclick="app.applySchedulePreset('INGAT_SETOR_SISWA')" class="px-2.5 py-1.5 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 text-left transition text-xs">
+                      <span class="font-bold text-slate-700 block">🌱 Pilah Sampah (07:00 WIB)</span>
+                      <span class="text-[10px] text-slate-400">Target: Khusus Siswa</span>
+                    </button>
+                  </div>
                 </div>
 
-                <!-- Saluran Channel Android -->
-                <div>
-                  <label class="block text-xs font-bold text-slate-700 mb-1">Saluran Notifikasi (Android Channel)</label>
-                  <select id="test-notif-channel" onchange="app.updateTestNotificationPreview()" class="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none transition">
-                    <option value="satus_transaksi_channel">Transaksi & Saldo (Heads-Up Banner, Prioritas Tinggi, Suara)</option>
-                    <option value="satus_approval_channel">Persetujuan & Void (Prioritas Maksimal)</option>
-                    <option value="satus_info_channel">Pengumuman & Edukasi (Prioritas Standar)</option>
-                  </select>
+                <!-- Grid Target & Jam -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <!-- Target Role -->
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Target Pengguna *</label>
+                    <select id="sched-input-target" onchange="app.updateScheduleNotificationPreview()" class="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none transition">
+                      <option value="all_users">Semua Pengguna (Informasi Global)</option>
+                      <option value="role_siswa">Khusus Siswa (Tabungan & Bank Sampah)</option>
+                    </select>
+                  </div>
+
+                  <!-- Jam Kirim WIB -->
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Waktu Kirim Harian (WIB) *</label>
+                    <select id="sched-input-time" onchange="app.updateScheduleNotificationPreview()" class="w-full text-xs font-bold font-mono bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none transition">
+                      <option value="06:00">06:00 WIB (Pagi Sebelum Masuk)</option>
+                      <option value="07:00">07:00 WIB (Pagi Saat Datang Sekolah)</option>
+                      <option value="09:00">09:00 WIB (Istirahat Pertama)</option>
+                      <option value="12:00">12:00 WIB (Siang / Istirahat Kedua)</option>
+                      <option value="14:00">14:00 WIB (Jam Pulang Sekolah)</option>
+                      <option value="16:00">16:00 WIB (Sore Hari)</option>
+                    </select>
+                  </div>
                 </div>
 
                 <!-- Judul Notifikasi -->
                 <div>
-                  <label class="block text-xs font-bold text-slate-700 mb-1">Judul Notifikasi</label>
-                  <input type="text" id="test-notif-title" value="Tes Notifikasi SATUS 🔔" oninput="app.updateTestNotificationPreview()" placeholder="Masukkan judul..." class="w-full text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none transition">
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Judul Notifikasi *</label>
+                  <input type="text" id="sched-input-title" value="🌱 Selamat Pagi Warga SATUS!" oninput="app.updateScheduleNotificationPreview()" placeholder="Masukkan judul notifikasi..." class="w-full text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none transition">
                 </div>
 
                 <!-- Isi Pesan -->
                 <div>
-                  <label class="block text-xs font-bold text-slate-700 mb-1">Isi Pesan Notifikasi</label>
-                  <textarea id="test-notif-body" rows="3" oninput="app.updateTestNotificationPreview()" placeholder="Tulis isi pesan..." class="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none transition">Halo! Fitur push notification real-time SATUS Mobile aktif dan bekerja dengan baik.</textarea>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Isi Pesan Notifikasi *</label>
+                  <textarea id="sched-input-body" rows="3" oninput="app.updateScheduleNotificationPreview()" placeholder="Tulis isi pesan push notifikasi..." class="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none transition">Awali hari dengan pilah sampah plastik & botol dari rumah. Setorkan ke Bank Sampah SATUS hari ini dan tukarkan dengan saldo hijau!</textarea>
+                </div>
+
+                <!-- Action Buttons: Simpan & Kirim Sekarang -->
+                <div class="flex items-center justify-between pt-2 border-t">
+                  <button type="button" id="btn-send-sched-now" onclick="app.sendCurrentScheduleNow()" class="px-3.5 py-2 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold transition flex items-center space-x-1.5 active:scale-95">
+                    <i data-lucide="send" class="w-3.5 h-3.5 text-amber-700"></i>
+                    <span>Kirim Sekarang (Tes Cepat)</span>
+                  </button>
+
+                  <button type="button" id="btn-save-sched" onclick="app.saveScheduledNotificationSubmit()" class="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-sm transition flex items-center space-x-1.5 active:scale-95">
+                    <i data-lucide="save" class="w-3.5 h-3.5"></i>
+                    <span>Simpan Jadwal</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Card Daftar Jadwal Aktif -->
+              <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <i data-lucide="calendar-check" class="w-3.5 h-3.5 text-indigo-600"></i>
+                    <span>Daftar Jadwal Notifikasi Tersimpan</span>
+                  </span>
+                  <button type="button" onclick="app.loadScheduledNotifications()" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+                    <i data-lucide="refresh-cw" class="w-3 h-3"></i>
+                    <span>Segarkan</span>
+                  </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr class="border-b border-slate-200 text-slate-500 font-bold bg-slate-50/70">
+                        <th class="py-2 px-3">Jam (WIB)</th>
+                        <th class="py-2 px-3">Target</th>
+                        <th class="py-2 px-3">Judul & Pesan</th>
+                        <th class="py-2 px-3 text-center">Status</th>
+                        <th class="py-2 px-3 text-right">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody id="sched-table-body" class="divide-y divide-slate-100">
+                      <tr>
+                        <td colspan="5" class="text-center py-6 text-slate-400">
+                          <span class="inline-block animate-spin mr-1">&#9696;</span> Memuat jadwal notifikasi...
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
@@ -1174,7 +1191,7 @@
                   
                   <!-- Status Bar Simulator -->
                   <div class="flex justify-between items-center text-[10px] text-white/70 px-2 pt-1 pb-2">
-                    <span class="font-bold">09:41</span>
+                    <span id="prev-sched-clock-time" class="font-bold font-mono">06:00</span>
                     <div class="flex items-center gap-1">
                       <i data-lucide="wifi" class="w-3 h-3"></i>
                       <i data-lucide="battery" class="w-3.5 h-3.5"></i>
@@ -1191,36 +1208,36 @@
                         </div>
                         <span class="text-slate-800 font-bold">SATUS Mobile</span>
                         <span>•</span>
-                        <span id="prev-notif-time">Baru saja</span>
+                        <span id="prev-sched-notif-time">Baru saja</span>
                       </div>
-                      <span id="prev-notif-badge-channel" class="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                        Transaksi
+                      <span id="prev-sched-badge-target" class="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                        Global
                       </span>
                     </div>
 
                     <!-- Notification Title -->
-                    <h5 id="prev-notif-title" class="text-xs font-black text-slate-900 leading-snug mb-0.5">
-                      Tes Notifikasi SATUS 🔔
+                    <h5 id="prev-sched-notif-title" class="text-xs font-black text-slate-900 leading-snug mb-0.5">
+                      🌱 Selamat Pagi Warga SATUS!
                     </h5>
 
                     <!-- Notification Body -->
-                    <p id="prev-notif-body" class="text-[11px] text-slate-600 leading-tight">
-                      Halo! Fitur push notification real-time SATUS Mobile aktif dan bekerja dengan baik.
+                    <p id="prev-sched-notif-body" class="text-[11px] text-slate-600 leading-tight">
+                      Awali hari dengan pilah sampah plastik & botol dari rumah. Setorkan ke Bank Sampah SATUS hari ini dan tukarkan dengan saldo hijau!
                     </p>
 
                     <!-- Target topic badge -->
                     <div class="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between text-[9px] text-slate-400">
-                      <span>Topik: <code id="prev-notif-topic" class="font-mono font-bold text-amber-700">all_users</code></span>
+                      <span>Topik: <code id="prev-sched-notif-topic" class="font-mono font-bold text-amber-700">all_users</code></span>
                       <span class="text-emerald-600 font-bold flex items-center gap-0.5">
-                        <i data-lucide="bell" class="w-2.5 h-2.5"></i> Heads-up
+                        <i data-lucide="bell" class="w-2.5 h-2.5"></i> Terjadwal
                       </span>
                     </div>
                   </div>
 
                   <!-- Lock Screen Clock Placeholder -->
                   <div class="mt-auto mb-6 text-center text-white/40">
-                    <div class="text-3xl font-light tracking-tight">09:41</div>
-                    <div class="text-[10px]">Jumat, 12 September</div>
+                    <div id="prev-sched-lock-clock" class="text-3xl font-light tracking-tight font-mono">06:00</div>
+                    <div class="text-[10px]">Setiap Hari (WIB)</div>
                   </div>
 
                 </div>
@@ -1230,7 +1247,7 @@
               </div>
 
               <p class="mt-2 text-[10px] text-slate-400 text-center px-2">
-                💡 Di perangkat siswa, notifikasi ini akan berbunyi dan membuka tab riwayat/bibit saat di-tap.
+                💡 Google Apps Script Time-Driven Trigger akan mengecek jadwal dan menyiarkan notifikasi otomatis ke perangkat mobile sesuai jam yang ditentukan.
               </p>
             </div>
 
@@ -1240,13 +1257,13 @@
 
         <!-- Footer Modal -->
         <div class="px-6 py-4 bg-white border-t border-slate-200/80 flex justify-between items-center shrink-0">
-          <button onclick="app.closeModalTestNotification()" class="px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-600 transition active:scale-95">
+          <button onclick="app.closeModalScheduleNotification()" class="px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-600 transition active:scale-95">
             Tutup
           </button>
           
-          <button id="btn-send-test-notif" onclick="app.sendTestNotificationSubmit()" class="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs font-bold shadow-sm transition flex items-center space-x-2">
-            <i data-lucide="send" class="w-4 h-4 text-amber-200"></i>
-            <span>Kirim Tes Notifikasi Sekarang</span>
+          <button onclick="app.saveScheduledNotificationSubmit()" class="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs font-bold shadow-sm transition flex items-center space-x-2">
+            <i data-lucide="save" class="w-4 h-4 text-amber-200"></i>
+            <span>Simpan Jadwal Notifikasi</span>
           </button>
         </div>
 

@@ -170,9 +170,9 @@ function updateAppVersionConfig(token, dataUpdate) {
     const platform = String(dataUpdate.platform || dataUpdate.config_key || 'ANDROID').trim().toUpperCase();
     const latestVersion = String(dataUpdate.latest_version || dataUpdate.version || '1.0.0').trim();
     const latestBuild = parseInt(dataUpdate.latest_build_number || dataUpdate.build_number || 1, 10);
-    const minVersion = String(dataUpdate.min_required_version || dataUpdate.min_version || '1.0.0').trim();
-    const minBuild = parseInt(dataUpdate.min_required_build_number || dataUpdate.min_build || 1, 10);
     const isRequired = dataUpdate.is_required === true || String(dataUpdate.is_required).toUpperCase() === 'TRUE';
+    const minVersion = isRequired ? latestVersion : String(dataUpdate.min_required_version || dataUpdate.min_version || '1.0.0').trim();
+    const minBuild = isRequired ? latestBuild : parseInt(dataUpdate.min_required_build_number || dataUpdate.min_build || 1, 10);
     const updateTitle = String(dataUpdate.update_title || 'Pembaruan SATUS Mobile Tersedia').trim();
     const releaseNotes = String(dataUpdate.release_notes || '').trim();
     const playStoreUrl = String(dataUpdate.play_store_url || 'https://play.google.com/store/apps/details?id=com.satus.app').trim();
