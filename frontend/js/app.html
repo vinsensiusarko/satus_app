@@ -819,6 +819,41 @@ const app = {
     if (modal) modal.classList.add('hidden');
   },
 
+  syncAppVersionBadge: function(version) {
+    const badgeAction = document.getElementById('m-badge-version-type');
+    if (!badgeAction) return;
+
+    if (version) {
+      const cleanVer = 'v' + String(version).trim().replace(/^v/i, '');
+      badgeAction.innerText = cleanVer;
+      try { localStorage.setItem('satus_latest_app_version', cleanVer); } catch(e) {}
+      return;
+    }
+
+    // 1. Sync from localStorage first (synchronous, prevents flickering)
+    try {
+      const cached = localStorage.getItem('satus_latest_app_version');
+      if (cached) {
+        badgeAction.innerText = 'v' + String(cached).trim().replace(/^v/i, '');
+      }
+    } catch(e) {}
+
+    // 2. Async fetch from backend if available to ensure freshness
+    if (typeof google !== 'undefined' && google.script && google.script.run && typeof google.script.run.getAppVersionConfig === 'function') {
+      google.script.run
+        .withSuccessHandler((res) => {
+          if (res && res.success && res.data && res.data.latest_version) {
+            const cleanVer = 'v' + String(res.data.latest_version).trim().replace(/^v/i, '');
+            const badge = document.getElementById('m-badge-version-type');
+            if (badge) badge.innerText = cleanVer;
+            try { localStorage.setItem('satus_latest_app_version', cleanVer); } catch(e) {}
+          }
+        })
+        .withFailureHandler(() => {})
+        .getAppVersionConfig({ platform: 'ANDROID' });
+    }
+  },
+
   loadAppVersionConfig: function() {
     this.showLoading(true);
     google.script.run
@@ -848,10 +883,7 @@ const app = {
             if (rOptional) rOptional.checked = true;
           }
 
-          const badgeAction = document.getElementById('m-badge-version-type');
-          if (badgeAction) {
-            badgeAction.innerText = 'v' + (d.latest_version || '2.0.0');
-          }
+          this.syncAppVersionBadge(d.latest_version || '2.0.0');
 
           const lastUpdated = document.getElementById('ver-last-updated-text');
           if (lastUpdated && d.updated_at) {
@@ -962,8 +994,7 @@ const app = {
         }
         if (res && res.success) {
           this.showToast('Konfigurasi rilis Play Store berhasil disimpan!', 'success');
-          const badgeAction = document.getElementById('m-badge-version-type');
-          if (badgeAction) badgeAction.innerText = 'v' + latestVersion;
+          this.syncAppVersionBadge(latestVersion);
           this.closeModalAppVersionManager();
         } else {
           this.showToast((res && res.message) || 'Gagal menyimpan konfigurasi', 'error');
@@ -2225,7 +2256,10 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
       content.innerHTML = template.innerHTML;
       this.renderUserProfileCards();
       if (typeof lucide !== 'undefined') lucide.createIcons();
-      if(templateId === 'tpl-dashboard-manager') this.loadManagerDashboard();
+      if(templateId === 'tpl-dashboard-manager') {
+        this.syncAppVersionBadge();
+        this.loadManagerDashboard();
+      }
       if(templateId === 'tpl-dashboard-kasir') this.loadKasirDashboard();
       if(templateId === 'tpl-dashboard-siswa') this.loadSiswaDashboard();
       if(templateId === 'tpl-member-list') this.loadMemberList();
@@ -2324,6 +2358,7 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
   // ==========================================
   loadManagerDashboard: function() {
     this.renderUserProfileCards();
+    this.syncAppVersionBadge();
     this.showLoading(true);
     google.script.run
       .withSuccessHandler((res) => {
@@ -2331,6 +2366,12 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
         if (res.success) {
           const d = res.data;
           
+          if (d && d.latestAppVersion) {
+            this.syncAppVersionBadge(d.latestAppVersion);
+          } else {
+            this.syncAppVersionBadge();
+          }
+
           if (document.getElementById('m-total-anggota')) document.getElementById('m-total-anggota').innerText = d.totalAnggota;
           if (document.getElementById('m-total-siswa')) document.getElementById('m-total-siswa').innerText = d.totalSiswa;
           if (document.getElementById('m-siswa-aktif')) document.getElementById('m-siswa-aktif').innerText = d.siswaAktif;

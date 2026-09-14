@@ -31,9 +31,9 @@ const CONFIG = {
   // Konfigurasi Default Versi Mobile App (Fallback)
   APP_VERSION_DEFAULT: {
     config_key: 'ANDROID',
-    latest_version: '1.0.0',
+    latest_version: '2.0.0',
     latest_build_number: 1,
-    min_required_version: '1.0.0',
+    min_required_version: '2.0.0',
     min_required_build_number: 1,
     is_required: false,
     update_title: 'Pembaruan SATUS Mobile Tersedia',

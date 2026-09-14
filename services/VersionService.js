@@ -79,21 +79,28 @@ function getAppVersionConfig(params) {
     if (!config) {
       ensureAppVersionSheet();
       const sheetData = getSheetData(CONFIG.SHEETS.APP_VERSION);
-      const row = sheetData.find(r => String(r.config_key || '').toUpperCase() === platform) || sheetData[0];
+      // Cari seluruh baris yang sesuai platform (case-insensitive & trimmed)
+      const matchingRows = (sheetData || []).filter(r => {
+        const k = String(r.config_key || r.Config_Key || r.configKey || '').trim().toUpperCase();
+        return k === platform;
+      });
+      // Ambil baris paling akhir (terbaru) jika ada lebih dari 1 baris
+      const row = matchingRows.length > 0 ? matchingRows[matchingRows.length - 1] : (sheetData && sheetData[0]);
 
       if (row) {
+        const def = (CONFIG && CONFIG.APP_VERSION_DEFAULT) || {};
         config = {
-          config_key: String(row.config_key || platform),
-          latest_version: String(row.latest_version || '1.0.0').trim(),
-          latest_build_number: parseInt(row.latest_build_number, 10) || 1,
-          min_required_version: String(row.min_required_version || '1.0.0').trim(),
-          min_required_build_number: parseInt(row.min_required_build_number, 10) || 1,
-          is_required: String(row.is_required).toUpperCase() === 'TRUE' || row.is_required === true,
-          update_title: String(row.update_title || 'Pembaruan SATUS Mobile Tersedia').trim(),
-          release_notes: String(row.release_notes || '').trim(),
-          play_store_url: String(row.play_store_url || 'https://play.google.com/store/apps/details?id=com.satus.app').trim(),
-          is_active: String(row.is_active).toUpperCase() === 'TRUE' || row.is_active === true,
-          updated_at: row.updated_at || new Date().toISOString()
+          config_key: String(row.config_key || row.Config_Key || platform).trim(),
+          latest_version: String(row.latest_version || row.Latest_Version || row.latestVersion || def.latest_version || '2.0.0').trim(),
+          latest_build_number: parseInt(row.latest_build_number || row.Latest_Build_Number || row.latestBuildNumber || def.latest_build_number || 1, 10) || 1,
+          min_required_version: String(row.min_required_version || row.Min_Required_Version || row.minRequiredVersion || def.min_required_version || '2.0.0').trim(),
+          min_required_build_number: parseInt(row.min_required_build_number || row.Min_Required_Build_Number || row.minRequiredBuildNumber || def.min_required_build_number || 1, 10) || 1,
+          is_required: String(row.is_required || row.Is_Required).toUpperCase() === 'TRUE' || row.is_required === true,
+          update_title: String(row.update_title || row.Update_Title || def.update_title || 'Pembaruan SATUS Mobile Tersedia').trim(),
+          release_notes: String(row.release_notes || row.Release_Notes || def.release_notes || '').trim(),
+          play_store_url: String(row.play_store_url || row.Play_Store_Url || def.play_store_url || 'https://play.google.com/store/apps/details?id=com.satus.app').trim(),
+          is_active: String(row.is_active || row.Is_Active).toUpperCase() === 'TRUE' || row.is_active === true,
+          updated_at: row.updated_at || row.Updated_At || new Date().toISOString()
         };
       } else {
         config = { ...(CONFIG.APP_VERSION_DEFAULT || {}) };
@@ -183,41 +190,47 @@ function updateAppVersionConfig(token, dataUpdate) {
     const sheetName = CONFIG.SHEETS.APP_VERSION;
     const sheet = getSheet(sheetName);
     const values = sheet.getDataRange().getValues();
-    const headers = values[0];
+    const headers = values[0] || [];
 
-    const colConfigKey = headers.indexOf('config_key');
-    const colLatestVer = headers.indexOf('latest_version');
-    const colLatestBuild = headers.indexOf('latest_build_number');
-    const colMinVer = headers.indexOf('min_required_version');
-    const colMinBuild = headers.indexOf('min_required_build_number');
-    const colIsRequired = headers.indexOf('is_required');
-    const colTitle = headers.indexOf('update_title');
-    const colNotes = headers.indexOf('release_notes');
-    const colUrl = headers.indexOf('play_store_url');
-    const colIsActive = headers.indexOf('is_active');
-    const colUpdatedAt = headers.indexOf('updated_at');
+    function findHeaderCol(name) {
+      const norm = String(name).toLowerCase().replace(/[\s_-]/g, '');
+      return headers.findIndex(h => String(h).toLowerCase().replace(/[\s_-]/g, '') === norm);
+    }
+
+    const colConfigKey = findHeaderCol('config_key');
 
     let targetRow = -1;
+    const duplicateRowIndices = [];
+
     for (let i = 1; i < values.length; i++) {
-      if (String(values[i][colConfigKey] || '').toUpperCase() === platform) {
-        targetRow = i + 1;
-        break;
+      const keyVal = colConfigKey >= 0 ? values[i][colConfigKey] : values[i][0];
+      if (String(keyVal || '').trim().toUpperCase() === platform) {
+        if (targetRow === -1) {
+          targetRow = i + 1;
+        } else {
+          duplicateRowIndices.push(i + 1);
+        }
       }
     }
 
-    const rowData = [
-      platform,
-      latestVersion,
-      latestBuild,
-      minVersion,
-      minBuild,
-      isRequired ? 'TRUE' : 'FALSE',
-      updateTitle,
-      releaseNotes,
-      playStoreUrl,
-      isActive ? 'TRUE' : 'FALSE',
-      updatedAt
-    ];
+    const rowData = new Array(headers.length).fill('');
+    headers.forEach((h, idx) => {
+      const norm = String(h).toLowerCase().replace(/[\s_-]/g, '');
+      switch (norm) {
+        case 'configkey': rowData[idx] = platform; break;
+        case 'latestversion': rowData[idx] = latestVersion; break;
+        case 'latestbuildnumber': rowData[idx] = latestBuild; break;
+        case 'minrequiredversion': rowData[idx] = minVersion; break;
+        case 'minrequiredbuildnumber': rowData[idx] = minBuild; break;
+        case 'isrequired': rowData[idx] = isRequired ? 'TRUE' : 'FALSE'; break;
+        case 'updatetitle': rowData[idx] = updateTitle; break;
+        case 'releasenotes': rowData[idx] = releaseNotes; break;
+        case 'playstoreurl': rowData[idx] = playStoreUrl; break;
+        case 'isactive': rowData[idx] = isActive ? 'TRUE' : 'FALSE'; break;
+        case 'updatedat': rowData[idx] = updatedAt; break;
+        default: rowData[idx] = ''; break;
+      }
+    });
 
     if (targetRow > 1) {
       sheet.getRange(targetRow, 1, 1, rowData.length).setValues([rowData]);
@@ -225,10 +238,33 @@ function updateAppVersionConfig(token, dataUpdate) {
       sheet.appendRow(rowData);
     }
 
-    // Invalidate Cache
+    // Bersihkan baris duplikat jika ada (dari baris paling bawah ke atas)
+    for (let d = duplicateRowIndices.length - 1; d >= 0; d--) {
+      try {
+        sheet.deleteRow(duplicateRowIndices[d]);
+      } catch (e) {
+        console.warn('Could not delete duplicate version row:', e);
+      }
+    }
+
+    // Invalidate Cache & Update CacheService segera
     delete cachedSheetData[sheetName];
+    const cacheKey = 'app_version_config_' + platform.toLowerCase();
     try {
-      CacheService.getScriptCache().remove('app_version_config_' + platform.toLowerCase());
+      CacheService.getScriptCache().remove(cacheKey);
+      CacheService.getScriptCache().put(cacheKey, JSON.stringify({
+        config_key: platform,
+        latest_version: latestVersion,
+        latest_build_number: latestBuild,
+        min_required_version: minVersion,
+        min_required_build_number: minBuild,
+        is_required: isRequired,
+        update_title: updateTitle,
+        release_notes: releaseNotes,
+        play_store_url: playStoreUrl,
+        is_active: isActive,
+        updated_at: updatedAt
+      }), 300);
     } catch (e) {}
 
     // Audit Log

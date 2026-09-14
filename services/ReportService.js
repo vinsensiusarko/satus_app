@@ -137,6 +137,18 @@ function getManagerDashboard() {
     .filter(t => isHijauTx(t))
     .reduce((sum, t) => sum + (parseFloat(t.debit) || 0), 0);
 
+  let latestAppVersion = '2.0.0';
+  try {
+    if (typeof getAppVersionConfig === 'function') {
+      const verRes = getAppVersionConfig({ platform: 'ANDROID' });
+      if (verRes && verRes.success && verRes.data && verRes.data.latest_version) {
+        latestAppVersion = String(verRes.data.latest_version).trim();
+      }
+    }
+  } catch (e) {
+    console.warn('Error fetching latestAppVersion in getManagerDashboard:', e);
+  }
+
   return {
     success: true,
     data: {
@@ -164,7 +176,8 @@ function getManagerDashboard() {
       pengajuanMenunggu,
       saldoHijauDigunakan,
       pendingVoidCount,
-      targetBibit: (typeof getSeedTarget === 'function' ? getSeedTarget() : 500)
+      targetBibit: (typeof getSeedTarget === 'function' ? getSeedTarget() : 500),
+      latestAppVersion: latestAppVersion
     }
   };
 }
