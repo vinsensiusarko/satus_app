@@ -6,6 +6,7 @@
   ### **Backend Service, Database Engine & Cooperative Web Portal**
   *Sistem Ekosistem Tabungan Digital & Ekonomi Sirkular Koperasi Sekolah (Kantong Hijau)*
 
+  [![Version](https://img.shields.io/badge/Version-v2.0.0-blueviolet?style=for-the-badge&logo=semver&logoColor=white)](#)
   [![Platform](https://img.shields.io/badge/Platform-Google%20Apps%20Script-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://developers.google.com/apps-script)
   [![Database](https://img.shields.io/badge/Database-Google%20Sheets%20DB-34A853?style=for-the-badge&logo=googlesheets&logoColor=white)](https://www.google.com/sheets/about/)
   [![Frontend](https://img.shields.io/badge/Frontend-HTML5%20%7C%20TailwindCSS%20%7C%20JS-38B2AC?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
@@ -36,6 +37,7 @@
 - [👥 Pembagian Peran & Hak Akses (Role-Based)](#-pembagian-peran--hak-akses-role-based)
 - [💻 Modul & Layanan Backend](#-modul--layanan-backend)
 - [🌐 Web Portal Frontend](#-web-portal-frontend)
+- [📲 Kontrol Versi & Sistem Notifikasi Terjadwal](#-kontrol-versi--sistem-notifikasi-terjadwal)
 - [📡 Dokumentasi API Mobile](#-dokumentasi-api-mobile)
 - [🚀 Panduan Instalasi & Deployment](#-panduan-instalasi--deployment)
 - [📁 Struktur Direktori](#-struktur-direktori)
@@ -189,7 +191,9 @@ graph LR
 | [`services/SeedService.js`](file:///D:/Project/Satus/satus_app/services/SeedService.js) | Katalog bibit tanaman, pengajuan klaim oleh siswa, persetujuan manager, dan pelacakan pohon tertanam. |
 | [`services/AuditService.js`](file:///D:/Project/Satus/satus_app/services/AuditService.js) | Pencatatan rekam jejak aktivitas (*audit trail*) dan filtering log multi-kategori. |
 | [`services/ReportService.js`](file:///D:/Project/Satus/satus_app/services/ReportService.js) | Agregasi data laporan keuangan harian/bulanan, volume sampah, dan rasio partisipasi siswa. |
-| [`services/NotificationService.js`](file:///D:/Project/Satus/satus_app/services/NotificationService.js) | Layanan integrasi Firebase Cloud Messaging (FCM HTTP v1) via OAuth2 Service Account untuk push notifikasi pesan obrolan, siaran pengumuman (`broadcast_notification`), dan pembaruan sistem ke topik global maupun per-user. |
+| [`services/NotificationService.js`](file:///D:/Project/Satus/satus_app/services/NotificationService.js) | Layanan integrasi Firebase Cloud Messaging (FCM HTTP v1) via OAuth2 Service Account untuk push notifikasi pesan obrolan, siaran pengumuman (`broadcast_notification`), notifikasi sosial (`send_social_notification`), dan pembaruan sistem ke topik global maupun per-user. |
+| [`services/ScheduledNotificationService.js`](file:///D:/Project/Satus/satus_app/services/ScheduledNotificationService.js) | Layanan sistem notifikasi terjadwal otomatis (sheet `Scheduled_Notifications`), worker pengecekan berkala, preset pengingat harian (06:00 WIB, dll), dan pemicu kirim langsung. |
+| [`services/VersionService.js`](file:///D:/Project/Satus/satus_app/services/VersionService.js) | Layanan kontrol versi aplikasi mobile SATUS, sinkronisasi target versi/build dengan `pubspec.yaml`, dan pengelolaan status pembaruan wajib (force update) vs opsional. |
 | [`services/ChatService.js`](file:///D:/Project/Satus/satus_app/services/ChatService.js) | Layanan kontak pengguna obrolan (fuzzy search & filter peran) dan pemicu notifikasi chat FCM. |
 | [`services/SetupService.js`](file:///D:/Project/Satus/satus_app/services/SetupService.js) | Inisialisasi struktur sheet, pembuatan header kolom, dan pengisian data demo awal. |
 | [`api/ApiRouter.js`](file:///D:/Project/Satus/satus_app/api/ApiRouter.js) | Dispatcher REST API yang menghubungkan endpoint HTTP POST mobile ke layanan terkait. |
@@ -207,6 +211,35 @@ Frontend web terintegrasi langsung di dalam Google Apps Script HTML Service meng
 - **Dashboard Manager** ([`frontend/pages/dashboard-manager.html`](file:///D:/Project/Satus/satus_app/frontend/pages/dashboard-manager.html)): Monitoring metrik ekonomi sirkular, persetujuan void, dan statistik.
 - **Audit Log Inspector** ([`frontend/pages/audit-log.html`](file:///D:/Project/Satus/satus_app/frontend/pages/audit-log.html)): Pelacakan histori aktivitas transaksi dengan pencarian teks dan filter peran.
 - **Master Data Pengguna & Sampah** ([`frontend/pages/member-list.html`](file:///D:/Project/Satus/satus_app/frontend/pages/member-list.html), [`waste-price.html`](file:///D:/Project/Satus/satus_app/frontend/pages/waste-price.html)): Pengelolaan data anggota siswa dan penyesuaian tarif harga sampah per kg.
+
+---
+
+## 📲 Kontrol Versi & Sistem Notifikasi Terjadwal
+
+Pembaruan v2.0.0 menghadirkan modul manajemen terpadu di Dashboard Manager untuk mengendalikan ekosistem aplikasi mobile secara langsung:
+
+### 1. Kontrol Versi Aplikasi Ringkas (`VersionService.js`)
+- **Penyelarasan Langsung dengan `pubspec.yaml`**: Mengeliminasi formulir ganda yang membingungkan. Admin cukup mengisi satu target versi (misal: `2.0.0`) dan nomor build (misal: `2`) yang merujuk pada konfigurasi `pubspec.yaml` aplikasi Flutter (`2.0.0+2`).
+- **Tipe Pembaruan Fleksibel**:
+  - **Wajib (Force Update)**: Menyelaraskan versi minimum sistem sehingga pengguna versi lama wajib memperbarui aplikasi sebelum dapat melanjutkan transaksi.
+  - **Opsional (Pembaruan Biasa)**: Pengguna dapat memilih untuk memperbarui atau menunda tanpa terkunci dari aplikasi.
+- **Catatan Rilis Dinamis**: Mengelola judul dan butir-butir pembaruan yang langsung tampil pada dialog rilis di perangkat pengguna.
+
+### 2. Sistem Notifikasi Terjadwal Otomatis (`ScheduledNotificationService.js`)
+- **Penjadwalan Berbasis Waktu**: Mengatur pengiriman push notifikasi rutin setiap hari pada jam tertentu (misal: pukul `06:00 WIB` untuk sapaan pagi & edukasi pilah sampah).
+- **Segmentasi Sasaran Fleksibel**:
+  - `all_users`: Seluruh pengguna terdaftar (Siswa, Kasir, Manager).
+  - `role_siswa`: Khusus siswa (info setor sampah, tabungan, dan penukaran bibit pohon).
+- **Preset Pengingat Otomatis**:
+  - ☀️ *Sapaan Pagi & Pilah Sampah (06:00 WIB)*
+  - 🔔 *Pengingat Jam Operasional Koperasi (08:30 WIB)*
+  - 🌿 *Pengingat Penyetoran Minyak Jelantah (14:00 WIB)*
+- **Tombol Kirim Sekarang**: Menguji kirim pesan notifikasi instan langsung ke perangkat Android pengguna saat itu juga via FCM.
+- **Worker Pengecekan Berkala**: Fungsi `checkAndSendScheduledNotifications()` yang siap dipasangkan ke Time-driven Trigger Google Apps Script.
+
+### 3. Push Notifikasi Interaksi Sosial Anti-Spam (`NotificationService.js`)
+- **Postingan Baru**: Otomatis mengirim push notifikasi broadcast untuk pengumuman staf koperasi, dengan batas kecepatan (*rate limit*) 10 menit per postingan bagi siswa.
+- **Like & Komentar**: Memicu notifikasi instan ke pemilik postingan dengan proteksi debounce (5 menit untuk like, 1 menit untuk komentar) guna mencegah banjir notifikasi (*spamming*).
 
 ---
 
@@ -240,6 +273,11 @@ POST https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec
 | `get_users_for_chat` | GET / POST | `{ token, query, role }` | Ya |
 | `send_chat_notification` | POST | `{ token, recipientId, message, roomId, messageId }` | Ya |
 | `broadcast_notification` | POST | `{ token, title, body, topic, data }` | Ya (Manager / Kasir) |
+| `get_scheduled_notifications` | GET / POST | `{ token }` | Ya (Manager) |
+| `save_scheduled_notification` | POST | `{ token, schedule: { title, body, target, time, isActive } }` | Ya (Manager) |
+| `delete_scheduled_notification` | POST | `{ token, scheduleId }` | Ya (Manager) |
+| `send_scheduled_notification_now` | POST | `{ token, schedule: { title, body, target } }` | Ya (Manager) |
+| `send_social_notification` | POST | `{ recipientId, targetTopic, type, title, body, postId, ... }` | Ya |
 
 > 📖 *Dokumentasi lengkap format request/response JSON dapat dilihat pada file [`api/README.md`](file:///D:/Project/Satus/satus_app/api/README.md).*
 
@@ -333,6 +371,8 @@ satus_app/
 │   ├── AuditService.js      # Layanan pencatatan audit aktivitas
 │   ├── ReportService.js     # Layanan pelaporan analitik
 │   ├── NotificationService.js# Layanan FCM v1 OAuth2 Push Notification
+│   ├── ScheduledNotificationService.js# Layanan jadwal push notifikasi otomatis
+│   ├── VersionService.js    # Layanan manajemen & sinkronisasi versi aplikasi
 │   ├── ChatService.js       # Layanan kontak obrolan & trigger FCM chat
 │   └── SetupService.js      # Inisialisasi database sheet baru
 ├── api/                     # Lapisan API mobile (Flutter)
