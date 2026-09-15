@@ -316,6 +316,7 @@ function sendChatPushNotification(token, recipientId, message, roomId, messageId
     const dataPayload = {
       type: 'CHAT_MESSAGE',
       roomId: cleanRoomId,
+      recipientId: cleanRecipientId,
       senderId: currentUserId,
       senderName: String(session.nama || ''),
       senderRole: String(session.role || ''),
