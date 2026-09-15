@@ -208,6 +208,13 @@ function sendFcmTopicMessage(topic, title, body, dataPayload, channelId) {
         }
       };
 
+      if (stringData.tag) {
+        v1Payload.message.android.notification.tag = String(stringData.tag);
+      }
+      if (stringData.collapse_key) {
+        v1Payload.message.android.collapse_key = String(stringData.collapse_key);
+      }
+
       const response = UrlFetchApp.fetch('https://fcm.googleapis.com/v1/projects/' + projectId + '/messages:send', {
         method: 'post',
         contentType: 'application/json',
