@@ -34,6 +34,16 @@ function ensureSheetHeaders(sheet, sheetName) {
   const expectedHeaders = DATABASE_SCHEMAS[sheetName];
   if (!expectedHeaders) return;
 
+  // Cek cache agar tidak membuang 3 remote RPC ke Spreadsheet pada setiap request
+  try {
+    if (typeof CacheService !== 'undefined' && CacheService.getScriptCache) {
+      const cache = CacheService.getScriptCache();
+      if (cache && cache.get('sheet_hdr_ok_' + sheetName) === '1') {
+        return;
+      }
+    }
+  } catch (e) {}
+
   const lastRow = sheet.getLastRow();
   const lastCol = sheet.getLastColumn();
 
@@ -44,6 +54,10 @@ function ensureSheetHeaders(sheet, sheetName) {
     headerRange.setBackground('#e0e0e0');
     sheet.setFrozenRows(1);
     try { sheet.autoResizeColumns(1, expectedHeaders.length); } catch(e) {}
+    try {
+      const cache = CacheService.getScriptCache();
+      if (cache) cache.put('sheet_hdr_ok_' + sheetName, '1', 21600); // 6 jam
+    } catch(e) {}
     return;
   }
 
@@ -68,6 +82,11 @@ function ensureSheetHeaders(sheet, sheetName) {
       try { sheet.autoResizeColumns(1, expectedHeaders.length); } catch(e) {}
     }
   }
+
+  try {
+    const cache = CacheService.getScriptCache();
+    if (cache) cache.put('sheet_hdr_ok_' + sheetName, '1', 21600); // 6 jam
+  } catch(e) {}
 }
 
 function getSheet(sheetName) {
@@ -185,16 +204,16 @@ function getSheetData(sheetName) {
   if (cachedSheetData[sheetName]) return cachedSheetData[sheetName];
   
   const sheet = getSheet(sheetName);
-  const lastRow = sheet.getLastRow();
-  if (lastRow <= 1) {
+  const allValues = sheet.getDataRange().getValues();
+  if (!allValues || allValues.length <= 1) {
     cachedSheetData[sheetName] = [];
     return [];
   }
   
-  const data = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const headers = allValues[0];
+  const rows = allValues.slice(1);
   
-  const mappedData = data.map(row => {
+  const mappedData = rows.map(row => {
     const obj = {};
     headers.forEach((h, i) => {
       let val = row[i];

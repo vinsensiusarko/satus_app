@@ -249,11 +249,35 @@ function verifyToken(token) {
             return session;
           }
           
-          // Verify user exists and is active in database
-          const users = getSheetData(CONFIG.SHEETS.USERS);
-          const dbUser = users.find(u => u.user_id === session.userId);
-          if (!dbUser || (dbUser.status !== 'AKTIF' && !(dbUser.role === 'SISWA' && dbUser.status === 'MENUNGGU'))) {
-            return null;
+          // Verify user exists and is active in database (di-cache 10 menit di memcache Google)
+          let dbUser = null;
+          try {
+            if (typeof CacheService !== 'undefined' && CacheService.getScriptCache) {
+              const cache = CacheService.getScriptCache();
+              const cachedUser = cache ? cache.get('auth_user_status_' + session.userId) : null;
+              if (cachedUser) {
+                dbUser = JSON.parse(cachedUser);
+              }
+            }
+          } catch(e) {}
+
+          if (!dbUser) {
+            const users = getSheetData(CONFIG.SHEETS.USERS);
+            const found = users.find(u => u.user_id === session.userId);
+            if (!found || (found.status !== 'AKTIF' && !(found.role === 'SISWA' && found.status === 'MENUNGGU'))) {
+              return null;
+            }
+            dbUser = {
+              role: found.role,
+              nama: found.nama || session.nama,
+              photo_url: found.photo_url || ''
+            };
+            try {
+              const cache = CacheService.getScriptCache();
+              if (cache) {
+                cache.put('auth_user_status_' + session.userId, JSON.stringify(dbUser), 600); // 10 menit
+              }
+            } catch(e) {}
           }
           
           session.role = dbUser.role;
@@ -674,6 +698,7 @@ function updateUser(token, userId, dataUpdate) {
           sheet.getRange(i + 1, headers.indexOf('photo_url') + 1).setValue(dataUpdate.photo_url);
         }
         delete cachedSheetData[CONFIG.SHEETS.USERS];
+        invalidateUserStatusCache(userId);
 
         // Jika SISWA, sinkronisasi nama ke tabel Members jika nama diubah
         if (currentRole === CONFIG.ROLES.SISWA && dataUpdate.nama) {
@@ -702,4 +727,18 @@ function updateUser(token, userId, dataUpdate) {
   } catch (error) {
     if (error.message.includes("Unauthorized")) throw error; return { success: false, message: error.message };
   }
+}
+
+/**
+ * Menghapus cache status keaktifan user dari memcache Google Apps Script
+ */
+function invalidateUserStatusCache(userId) {
+  try {
+    if (typeof CacheService !== 'undefined' && CacheService.getScriptCache) {
+      const cache = CacheService.getScriptCache();
+      if (cache && userId) {
+        cache.remove('auth_user_status_' + userId);
+      }
+    }
+  } catch (e) {}
 }

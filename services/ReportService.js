@@ -89,14 +89,19 @@ function getManagerDashboard() {
   const adminAktif = admins.filter(u => u.status === 'AKTIF').length;
   const adminNonaktif = admins.filter(u => u.status === 'NONAKTIF').length;
   
-  // Perhitungan Dual Saldo Global
+  // Perhitungan Dual Saldo Global (Optimasi 1-Pass O(N) langsung dari array transactions)
   let totalSaldoTabungan = 0;
   let totalSaldoHijau = 0;
   
-  members.forEach(m => {
-    totalSaldoTabungan += calculateTabungan(m.member_id);
-    totalSaldoHijau += calculateHijau(m.member_id);
-  });
+  for (let i = 0; i < transactions.length; i++) {
+    const t = transactions[i];
+    const net = (parseFloat(t.credit) || 0) - (parseFloat(t.debit) || 0);
+    if (isTabunganTx(t)) {
+      totalSaldoTabungan += net;
+    } else if (isHijauTx(t)) {
+      totalSaldoHijau += net;
+    }
+  }
   
   const totalSaldo = totalSaldoTabungan + totalSaldoHijau;
   
@@ -278,8 +283,6 @@ function getSiswaDashboard(memberId, fallbackMember) {
     photoUrl: photoUrl
   };
 
-  const dualBalance = calculateDualBalance(memberId);
-  
   const transactions = getSheetData(CONFIG.SHEETS.TRANSACTIONS)
     .filter(t => t.member_id === memberId && t.status === 'COMPLETED')
     .map(t => {
@@ -287,6 +290,24 @@ function getSiswaDashboard(memberId, fallbackMember) {
       return t;
     })
     .sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+  // Hitung dual balance langsung dari memory transaksi yang sudah difilter (0 remote RPC tambahan)
+  let tabunganSaldo = 0;
+  let hijauSaldo = 0;
+  for (let i = 0; i < transactions.length; i++) {
+    const t = transactions[i];
+    const net = (parseFloat(t.credit) || 0) - (parseFloat(t.debit) || 0);
+    if (isTabunganTx(t)) {
+      tabunganSaldo += net;
+    } else if (isHijauTx(t)) {
+      hijauSaldo += net;
+    }
+  }
+  const dualBalance = {
+    tabungan: tabunganSaldo,
+    hijau: hijauSaldo,
+    total: tabunganSaldo + hijauSaldo
+  };
     
   const wastes = getSheetData(CONFIG.SHEETS.WASTE_TRANSACTIONS).filter(w => w.member_id === memberId);
   const seedRequests = getSheetData(CONFIG.SHEETS.SEED_REQUESTS).filter(r => r.member_id === memberId);
@@ -380,13 +401,18 @@ function getLaporanManager(token, period) {
     const nilaiTukarAtk = txInPeriod.filter(t => t.type === CONFIG.TRANSACTION_TYPES.TUKAR_HIJAU_ATK).reduce((s,t) => s + (parseFloat(t.amount)||0), 0);
     const nilaiKonversiBibit = txInPeriod.filter(t => t.type === CONFIG.TRANSACTION_TYPES.SETUJUI_BIBIT).reduce((s,t) => s + (parseFloat(t.amount)||0), 0);
 
-    // Saldo Global
+    // Saldo Global (Optimasi 1-Pass O(N) langsung dari transactions)
     let totalSaldoTabungan = 0;
     let totalSaldoHijau = 0;
-    members.forEach(m => {
-      totalSaldoTabungan += calculateTabungan(m.member_id);
-      totalSaldoHijau += calculateHijau(m.member_id);
-    });
+    for (let i = 0; i < transactions.length; i++) {
+      const t = transactions[i];
+      const net = (parseFloat(t.credit) || 0) - (parseFloat(t.debit) || 0);
+      if (isTabunganTx(t)) {
+        totalSaldoTabungan += net;
+      } else if (isHijauTx(t)) {
+        totalSaldoHijau += net;
+      }
+    }
 
     // Lingkungan
     const kgPlastik = wastesInPeriod.filter(w => w.waste_type === 'PLASTIK').reduce((s,w) => s + (parseFloat(w.quantity)||0), 0);
