@@ -6,7 +6,7 @@
   ### **Backend Service, Database Engine & Cooperative Web Portal**
   *Sistem Ekosistem Tabungan Digital & Ekonomi Sirkular Koperasi Sekolah (Kantong Hijau)*
 
-  [![Version](https://img.shields.io/badge/Version-v2.0.0-blueviolet?style=for-the-badge&logo=semver&logoColor=white)](#)
+  [![Version](https://img.shields.io/badge/Version-v2.2.0-blueviolet?style=for-the-badge&logo=semver&logoColor=white)](#)
   [![Platform](https://img.shields.io/badge/Platform-Google%20Apps%20Script-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://developers.google.com/apps-script)
   [![Database](https://img.shields.io/badge/Database-Google%20Sheets%20DB-34A853?style=for-the-badge&logo=googlesheets&logoColor=white)](https://www.google.com/sheets/about/)
   [![Frontend](https://img.shields.io/badge/Frontend-HTML5%20%7C%20TailwindCSS%20%7C%20JS-38B2AC?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
@@ -22,7 +22,7 @@
 
   <p align="center">
     <b>SATUS</b> adalah platform tata kelola keuangan mikro dan ekonomi sirkular sekolah terintegrasi.<br/>
-    Mengubah sampah terpilah siswa menjadi tabungan dan bibit penghijauan, didukung backend serverless berkinerja tinggi serta frontend web yang responsif.
+    Mengubah sampah terpilah siswa menjadi tabungan dan bibit penghijauan, didukung backend serverless berkinerja tinggi, sistem akselerasi cache, push notifikasi FCM HTTP v1, kontrol versi dinamis, dan frontend web yang responsif.
   </p>
 
 </div>
@@ -34,12 +34,14 @@
 - [💡 Konsep "Kantong Hijau" (Dual Balance)](#-konsep-kantong-hijau-dual-balance)
 - [🏗️ Arsitektur Sistem](#️-arsitektur-sistem)
 - [🛡️ Fitur Keamanan & Keandalan Sistem](#️-fitur-keamanan--keandalan-sistem)
+- [⚡ Caching & Optimasi Kecepatan Tinggi](#-caching--optimasi-kecepatan-tinggi)
 - [👥 Pembagian Peran & Hak Akses (Role-Based)](#-pembagian-peran--hak-akses-role-based)
 - [💻 Modul & Layanan Backend](#-modul--layanan-backend)
 - [🌐 Web Portal Frontend](#-web-portal-frontend)
 - [📲 Kontrol Versi & Sistem Notifikasi Terjadwal](#-kontrol-versi--sistem-notifikasi-terjadwal)
 - [📡 Dokumentasi API Mobile](#-dokumentasi-api-mobile)
 - [🚀 Panduan Instalasi & Deployment](#-panduan-instalasi--deployment)
+- [🔔 Integrasi Firebase Cloud Messaging (FCM HTTP v1)](#-integrasi-firebase-cloud-messaging-fcm-http-v1)
 - [📁 Struktur Direktori](#-struktur-direktori)
 - [📜 Lisensi & Penghargaan](#-lisensi--penghargaan)
 
@@ -86,7 +88,7 @@ Setiap anggota siswa memiliki satu akun terpadu dengan dua kantong saldo indepen
 
 ## 🏗️ Arsitektur Sistem
 
-Sistem dirancang *serverless* memanfaatkan **Google Workspace Ecosystem (Google Apps Script & Google Sheets)** sebagai database cloud yang fleksibel, berbiaya nol, mudah diaudit, dan minim beban pemeliharaan infrastruktur.
+Sistem dirancang *serverless* memanfaatkan **Google Workspace Ecosystem (Google Apps Script & Google Sheets)** sebagai database cloud yang fleksibel, berbiaya nol, mudah diaudit, dan minim beban pemeliharaan infrastruktur:
 
 ```mermaid
 flowchart TD
@@ -108,7 +110,9 @@ flowchart TD
         SS[SeedService.js]
         MS[MemberService.js]
         AS[AuditService.js]
-        RS[ReportService.js]
+        CS[ChatService.js]
+        NS[NotificationService.js]
+        VS[VersionService.js]
     end
 
     subgraph Database["Database Engine (Google Sheets)"]
@@ -145,6 +149,22 @@ Backend SATUS dilengkapi standar keamanan setingkat aplikasi perbankan mikro:
    - Kasir tidak dapat membatalkan transaksi secara sepihak. Pembatalan memerlukan pengajuan alasan kasir dan wajib disetujui oleh Manager menggunakan **PIN Otorisasi Rahasia**.
 5. **Immutable Audit Trail (`Audit_Log`)**:
    - Setiap mutasi, login, logout, pembatalan, dan perubahan harga dicatat secara permanen di sheet audit lengkap dengan *timestamp*, *user_id*, *role*, *action*, *reference_id*, dan *description*.
+
+---
+
+## ⚡ Caching & Optimasi Kecepatan Tinggi
+
+Untuk mengatasi latensi komunikasi Google Apps Script ke Google Sheets dan menjaga respon API di bawah ambang timeout:
+
+1. **Sheet Header & Schema Caching**:
+   - Struktur header baris pertama di-cache di memori untuk mengeliminasi pemanggilan `getRange()` berulang saat pemetaan kolom.
+2. **User Status In-Memory Cache**:
+   - Status keaktifan akun pengguna (`AKTIF`, `MENUNGGU`, `NONAKTIF`) di-cache dengan TTL singkat untuk mempercepat validasi token dan gating obrolan tanpa membebani spreadsheet.
+3. **Pemisahan Jalur Read-Only vs Mutasi di `ApiRouter.js`**:
+   - Endpoint baca-saja (*read-only actions* seperti `get_profile`, `get_transactions`, `get_users_for_chat`, `app_version`) diproses **tanpa antrean mutex lock**, memungkinkan konkurensi paralel tinggi.
+   - Operasi penulisan (*mutation actions* seperti `deposit_cash`, `purchase_coop`, `review_void`) tetap dilindungi oleh `withScriptLock()`.
+4. **Optimasi Endpoint Kontak Obrolan (`get_users_for_chat`)**:
+   - Mendukung pencarian teks toleran (*case-insensitive fuzzy query*), pemetaan alias kolom yang kokoh, dan pembatasan data yang hanya mengembalikan field relevan guna memangkas ukuran payload JSON.
 
 ---
 
@@ -187,11 +207,12 @@ graph LR
 | [`services/TransactionService.js`](file:///D:/Project/Satus/satus_app/services/TransactionService.js) | Logika setor tunai, tarik tunai, pengajuan pembatalan (void), dan otorisasi PIN manager. |
 | [`services/BalanceService.js`](file:///D:/Project/Satus/satus_app/services/BalanceService.js) | Kalkulasi saldo ganda (Tabungan & Saldo Hijau) real-time. |
 | [`services/WasteService.js`](file:///D:/Project/Satus/satus_app/services/WasteService.js) | Pengelolaan master sampah, konversi berat (kg) ke nominal poin, dan kalkulasi dampak lingkungan. |
-| [`services/ProductService.js`](file:///D:/Project/Satus/satus_app/services/ProductService.js) | POS koperasi sekolah, pengurangan stok otomatis, dan pembayaran via Saldo Utama atau Poin Hijau. |
+| [`services/ProductService.js`](file:///D:/Project/Satus/satus_app/services/ProductService.js) | POS koperasi sekolah, pengurangan stok otomatis, penambahan produk baru (`add_product`), dan pembaruan produk (`update_product`). |
 | [`services/SeedService.js`](file:///D:/Project/Satus/satus_app/services/SeedService.js) | Katalog bibit tanaman, pengajuan klaim oleh siswa, persetujuan manager, dan pelacakan pohon tertanam. |
+| [`services/AnnouncementService.js`](file:///D:/Project/Satus/satus_app/services/AnnouncementService.js) | Layanan manajemen pengumuman sekolah dan promo koperasi untuk konsumsi aplikasi mobile dan web. |
 | [`services/AuditService.js`](file:///D:/Project/Satus/satus_app/services/AuditService.js) | Pencatatan rekam jejak aktivitas (*audit trail*) dan filtering log multi-kategori. |
 | [`services/ReportService.js`](file:///D:/Project/Satus/satus_app/services/ReportService.js) | Agregasi data laporan keuangan harian/bulanan, volume sampah, dan rasio partisipasi siswa. |
-| [`services/NotificationService.js`](file:///D:/Project/Satus/satus_app/services/NotificationService.js) | Layanan integrasi Firebase Cloud Messaging (FCM HTTP v1) via OAuth2 Service Account untuk push notifikasi pesan obrolan, siaran pengumuman (`broadcast_notification`), notifikasi sosial (`send_social_notification`), dan pembaruan sistem ke topik global maupun per-user. |
+| [`services/NotificationService.js`](file:///D:/Project/Satus/satus_app/services/NotificationService.js) | Layanan integrasi Firebase Cloud Messaging (FCM HTTP v1) via OAuth2 Service Account untuk push notifikasi pesan obrolan, siaran pengumuman (`broadcast_notification`), notifikasi sosial (`send_social_notification`), dan delivery tracking. |
 | [`services/ScheduledNotificationService.js`](file:///D:/Project/Satus/satus_app/services/ScheduledNotificationService.js) | Layanan sistem notifikasi terjadwal otomatis (sheet `Scheduled_Notifications`), worker pengecekan berkala, preset pengingat harian (06:00 WIB, dll), dan pemicu kirim langsung. |
 | [`services/VersionService.js`](file:///D:/Project/Satus/satus_app/services/VersionService.js) | Layanan kontrol versi aplikasi mobile SATUS, sinkronisasi target versi/build dengan `pubspec.yaml`, dan pengelolaan status pembaruan wajib (force update) vs opsional. |
 | [`services/ChatService.js`](file:///D:/Project/Satus/satus_app/services/ChatService.js) | Layanan kontak pengguna obrolan (fuzzy search & filter peran) dan pemicu notifikasi chat FCM. |
@@ -216,10 +237,10 @@ Frontend web terintegrasi langsung di dalam Google Apps Script HTML Service meng
 
 ## 📲 Kontrol Versi & Sistem Notifikasi Terjadwal
 
-Pembaruan v2.0.0 menghadirkan modul manajemen terpadu di Dashboard Manager untuk mengendalikan ekosistem aplikasi mobile secara langsung:
+Pembaruan menghadirkan modul manajemen terpadu di Dashboard Manager untuk mengendalikan ekosistem aplikasi mobile secara langsung:
 
 ### 1. Kontrol Versi Aplikasi Ringkas (`VersionService.js`)
-- **Penyelarasan Langsung dengan `pubspec.yaml`**: Mengeliminasi formulir ganda yang membingungkan. Admin cukup mengisi satu target versi (misal: `2.0.0`) dan nomor build (misal: `2`) yang merujuk pada konfigurasi `pubspec.yaml` aplikasi Flutter (`2.0.0+2`).
+- **Penyelarasan Langsung dengan `pubspec.yaml`**: Mengeliminasi formulir ganda yang membingungkan. Admin cukup mengisi satu target versi (misal: `2.2.0`) dan nomor build (misal: `6`) yang merujuk pada konfigurasi `pubspec.yaml` aplikasi Flutter (`2.2.0+6`).
 - **Tipe Pembaruan Fleksibel**:
   - **Wajib (Force Update)**: Menyelaraskan versi minimum sistem sehingga pengguna versi lama wajib memperbarui aplikasi sebelum dapat melanjutkan transaksi.
   - **Opsional (Pembaruan Biasa)**: Pengguna dapat memilih untuk memperbarui atau menunda tanpa terkunci dari aplikasi.
@@ -263,6 +284,8 @@ POST https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec
 | `withdraw_cash` | POST | `{ token, member_id, amount, notes }` | Ya (Kasir) |
 | `deposit_waste` | POST | `{ token, member_id, waste_items: [...] }` | Ya (Kasir) |
 | `purchase_coop` | POST | `{ token, member_id, items: [...], payment_wallet }` | Ya (Kasir) |
+| `add_product` | POST | `{ token, name, price, stock, category }` | Ya (Manager / Kasir) |
+| `update_product` | POST | `{ token, product_id, name, price, stock }` | Ya (Manager / Kasir) |
 | `claim_seed` | POST | `{ token, seed_id, quantity }` | Ya (Siswa) |
 | `manager_dashboard` | POST | `{ token }` | Ya (Manager) |
 | `void_requests` | POST | `{ token }` | Ya (Manager) |
@@ -270,6 +293,7 @@ POST https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec
 | `audit_logs` | POST | `{ token, page, limit, role, category }` | Ya (Manager) |
 | `update_waste_price` | POST | `{ token, waste_id, new_price, notes }` | Ya (Manager) |
 | `update_product_price` | POST | `{ token, product_id, new_price, notes }` | Ya (Manager) |
+| `get_announcements` | GET / POST | `{ token }` | Ya |
 | `get_users_for_chat` | GET / POST | `{ token, query, role }` | Ya |
 | `send_chat_notification` | POST | `{ token, recipientId, message, roomId, messageId }` | Ya |
 | `broadcast_notification` | POST | `{ token, title, body, topic, data }` | Ya (Manager / Kasir) |
@@ -332,7 +356,7 @@ Untuk mendukung notifikasi realtime ke aplikasi mobile SATUS, backend Apps Scrip
    - `NotificationService.js` melakukan *handshake* JWT bearer token dengan server Google OAuth2 (`https://oauth2.googleapis.com/token`) secara otomatis.
    - Menggunakan scope `https://www.googleapis.com/auth/firebase.messaging` dengan masa aktif token yang diperbarui secara mandiri.
 3. **Pengiriman Berbasis Topik (Topic Messaging)**:
-   - **Obrolan Personal**: Notifikasi pesan dikirim langsung ke topik pengguna spesifik: `user_{recipientId}`.
+   - **Obrolan Personal**: Notifikasi pesan dikirim langsung ke topik pengguna spesifik: `user_{recipientId}` dengan penyertaan `recipientId` di `dataPayload` dan `tag` notifikasi per chat room.
    - **Siaran Massal & Pengumuman Sekolah**: Dikirim ke topik grup:
      - `all_users` : Seluruh siswa, kasir, dan manajer.
      - `role_siswa` : Seluruh siswa (misal: info reward bibit baru, pengumuman sekolah).
@@ -366,8 +390,9 @@ satus_app/
 │   ├── TransactionService.js# Layanan transaksi finansial & void request
 │   ├── BalanceService.js    # Layanan perhitungan dual wallet (Tabungan & Hijau)
 │   ├── WasteService.js      # Layanan kalkulasi & harga sampah sirkular
-│   ├── ProductService.js    # Layanan kasir koperasi sekolah
+│   ├── ProductService.js    # Layanan kasir koperasi sekolah & kelola produk
 │   ├── SeedService.js       # Layanan program bibit pohon sekolah
+│   ├── AnnouncementService.js# Layanan pengumuman terpadu sekolah & koperasi
 │   ├── AuditService.js      # Layanan pencatatan audit aktivitas
 │   ├── ReportService.js     # Layanan pelaporan analitik
 │   ├── NotificationService.js# Layanan FCM v1 OAuth2 Push Notification
