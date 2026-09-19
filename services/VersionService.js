@@ -26,27 +26,27 @@ function ensureAppVersionSheet() {
   if (sheet.getLastRow() <= 1) {
     const def = (CONFIG && CONFIG.APP_VERSION_DEFAULT) || {
       config_key: 'ANDROID',
-      latest_version: '1.0.0',
+      latest_version: '2.0.0',
       latest_build_number: 1,
-      min_required_version: '1.0.0',
+      min_required_version: '2.0.0',
       min_required_build_number: 1,
       is_required: false,
       update_title: 'Pembaruan SATUS Mobile Tersedia',
       release_notes: 'Pembaruan stabilitas dan peningkatan performa sistem.',
-      play_store_url: 'https://play.google.com/store/apps/details?id=com.satus.app',
+      play_store_url: 'https://play.google.com/store/apps/details?id=id.vinsensiusarka.satus_mobile',
       is_active: true
     };
 
     sheet.appendRow([
       def.config_key || 'ANDROID',
-      def.latest_version || '1.0.0',
+      def.latest_version || '2.0.0',
       def.latest_build_number || 1,
-      def.min_required_version || '1.0.0',
+      def.min_required_version || '2.0.0',
       def.min_required_build_number || 1,
       def.is_required ? 'TRUE' : 'FALSE',
       def.update_title || 'Pembaruan SATUS Mobile Tersedia',
       def.release_notes || 'Pembaruan stabilitas dan peningkatan performa sistem.',
-      def.play_store_url || 'https://play.google.com/store/apps/details?id=com.satus.app',
+      def.play_store_url || 'https://play.google.com/store/apps/details?id=id.vinsensiusarka.satus_mobile',
       def.is_active ? 'TRUE' : 'FALSE',
       new Date().toISOString()
     ]);
@@ -98,7 +98,7 @@ function getAppVersionConfig(params) {
           is_required: String(row.is_required || row.Is_Required).toUpperCase() === 'TRUE' || row.is_required === true,
           update_title: String(row.update_title || row.Update_Title || def.update_title || 'Pembaruan SATUS Mobile Tersedia').trim(),
           release_notes: String(row.release_notes || row.Release_Notes || def.release_notes || '').trim(),
-          play_store_url: String(row.play_store_url || row.Play_Store_Url || def.play_store_url || 'https://play.google.com/store/apps/details?id=com.satus.app').trim(),
+          play_store_url: String(row.play_store_url || row.Play_Store_Url || def.play_store_url || 'https://play.google.com/store/apps/details?id=id.vinsensiusarka.satus_mobile').trim(),
           is_active: String(row.is_active || row.Is_Active).toUpperCase() === 'TRUE' || row.is_active === true,
           updated_at: row.updated_at || row.Updated_At || new Date().toISOString()
         };
@@ -158,33 +158,57 @@ function getAppVersionConfig(params) {
 }
 
 /**
- * Memperbarui konfigurasi versi mobile app (Hanya untuk Manager)
- * @param {string} token - Session auth token
+ * Memperbarui konfigurasi versi mobile app (Mendukung Session Token Manager ATAU CI/CD Deploy Key)
+ * @param {string} token - Session auth token atau deploy key
  * @param {Object} dataUpdate - Data baru untuk versi aplikasi
  */
 function updateAppVersionConfig(token, dataUpdate) {
   try {
-    const session = verifyToken(token);
-    if (!session) {
-      return { success: false, error_code: 'UNAUTHORIZED', message: 'Sesi login telah berakhir' };
-    }
-
-    if (session.role !== CONFIG.ROLES.MANAGER) {
-      return { success: false, error_code: 'FORBIDDEN', message: 'Akses ditolak. Hanya Manager yang dapat mengatur versi aplikasi.' };
-    }
-
     dataUpdate = dataUpdate || {};
+
+    // Otentikasi Ganda: Periksa CI/CD Deploy Key ATAU Session Token Manager
+    let authorizedUser = null;
+    let isAuthorizedByDeployKey = false;
+
+    const providedKey = String(
+      dataUpdate.deploy_key || 
+      dataUpdate.api_key || 
+      dataUpdate.deployKey || 
+      dataUpdate.secret_key || 
+      token || 
+      ''
+    ).trim();
+
+    let configuredDeployKey = '';
+    try {
+      if (typeof PropertiesService !== 'undefined' && PropertiesService.getScriptProperties) {
+        configuredDeployKey = PropertiesService.getScriptProperties().getProperty('CI_DEPLOY_KEY') || '';
+      }
+    } catch (e) {
+      console.warn('Could not read ScriptProperties for CI_DEPLOY_KEY:', e);
+    }
+    if (!configuredDeployKey && CONFIG && CONFIG.CI_DEPLOY_KEY) {
+      configuredDeployKey = CONFIG.CI_DEPLOY_KEY;
+    }
+
+    if (providedKey && configuredDeployKey && providedKey === configuredDeployKey) {
+      isAuthorizedByDeployKey = true;
+      authorizedUser = { userId: 'CI-CD-SYSTEM', role: CONFIG.ROLES.MANAGER, nama: 'GitHub Actions CI/CD' };
+    } else {
+      const session = verifyToken(token);
+      if (!session) {
+        return { success: false, error_code: 'UNAUTHORIZED', message: 'Sesi login telah berakhir atau deploy key tidak valid.' };
+      }
+      if (session.role !== CONFIG.ROLES.MANAGER) {
+        return { success: false, error_code: 'FORBIDDEN', message: 'Akses ditolak. Hanya Manager atau CI/CD yang dapat mengatur versi aplikasi.' };
+      }
+      authorizedUser = session;
+    }
+
     const platform = String(dataUpdate.platform || dataUpdate.config_key || 'ANDROID').trim().toUpperCase();
-    const latestVersion = String(dataUpdate.latest_version || dataUpdate.version || '1.0.0').trim();
+    const latestVersion = String(dataUpdate.latest_version || dataUpdate.version || '2.0.0').trim();
     const latestBuild = parseInt(dataUpdate.latest_build_number || dataUpdate.build_number || 1, 10);
     const isRequired = dataUpdate.is_required === true || String(dataUpdate.is_required).toUpperCase() === 'TRUE';
-    const minVersion = isRequired ? latestVersion : String(dataUpdate.min_required_version || dataUpdate.min_version || '1.0.0').trim();
-    const minBuild = isRequired ? latestBuild : parseInt(dataUpdate.min_required_build_number || dataUpdate.min_build || 1, 10);
-    const updateTitle = String(dataUpdate.update_title || 'Pembaruan SATUS Mobile Tersedia').trim();
-    const releaseNotes = String(dataUpdate.release_notes || '').trim();
-    const playStoreUrl = String(dataUpdate.play_store_url || 'https://play.google.com/store/apps/details?id=com.satus.app').trim();
-    const isActive = dataUpdate.is_active !== false && String(dataUpdate.is_active).toUpperCase() !== 'FALSE';
-    const updatedAt = new Date().toISOString();
 
     ensureAppVersionSheet();
     const sheetName = CONFIG.SHEETS.APP_VERSION;
@@ -198,8 +222,15 @@ function updateAppVersionConfig(token, dataUpdate) {
     }
 
     const colConfigKey = findHeaderCol('config_key');
+    const colMinVersion = findHeaderCol('min_required_version');
+    const colMinBuild = findHeaderCol('min_required_build_number');
+    const colUpdateTitle = findHeaderCol('update_title');
+    const colReleaseNotes = findHeaderCol('release_notes');
+    const colPlayStore = findHeaderCol('play_store_url');
+    const colIsActive = findHeaderCol('is_active');
 
     let targetRow = -1;
+    let existingRowData = null;
     const duplicateRowIndices = [];
 
     for (let i = 1; i < values.length; i++) {
@@ -207,11 +238,69 @@ function updateAppVersionConfig(token, dataUpdate) {
       if (String(keyVal || '').trim().toUpperCase() === platform) {
         if (targetRow === -1) {
           targetRow = i + 1;
+          existingRowData = values[i];
         } else {
           duplicateRowIndices.push(i + 1);
         }
       }
     }
+
+    // Penentuan Nilai Versi Minimum (Preservasi jika bukan update wajib)
+    let minVersion = '';
+    let minBuild = 1;
+
+    if (isRequired) {
+      minVersion = latestVersion;
+      minBuild = latestBuild;
+    } else {
+      if (dataUpdate.min_required_version !== undefined || dataUpdate.min_version !== undefined) {
+        minVersion = String(dataUpdate.min_required_version || dataUpdate.min_version).trim();
+      } else if (existingRowData && colMinVersion >= 0 && existingRowData[colMinVersion]) {
+        minVersion = String(existingRowData[colMinVersion]).trim();
+      } else {
+        minVersion = latestVersion;
+      }
+
+      if (dataUpdate.min_required_build_number !== undefined || dataUpdate.min_build !== undefined) {
+        minBuild = parseInt(dataUpdate.min_required_build_number || dataUpdate.min_build, 10) || 1;
+      } else if (existingRowData && colMinBuild >= 0 && existingRowData[colMinBuild]) {
+        minBuild = parseInt(existingRowData[colMinBuild], 10) || 1;
+      } else {
+        minBuild = latestBuild;
+      }
+    }
+
+    const defaultPlayStore = (CONFIG && CONFIG.APP_VERSION_DEFAULT && CONFIG.APP_VERSION_DEFAULT.play_store_url) 
+      || 'https://play.google.com/store/apps/details?id=id.vinsensiusarka.satus_mobile';
+
+    const updateTitle = dataUpdate.update_title !== undefined
+      ? String(dataUpdate.update_title).trim()
+      : (existingRowData && colUpdateTitle >= 0 && existingRowData[colUpdateTitle] 
+          ? String(existingRowData[colUpdateTitle]).trim() 
+          : 'Pembaruan SATUS Mobile Tersedia');
+
+    const releaseNotes = dataUpdate.release_notes !== undefined
+      ? String(dataUpdate.release_notes).trim()
+      : (existingRowData && colReleaseNotes >= 0 && existingRowData[colReleaseNotes] 
+          ? String(existingRowData[colReleaseNotes]).trim() 
+          : '');
+
+    let playStoreUrl = dataUpdate.play_store_url !== undefined
+      ? String(dataUpdate.play_store_url).trim()
+      : (existingRowData && colPlayStore >= 0 && existingRowData[colPlayStore] 
+          ? String(existingRowData[colPlayStore]).trim() 
+          : defaultPlayStore);
+    if (!playStoreUrl || playStoreUrl.includes('com.satus.app')) {
+      playStoreUrl = defaultPlayStore;
+    }
+
+    const isActive = dataUpdate.is_active !== undefined
+      ? (dataUpdate.is_active !== false && String(dataUpdate.is_active).toUpperCase() !== 'FALSE')
+      : (existingRowData && colIsActive >= 0 
+          ? (String(existingRowData[colIsActive]).toUpperCase() === 'TRUE' || existingRowData[colIsActive] === true) 
+          : true);
+
+    const updatedAt = new Date().toISOString();
 
     const rowData = new Array(headers.length).fill('');
     headers.forEach((h, idx) => {
@@ -268,8 +357,8 @@ function updateAppVersionConfig(token, dataUpdate) {
     } catch (e) {}
 
     // Audit Log
-    const logDesc = 'Update Konfigurasi Versi Mobile (' + platform + '): v' + latestVersion + '+' + latestBuild + ', Wajib: ' + isRequired;
-    auditLog(session.userId, session.role, 'UPDATE_APP_VERSION', platform, logDesc);
+    const logDesc = 'Update Konfigurasi Versi Mobile (' + platform + '): v' + latestVersion + '+' + latestBuild + ', Wajib: ' + isRequired + (isAuthorizedByDeployKey ? ' (via CI/CD Deploy Key)' : '');
+    auditLog(authorizedUser.userId, authorizedUser.role, 'UPDATE_APP_VERSION', platform, logDesc);
 
     const updatedConfig = {
       config_key: platform,

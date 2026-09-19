@@ -38,9 +38,12 @@ const CONFIG = {
     is_required: false,
     update_title: 'Pembaruan SATUS Mobile Tersedia',
     release_notes: 'Pembaruan stabilitas dan peningkatan performa.',
-    play_store_url: 'https://play.google.com/store/apps/details?id=com.satus.app',
+    play_store_url: 'https://play.google.com/store/apps/details?id=id.vinsensiusarka.satus_mobile',
     is_active: true
   },
+
+  // Secret Deploy Key untuk Sinkronisasi Versi Otomatis dari CI/CD GitHub Actions
+  CI_DEPLOY_KEY: 'satus-deploy-ci-secret-2026',
   
   // Konfigurasi Notifikasi Firebase Cloud Messaging (FCM)
   FIREBASE: {
