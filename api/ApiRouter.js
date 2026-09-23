@@ -534,6 +534,12 @@ function dispatchApiAction(action, params, method) {
         result = updateAppVersionConfig(params.token, params);
         break;
 
+      case 'update_app_banner':
+      case 'upsert_app_banner':
+      case 'update_banner':
+        result = upsertAppUpdateBanner(params);
+        break;
+
       // 19. FIREBASE PUSH NOTIFICATION TEST & STATUS
       case 'firebase_status':
       case 'get_firebase_status':

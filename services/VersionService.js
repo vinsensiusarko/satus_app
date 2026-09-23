@@ -360,6 +360,62 @@ function updateAppVersionConfig(token, dataUpdate) {
     const logDesc = 'Update Konfigurasi Versi Mobile (' + platform + '): v' + latestVersion + '+' + latestBuild + ', Wajib: ' + isRequired + (isAuthorizedByDeployKey ? ' (via CI/CD Deploy Key)' : '');
     auditLog(authorizedUser.userId, authorizedUser.role, 'UPDATE_APP_VERSION', platform, logDesc);
 
+    // Auto Terbitkan Pengumuman Ter-PIN & Push Broadcast jika diaktifkan (default: true)
+    let announcementResult = null;
+    const shouldPublishAnnouncement = dataUpdate.auto_publish_announcement !== false && String(dataUpdate.auto_publish_announcement).toLowerCase() !== 'false';
+    if (shouldPublishAnnouncement) {
+      try {
+        const annSheet = ensureAnnouncementSheet();
+        const annId = 'ANN-UPDATE-' + latestVersion.replace(/[^a-zA-Z0-9]/g, '_') + '_' + Date.now();
+        const annTitle = '📢 ' + updateTitle;
+        const annContent = releaseNotes || ('Pembaruan SATUS Mobile v' + latestVersion + ' telah tersedia. Silakan lakukan pembaruan untuk menikmati fitur dan stabilitas terbaik.');
+        const annAuthorId = authorizedUser.userId || 'CI-CD-SYSTEM';
+        const annAuthorName = authorizedUser.nama || 'SATUS Official';
+
+        annSheet.appendRow([
+          annId,
+          annAuthorId,
+          annAuthorName,
+          CONFIG.ROLES.MANAGER,
+          annTitle,
+          annContent,
+          'ALL',
+          'TRUE', // is_pinned: TRUE
+          updatedAt
+        ]);
+
+        // Picu FCM Broadcast Push Notification ke semua role
+        try {
+          sendBroadcastNotification(annTitle, annContent, null);
+        } catch (fcmErr) {
+          console.warn('Gagal memicu push notification broadcast untuk update versi:', fcmErr);
+        }
+
+        announcementResult = { id: annId, title: annTitle, isPinned: true };
+      } catch (annErr) {
+        console.warn('Gagal menerbitkan pengumuman otomatis untuk update versi:', annErr);
+      }
+    }
+
+    // Auto Upsert Banner Dashboard Siswa di Firestore jika diaktifkan (default: true)
+    let bannerResult = null;
+    const shouldUpdateBanner = dataUpdate.auto_update_banner !== false && String(dataUpdate.auto_update_banner).toLowerCase() !== 'false';
+    if (shouldUpdateBanner) {
+      try {
+        bannerResult = upsertAppUpdateBanner({
+          version: latestVersion,
+          buildNumber: latestBuild,
+          releaseNotes: releaseNotes,
+          playStoreUrl: playStoreUrl,
+          isMandatory: isRequired,
+          deploymentType: dataUpdate.deployment_type || 'RELEASE'
+        });
+      } catch (bErr) {
+        console.warn('Gagal mengupdate banner otomatis:', bErr);
+        bannerResult = { success: false, message: bErr.message };
+      }
+    }
+
     const updatedConfig = {
       config_key: platform,
       latest_version: latestVersion,
@@ -377,7 +433,9 @@ function updateAppVersionConfig(token, dataUpdate) {
     return {
       success: true,
       message: 'Konfigurasi versi SATUS Mobile berhasil diperbarui!',
-      data: updatedConfig
+      data: updatedConfig,
+      announcement: announcementResult,
+      banner: bannerResult
     };
   } catch (err) {
     console.error('updateAppVersionConfig error:', err);

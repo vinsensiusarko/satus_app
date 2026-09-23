@@ -75,10 +75,12 @@ function getFcmServiceAccountDetails() {
  */
 function getFcmAccessToken(forceRefresh) {
   const cache = CacheService.getScriptCache();
+  const cacheTokenKey = 'FCM_ACCESS_TOKEN_V2';
+  const cacheProjectKey = 'FCM_PROJECT_ID_V2';
   if (!forceRefresh) {
-    const cachedToken = cache.get('FCM_ACCESS_TOKEN');
+    const cachedToken = cache.get(cacheTokenKey);
     if (cachedToken) {
-      const cachedProject = cache.get('FCM_PROJECT_ID') || ((CONFIG.FIREBASE && CONFIG.FIREBASE.PROJECT_ID) ? CONFIG.FIREBASE.PROJECT_ID : 'satus-mobile-mhsm1');
+      const cachedProject = cache.get(cacheProjectKey) || ((CONFIG.FIREBASE && CONFIG.FIREBASE.PROJECT_ID) ? CONFIG.FIREBASE.PROJECT_ID : 'satus-mobile-mhsm1');
       return { success: true, token: cachedToken, projectId: cachedProject };
     }
   }
@@ -97,7 +99,7 @@ function getFcmAccessToken(forceRefresh) {
 
     const claim = {
       iss: saDetails.clientEmail,
-      scope: 'https://www.googleapis.com/auth/firebase.messaging',
+      scope: 'https://www.googleapis.com/auth/firebase.messaging https://www.googleapis.com/auth/datastore',
       aud: 'https://oauth2.googleapis.com/token',
       exp: now + 3600,
       iat: now
@@ -139,8 +141,8 @@ function getFcmAccessToken(forceRefresh) {
     } catch (_) {}
 
     if (statusCode >= 200 && statusCode < 300 && resJson.access_token) {
-      cache.put('FCM_ACCESS_TOKEN', resJson.access_token, 3300); // 55 menit
-      cache.put('FCM_PROJECT_ID', saDetails.projectId, 3300);
+      cache.put(cacheTokenKey, resJson.access_token, 3300); // 55 menit
+      cache.put(cacheProjectKey, saDetails.projectId, 3300);
       return { success: true, token: resJson.access_token, projectId: saDetails.projectId };
     } else {
       const errDetail = resJson.error_description || resJson.error || content;
