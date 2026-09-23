@@ -27,7 +27,10 @@
             <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
               <i data-lucide="lock" class="w-4 h-4"></i>
             </div>
-            <input class="w-full border border-slate-200 rounded-xl py-2.5 pl-10 pr-3.5 text-xs font-medium text-slate-700 placeholder-slate-400 bg-slate-50/50 focus:bg-white focus:border-green-600 transition" id="password" type="password" placeholder="Masukkan password" required autocomplete="current-password">
+            <input class="w-full border border-slate-200 rounded-xl py-2.5 pl-10 pr-10 text-xs font-medium text-slate-700 placeholder-slate-400 bg-slate-50/50 focus:bg-white focus:border-green-600 transition" id="password" type="password" placeholder="Masukkan password" required autocomplete="current-password">
+            <button type="button" onclick="app.togglePasswordVisibility('password', this)" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none transition cursor-pointer" aria-label="Tampilkan atau sembunyikan password">
+              <i data-lucide="eye" class="w-4 h-4"></i>
+            </button>
           </div>
         </div>
 
