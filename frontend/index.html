@@ -340,15 +340,30 @@
       <form id="tab-content-profile-password" onsubmit="app.submitChangePassword(event)" class="hidden space-y-3.5">
         <div>
           <label class="block text-xs font-bold text-slate-600 mb-1">Password Lama</label>
-          <input type="password" id="cp-old-pass" required class="w-full border rounded-xl p-2.5 text-xs" placeholder="Masukkan password saat ini">
+          <div class="relative">
+            <input type="password" id="cp-old-pass" required class="w-full border rounded-xl p-2.5 pr-10 text-xs" placeholder="Masukkan password saat ini">
+            <button type="button" onclick="app.togglePasswordVisibility('cp-old-pass', this)" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none transition cursor-pointer" aria-label="Tampilkan atau sembunyikan password">
+              <i data-lucide="eye" class="w-4 h-4"></i>
+            </button>
+          </div>
         </div>
         <div>
           <label class="block text-xs font-bold text-slate-600 mb-1">Password Baru</label>
-          <input type="password" id="cp-new-pass" required minlength="4" class="w-full border rounded-xl p-2.5 text-xs" placeholder="Minimal 4 karakter">
+          <div class="relative">
+            <input type="password" id="cp-new-pass" required minlength="4" class="w-full border rounded-xl p-2.5 pr-10 text-xs" placeholder="Minimal 4 karakter">
+            <button type="button" onclick="app.togglePasswordVisibility('cp-new-pass', this)" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none transition cursor-pointer" aria-label="Tampilkan atau sembunyikan password">
+              <i data-lucide="eye" class="w-4 h-4"></i>
+            </button>
+          </div>
         </div>
         <div>
           <label class="block text-xs font-bold text-slate-600 mb-1">Konfirmasi Password Baru</label>
-          <input type="password" id="cp-confirm-pass" required minlength="4" class="w-full border rounded-xl p-2.5 text-xs" placeholder="Ulangi password baru">
+          <div class="relative">
+            <input type="password" id="cp-confirm-pass" required minlength="4" class="w-full border rounded-xl p-2.5 pr-10 text-xs" placeholder="Ulangi password baru">
+            <button type="button" onclick="app.togglePasswordVisibility('cp-confirm-pass', this)" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none transition cursor-pointer" aria-label="Tampilkan atau sembunyikan password">
+              <i data-lucide="eye" class="w-4 h-4"></i>
+            </button>
+          </div>
         </div>
         
         <div class="flex justify-end space-x-2 pt-3 border-t">
