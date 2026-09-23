@@ -186,6 +186,20 @@ const app = {
       .changePassword(this.session.token, oldPass, newPass);
   },
 
+  togglePasswordVisibility: function(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const isPassword = input.type === 'password';
+    input.type = isPassword ? 'text' : 'password';
+    if (btn) {
+      btn.innerHTML = '<i data-lucide="' + (isPassword ? 'eye-off' : 'eye') + '" class="w-4 h-4"></i>';
+      btn.setAttribute('aria-label', isPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi');
+      if (typeof lucide !== 'undefined' && lucide.createIcons) {
+        lucide.createIcons();
+      }
+    }
+  },
+
   formatPhotoUrl: function(url, name) {
     if (!url || typeof url !== 'string' || !url.trim()) {
       return 'https://ui-avatars.com/api/?name=' + encodeURIComponent(name || 'Siswa') + '&background=10b981&color=fff&bold=true';
