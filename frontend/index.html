@@ -431,6 +431,133 @@
     </div>
   </div>
 
+  <!-- Modal: Konfirmasi & Proteksi Hapus Pengguna (Siswa / Staff) -->
+  <div id="modal-delete-confirm" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center z-[75] p-4" onclick="if(event.target === this) app.closeDeleteModal()">
+    <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl border border-slate-100 animate-scale-in text-center relative overflow-hidden">
+      
+      <!-- View 1: Proteksi Saldo Aktif (Financial Guard) -->
+      <div id="delete-guard-view" class="hidden">
+        <div class="w-14 h-14 mx-auto mb-3.5 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200/80 flex items-center justify-center shadow-inner">
+          <i data-lucide="shield-alert" class="w-7 h-7"></i>
+        </div>
+        <h3 class="text-base font-black text-slate-800 mb-1">Proteksi Saldo Aktif</h3>
+        <p class="text-xs text-slate-500 mb-4 leading-relaxed">
+          Siswa tidak dapat dihapus karena masih memiliki dana aktif di kas koperasi sekolah.
+        </p>
+
+        <div class="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 text-left mb-5 space-y-2.5">
+          <div class="flex items-center space-x-3 pb-2.5 border-b border-amber-200/60">
+            <div id="guard-avatar" class="w-10 h-10 rounded-xl bg-amber-200/70 text-amber-900 font-black flex items-center justify-center text-sm shadow-sm shrink-0">
+              --
+            </div>
+            <div class="overflow-hidden">
+              <p id="guard-nama" class="font-extrabold text-slate-800 text-xs truncate">Nama Siswa</p>
+              <p id="guard-info" class="text-[11px] text-amber-800 font-mono">ID: --</p>
+            </div>
+          </div>
+          <div class="space-y-1.5 text-xs">
+            <div class="flex justify-between items-center text-slate-600">
+              <span class="flex items-center gap-1.5 font-medium">
+                <i data-lucide="wallet" class="w-3.5 h-3.5 text-green-600"></i>
+                Saldo Tabungan
+              </span>
+              <span id="guard-saldo-tabungan" class="font-black text-green-700">Rp 0</span>
+            </div>
+            <div class="flex justify-between items-center text-slate-600">
+              <span class="flex items-center gap-1.5 font-medium">
+                <i data-lucide="leaf" class="w-3.5 h-3.5 text-emerald-600"></i>
+                Saldo Hijau
+              </span>
+              <span id="guard-saldo-hijau" class="font-black text-emerald-700">Rp 0</span>
+            </div>
+          </div>
+          <div class="pt-2 border-t border-amber-200/60 text-[11px] text-amber-900 leading-relaxed font-medium">
+            <span class="font-bold">Instruksi:</span> Silakan lakukan penarikan/pengosongan saldo di loket kasir terlebih dahulu.
+          </div>
+        </div>
+
+        <button type="button" onclick="app.closeDeleteModal()" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition active:scale-95 flex items-center justify-center gap-1.5">
+          <i data-lucide="check" class="w-4 h-4"></i>
+          Saya Mengerti
+        </button>
+      </div>
+
+      <!-- View 2: Konfirmasi Hapus Permanen -->
+      <div id="delete-confirm-view" class="hidden">
+        <div class="w-14 h-14 mx-auto mb-3.5 rounded-2xl bg-red-50 text-red-600 border border-red-200/80 flex items-center justify-center shadow-inner">
+          <i data-lucide="trash-2" class="w-7 h-7"></i>
+        </div>
+        <h3 id="del-title" class="text-base font-black text-slate-800 mb-1">Konfirmasi Hapus</h3>
+        <p id="del-desc" class="text-xs text-slate-500 mb-4 leading-relaxed">
+          Apakah Anda yakin ingin menghapus akun ini secara permanen?
+        </p>
+
+        <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 text-left mb-5 space-y-2.5">
+          <div class="flex items-center space-x-3 pb-2.5 border-b border-slate-200">
+            <div id="del-avatar" class="w-10 h-10 rounded-xl bg-red-100 text-red-700 font-black flex items-center justify-center text-sm shadow-sm shrink-0">
+              --
+            </div>
+            <div class="overflow-hidden">
+              <p id="del-nama" class="font-extrabold text-slate-800 text-xs truncate">Nama Pengguna</p>
+              <div class="flex items-center gap-1.5 mt-0.5">
+                <span id="del-id" class="text-[10px] font-mono font-bold text-slate-500">ID: --</span>
+                <span id="del-badge" class="text-[9px] px-1.5 py-0.2 rounded-full font-extrabold bg-blue-100 text-blue-800">SISWA</span>
+              </div>
+            </div>
+          </div>
+          <div class="text-[11px] text-red-600 bg-red-50/70 p-2.5 rounded-xl border border-red-100 flex items-start gap-2 leading-relaxed">
+            <i data-lucide="alert-triangle" class="w-4 h-4 text-red-500 shrink-0 mt-0.5"></i>
+            <span>Tindakan ini tidak dapat dibatalkan. Kredensial login dan seluruh data profil akan dihapus bersih.</span>
+          </div>
+        </div>
+
+        <div class="flex gap-2.5">
+          <button type="button" onclick="app.closeDeleteModal()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition active:scale-95">
+            Batal
+          </button>
+          <button type="button" id="btn-confirm-delete" onclick="app.executeConfirmedDelete()" class="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-md shadow-red-600/20 transition active:scale-95 flex items-center justify-center gap-1.5">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            <span>Ya, Hapus</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal: Konfirmasi Rekonsiliasi Database -->
+  <div id="modal-reconcile-confirm" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center z-[75] p-4" onclick="if(event.target === this) app.closeReconcileModal()">
+    <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl border border-slate-100 animate-scale-in text-center relative overflow-hidden">
+      <div class="w-14 h-14 mx-auto mb-3.5 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200/80 flex items-center justify-center shadow-inner">
+        <i data-lucide="wrench" class="w-7 h-7"></i>
+      </div>
+      <h3 class="text-base font-black text-slate-800 mb-1">Rekonsiliasi Database</h3>
+      <p class="text-xs text-slate-500 mb-4 leading-relaxed">
+        Sistem akan memindai duplikasi data, alokasi ID baru yang bentrok, dan memverifikasi integritas mutasi kasir.
+      </p>
+      <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 text-left mb-5 text-xs text-slate-600 space-y-1.5">
+        <div class="flex items-center gap-2 font-bold text-slate-800">
+          <i data-lucide="shield-check" class="w-4 h-4 text-green-600"></i>
+          Pemeriksaan Otomatis:
+        </div>
+        <p class="text-[11px] text-slate-500 leading-normal pl-6">
+          • Deteksi tabrakan ID pendaftaran siswa<br>
+          • Sinkronisasi akun master Users<br>
+          • Validasi transaksi kasir
+        </p>
+      </div>
+      <div class="flex gap-2.5">
+        <button type="button" onclick="app.closeReconcileModal()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition active:scale-95">
+          Batal
+        </button>
+        <button type="button" id="btn-execute-reconcile" onclick="app.proceedReconcileDatabase()" class="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-md shadow-amber-500/20 transition active:scale-95 flex items-center justify-center gap-1.5">
+          <i data-lucide="play" class="w-3.5 h-3.5"></i>
+          <span>Jalankan</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal: Kartu Siswa Digital (Cetak & Preview) -->
   <div id="modal-kartu-siswa" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center z-[80] p-4">
     <div class="bg-white rounded-3xl max-w-sm w-full shadow-2xl overflow-hidden border border-slate-200 animate-scale-in">

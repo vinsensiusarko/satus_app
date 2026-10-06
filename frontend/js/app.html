@@ -3986,7 +3986,7 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
           }
           let editBtn = `<button onclick="app.openEditSiswa('${m.member_id}')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-2.5 py-1 rounded-lg text-xs font-bold ml-1 shadow-sm">Edit</button>`;
           let printCardBtn = `<button onclick="app.openModalKartuSiswaByMemberId('${m.member_id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-lg text-xs font-bold ml-1 shadow-sm inline-flex items-center gap-1 active:scale-95" title="Cetak Kartu Siswa"><i data-lucide="printer" class="w-3 h-3"></i> Kartu</button>`;
-          let deleteBtn = `<button onclick="app.deleteMember('${m.member_id}', '${(m.nama || '').replace(/'/g, "\\'")}', ${m.saldoTabungan || m.balance || 0}, ${m.saldoHijau || 0})" class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-2.5 py-1 rounded-lg text-xs font-bold ml-1 shadow-sm inline-flex items-center gap-1 active:scale-95" title="Hapus Siswa"><i data-lucide="trash-2" class="w-3 h-3"></i> Hapus</button>`;
+          let deleteBtn = `<button onclick="app.deleteMember('${m.member_id}', '${(m.nama || '').replace(/'/g, "\\'")}', ${m.saldoTabungan || m.balance || 0}, ${m.saldoHijau || 0}, '${m.kelas || '-'}', '${m.nis || '-'}')" class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-2.5 py-1 rounded-lg text-xs font-bold ml-1 shadow-sm inline-flex items-center gap-1 active:scale-95" title="Hapus Siswa"><i data-lucide="trash-2" class="w-3 h-3"></i> Hapus</button>`;
           
           html += `<tr>
             <td class="py-3 px-3.5 border-b font-mono font-bold text-slate-800">${m.member_id}</td>
@@ -4045,7 +4045,7 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
           }
           let editBtn = `<button onclick="app.openEditUser('${u.user_id}')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-2.5 py-1 rounded-lg text-xs font-bold ml-1 shadow-sm">Edit</button>`;
           let deleteStaffBtn = u.role !== 'MANAGER' 
-            ? `<button onclick="app.deleteUser('${u.user_id}', '${(u.nama || '').replace(/'/g, "\\'")}', '${u.role}')" class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-2.5 py-1 rounded-lg text-xs font-bold ml-1 shadow-sm inline-flex items-center gap-1 active:scale-95" title="Hapus Staff"><i data-lucide="trash-2" class="w-3 h-3"></i> Hapus</button>` 
+            ? `<button onclick="app.deleteUser('${u.user_id}', '${(u.nama || '').replace(/'/g, "\\'")}', '${u.role}', '${u.username || ''}')" class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-2.5 py-1 rounded-lg text-xs font-bold ml-1 shadow-sm inline-flex items-center gap-1 active:scale-95" title="Hapus Staff"><i data-lucide="trash-2" class="w-3 h-3"></i> Hapus</button>` 
             : '';
           
           html += `<tr>
@@ -4238,65 +4238,173 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
       .activateUser(this.session.token, userId);
   },
 
-  deleteMember: function(memberId, nama, saldoTabungan, saldoHijau) {
-    const totalSaldo = (saldoTabungan || 0) + (saldoHijau || 0);
-    if (totalSaldo > 0) {
-      alert(`PERINGATAN PROTEKSI SALDO:\n\nSiswa ${nama} (${memberId}) masih memiliki saldo aktif:\n• Saldo Tabungan: Rp ${(saldoTabungan||0).toLocaleString('id-ID')}\n• Saldo Hijau: Rp ${(saldoHijau||0).toLocaleString('id-ID')}\n\nPenghapusan dibatalkan demi keamanan uang kas koperasi. Silakan lakukan penarikan/pengosongan saldo terlebih dahulu.`);
+  deleteMember: function(memberId, nama, saldoTabungan, saldoHijau, kelas, nis) {
+    const totalSaldo = (Number(saldoTabungan) || 0) + (Number(saldoHijau) || 0);
+    const modal = document.getElementById('modal-delete-confirm');
+    if (!modal) {
+      if (totalSaldo > 0) {
+        alert(`PERINGATAN: Siswa ${nama} (${memberId}) masih memiliki saldo aktif (Tabungan: Rp ${(saldoTabungan||0).toLocaleString('id-ID')}, Hijau: Rp ${(saldoHijau||0).toLocaleString('id-ID')}). Silakan lakukan penarikan saldo terlebih dahulu.`);
+        return;
+      }
+      if (!confirm(`Apakah Anda yakin ingin menghapus siswa ${nama} (${memberId})?`)) return;
+      this._pendingDelete = { type: 'MEMBER', id: memberId };
+      this.executeConfirmedDelete();
       return;
     }
-    if (!confirm(`Apakah Anda yakin ingin MENGHAPUS PERMANEN siswa ${nama} (${memberId})?\n\nTindakan ini aman karena siswa tidak memiliki saldo, namun akun login dan data siswa akan dihapus bersih.`)) return;
 
-    this.showLoading(true);
-    google.script.run
-      .withSuccessHandler((res) => {
-        if (res.success) {
-          this.showToast(res.message, 'success');
-          this.loadMemberList();
-        } else {
-          this.showLoading(false);
-          this.showToast(res.message, 'error');
-        }
-      })
-      .withFailureHandler((err) => app.handleError(err))
-      .deleteMember(this.session.token, memberId);
+    const guardView = document.getElementById('delete-guard-view');
+    const confirmView = document.getElementById('delete-confirm-view');
+
+    if (totalSaldo > 0) {
+      if (guardView) guardView.classList.remove('hidden');
+      if (confirmView) confirmView.classList.add('hidden');
+
+      const initial = (nama || 'S').trim().charAt(0).toUpperCase();
+      const elAvatar = document.getElementById('guard-avatar');
+      const elNama = document.getElementById('guard-nama');
+      const elInfo = document.getElementById('guard-info');
+      const elTab = document.getElementById('guard-saldo-tabungan');
+      const elHij = document.getElementById('guard-saldo-hijau');
+
+      if (elAvatar) elAvatar.textContent = initial;
+      if (elNama) elNama.textContent = nama;
+      if (elInfo) elInfo.textContent = `${memberId}${kelas && kelas !== '-' ? ' • Kelas ' + kelas : ''}`;
+      if (elTab) elTab.textContent = `Rp ${(Number(saldoTabungan) || 0).toLocaleString('id-ID')}`;
+      if (elHij) elHij.textContent = `Rp ${(Number(saldoHijau) || 0).toLocaleString('id-ID')}`;
+      this._pendingDelete = null;
+    } else {
+      if (guardView) guardView.classList.add('hidden');
+      if (confirmView) confirmView.classList.remove('hidden');
+
+      this._pendingDelete = { type: 'MEMBER', id: memberId, nama: nama };
+
+      const initial = (nama || 'S').trim().charAt(0).toUpperCase();
+      const elAvatar = document.getElementById('del-avatar');
+      const elNama = document.getElementById('del-nama');
+      const elId = document.getElementById('del-id');
+      const elBadge = document.getElementById('del-badge');
+      const elTitle = document.getElementById('del-title');
+      const elDesc = document.getElementById('del-desc');
+
+      if (elAvatar) elAvatar.textContent = initial;
+      if (elNama) elNama.textContent = nama;
+      if (elId) elId.textContent = `ID: ${memberId}`;
+      if (elBadge) {
+        elBadge.textContent = kelas && kelas !== '-' ? `SISWA (${kelas})` : 'SISWA';
+        elBadge.className = 'text-[9px] px-1.5 py-0.2 rounded-full font-extrabold bg-green-100 text-green-800';
+      }
+      if (elTitle) elTitle.textContent = 'Hapus Siswa Permanen';
+      if (elDesc) elDesc.textContent = `Apakah Anda yakin ingin menghapus akun siswa ${nama}? Saldo tabungan sudah Rp 0 dan aman dihapus.`;
+    }
+
+    modal.classList.remove('hidden');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
   },
 
-  deleteUser: function(userId, nama, role) {
-    if (!confirm(`Apakah Anda yakin ingin MENGHAPUS PERMANEN staff ${nama} (${role})?\n\nAkun ini tidak akan bisa login lagi.`)) return;
+  deleteUser: function(userId, nama, role, username) {
+    const modal = document.getElementById('modal-delete-confirm');
+    if (!modal) {
+      if (!confirm(`Apakah Anda yakin ingin menghapus staff ${nama} (${role})?`)) return;
+      this._pendingDelete = { type: 'USER', id: userId };
+      this.executeConfirmedDelete();
+      return;
+    }
+
+    const guardView = document.getElementById('delete-guard-view');
+    const confirmView = document.getElementById('delete-confirm-view');
+
+    if (guardView) guardView.classList.add('hidden');
+    if (confirmView) confirmView.classList.remove('hidden');
+
+    this._pendingDelete = { type: 'USER', id: userId, nama: nama, role: role };
+
+    const initial = (nama || 'U').trim().charAt(0).toUpperCase();
+    const elAvatar = document.getElementById('del-avatar');
+    const elNama = document.getElementById('del-nama');
+    const elId = document.getElementById('del-id');
+    const elBadge = document.getElementById('del-badge');
+    const elTitle = document.getElementById('del-title');
+    const elDesc = document.getElementById('del-desc');
+
+    if (elAvatar) elAvatar.textContent = initial;
+    if (elNama) elNama.textContent = nama;
+    if (elId) elId.textContent = `ID: ${userId}${username ? ' (' + username + ')' : ''}`;
+    if (elBadge) {
+      elBadge.textContent = role || 'STAFF';
+      elBadge.className = 'text-[9px] px-1.5 py-0.2 rounded-full font-extrabold bg-blue-100 text-blue-800';
+    }
+    if (elTitle) elTitle.textContent = 'Hapus Staff Permanen';
+    if (elDesc) elDesc.textContent = `Apakah Anda yakin ingin menghapus akun staff ${nama} (${role})? Pengguna tidak akan bisa login lagi.`;
+
+    modal.classList.remove('hidden');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  },
+
+  closeDeleteModal: function() {
+    const modal = document.getElementById('modal-delete-confirm');
+    if (modal) modal.classList.add('hidden');
+    this._pendingDelete = null;
+  },
+
+  executeConfirmedDelete: function() {
+    if (!this._pendingDelete) return;
+    const target = this._pendingDelete;
+    this.closeDeleteModal();
     this.showLoading(true);
-    google.script.run
-      .withSuccessHandler((res) => {
-        if (res.success) {
-          this.showToast(res.message, 'success');
-          this.loadMemberList();
-        } else {
-          this.showLoading(false);
-          this.showToast(res.message, 'error');
-        }
-      })
-      .withFailureHandler((err) => app.handleError(err))
-      .deleteUser(this.session.token, userId);
+
+    if (target.type === 'MEMBER') {
+      google.script.run
+        .withSuccessHandler((res) => {
+          if (res.success) {
+            this.showToast(res.message, 'success');
+            this.loadMemberList();
+          } else {
+            this.showLoading(false);
+            this.showToast(res.message, 'error');
+          }
+        })
+        .withFailureHandler((err) => app.handleError(err))
+        .deleteMember(this.session.token, target.id);
+    } else {
+      google.script.run
+        .withSuccessHandler((res) => {
+          if (res.success) {
+            this.showToast(res.message, 'success');
+            this.loadMemberList();
+          } else {
+            this.showLoading(false);
+            this.showToast(res.message, 'error');
+          }
+        })
+        .withFailureHandler((err) => app.handleError(err))
+        .deleteUser(this.session.token, target.id);
+    }
   },
 
   reconcileDatabase: function() {
-    if (!confirm('JALANKAN REKONSILIASI DATABASE?\n\nSistem akan mendeteksi tabrakan ID (Hamizan vs Muh, Rositaa vs Naura, Gilang vs Nevita), memberikan ID unik baru untuk siswa yang berkonflik, mengaktifkan statusnya, serta memindahkan transaksi yang salah sasaran.\n\nLanjutkan?')) return;
+    const modal = document.getElementById('modal-reconcile-confirm');
+    if (!modal) {
+      if (!confirm('JALANKAN REKONSILIASI DATABASE?\n\nSistem akan mendeteksi tabrakan ID pendaftaran dan memverifikasi integritas akun. Lanjutkan?')) return;
+      this.proceedReconcileDatabase();
+      return;
+    }
+    modal.classList.remove('hidden');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  },
+
+  closeReconcileModal: function() {
+    const modal = document.getElementById('modal-reconcile-confirm');
+    if (modal) modal.classList.add('hidden');
+  },
+
+  proceedReconcileDatabase: function() {
+    this.closeReconcileModal();
     this.showLoading(true);
     google.script.run
       .withSuccessHandler((res) => {
         this.showLoading(false);
         if (res.success) {
-          let detail = (res.message || 'Rekonsiliasi berhasil!') + '\n\n';
-          if (res.allocations) {
-            detail += 'Alokasi ID Baru:\n';
-            if (res.allocations.muhSulthaan) detail += `• Muh Sulthaan: ${res.allocations.muhSulthaan.old} -> ${res.allocations.muhSulthaan.newId}\n`;
-            if (res.allocations.nauradisti) detail += `• Nauradisti: ${res.allocations.nauradisti.old} -> ${res.allocations.nauradisti.newId}\n`;
-            if (res.allocations.nevita) detail += `• Nevita: ${res.allocations.nevita.old} -> ${res.allocations.nevita.newId}\n`;
-          }
-          if (res.relinkedTransactions !== undefined) {
-            detail += `\nTransaksi Nyasar yang Dipindahkan: ${res.relinkedTransactions} mutasi.\n`;
-          }
-          alert(detail);
-          this.showToast('Rekonsiliasi database berhasil!', 'success');
+          this.showToast(res.message || 'Rekonsiliasi database berhasil!', 'success');
           this.loadMemberList();
         } else {
           this.showToast(res.message, 'error');
