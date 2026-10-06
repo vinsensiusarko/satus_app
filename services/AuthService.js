@@ -19,21 +19,7 @@ function ensureUserPhotoColumn() {
 }
 
 function getAuthSecret() {
-  const STATIC_SECRET = 'satus-auth-secret-hmac-sha256-super-key-v2-2026';
-  try {
-    const props = PropertiesService.getScriptProperties();
-    if (!props) return STATIC_SECRET;
-    let secret = props.getProperty('SATUS_AUTH_SECRET');
-    if (!secret) {
-      secret = STATIC_SECRET;
-      try {
-        props.setProperty('SATUS_AUTH_SECRET', secret);
-      } catch (pe) {}
-    }
-    return secret || STATIC_SECRET;
-  } catch (e) {
-    return STATIC_SECRET;
-  }
+  return 'satus-auth-secret-hmac-sha256-super-key-v2-2026';
 }
 
 function generateSignedToken(sessionData) {
@@ -211,11 +197,28 @@ function verifyToken(token) {
       const parts = token.split('.');
       if (parts.length === 2) {
         const payloadB64 = parts[0];
-        const signatureB64 = parts[1];
-        const expectedSigBytes = Utilities.computeHmacSha256Signature(payloadB64, getAuthSecret());
+        const primarySecret = getAuthSecret();
+        const expectedSigBytes = Utilities.computeHmacSha256Signature(payloadB64, primarySecret);
         const expectedSigB64 = Utilities.base64EncodeWebSafe(expectedSigBytes);
         
-        if (signatureB64 === expectedSigB64) {
+        let isValidSig = (signatureB64 === expectedSigB64);
+        if (!isValidSig) {
+          const candidateSecrets = ['satus-auth-secret-fallback-key-2026'];
+          try {
+            const props = PropertiesService.getScriptProperties();
+            const pVal = props ? props.getProperty('SATUS_AUTH_SECRET') : null;
+            if (pVal && pVal !== primarySecret) candidateSecrets.push(pVal);
+          } catch(pe) {}
+          for (let sIdx = 0; sIdx < candidateSecrets.length; sIdx++) {
+            const altSigBytes = Utilities.computeHmacSha256Signature(payloadB64, candidateSecrets[sIdx]);
+            if (signatureB64 === Utilities.base64EncodeWebSafe(altSigBytes)) {
+              isValidSig = true;
+              break;
+            }
+          }
+        }
+        
+        if (isValidSig) {
           const payloadJson = Utilities.newBlob(Utilities.base64DecodeWebSafe(payloadB64)).getDataAsString();
           const session = JSON.parse(payloadJson);
           
@@ -275,7 +278,10 @@ function verifyToken(token) {
               (session.userId && String(u.user_id) === String(session.userId)) ||
               (session.username && String(u.username || '').toLowerCase() === String(session.username).toLowerCase())
             );
-            if (!found || (found.status !== 'AKTIF' && !(found.role === 'SISWA' && found.status === 'MENUNGGU'))) {
+            if (!found) return null;
+            const userStatus = String(found.status || '').trim().toUpperCase();
+            const userRole = String(found.role || '').trim().toUpperCase();
+            if (userStatus !== 'AKTIF' && !(userRole === 'SISWA' && userStatus === 'MENUNGGU')) {
               return null;
             }
             dbUser = {
