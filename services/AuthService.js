@@ -742,3 +742,77 @@ function invalidateUserStatusCache(userId) {
     }
   } catch (e) {}
 }
+
+function deleteUser(token, userId) {
+  return withScriptLock(function() {
+    try {
+      const session = requireRole(token, [CONFIG.ROLES.MANAGER]);
+      if (!userId) throw new Error('User ID harus diisi');
+
+      if (session.userId === userId) {
+        throw new Error('Tidak dapat menghapus akun Anda sendiri saat sedang login');
+      }
+
+      if (typeof isDevUserId === 'function' && isDevUserId(userId)) {
+        throw new Error('Tidak dapat menghapus akun dev/testing');
+      }
+
+      const sheet = getSheet(CONFIG.SHEETS.USERS);
+      const data = sheet.getDataRange().getValues();
+      const headers = data[0];
+      const idIdx = headers.indexOf('user_id');
+      const roleIdx = headers.indexOf('role');
+      const namaIdx = headers.indexOf('nama');
+      const statusIdx = headers.indexOf('status');
+
+      let targetRow = -1;
+      let targetRole = '';
+      let targetName = '';
+
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][idIdx] === userId) {
+          targetRow = i + 1;
+          targetRole = data[i][roleIdx];
+          targetName = data[i][namaIdx];
+          break;
+        }
+      }
+
+      if (targetRow === -1) {
+        throw new Error('User tidak ditemukan');
+      }
+
+      // Jika role SISWA, delegasikan ke deleteMember agar saldo diperiksa dan sheet Members dibersihkan
+      if (targetRole === CONFIG.ROLES.SISWA) {
+        return deleteMember(token, userId);
+      }
+
+      // Jika role MANAGER, pastikan masih ada manager aktif lain
+      if (targetRole === CONFIG.ROLES.MANAGER) {
+        let managerCount = 0;
+        for (let j = 1; j < data.length; j++) {
+          if (data[j][roleIdx] === CONFIG.ROLES.MANAGER && data[j][statusIdx] === 'AKTIF') {
+            managerCount++;
+          }
+        }
+        if (managerCount <= 1) {
+          throw new Error('Tidak dapat menghapus satu-satunya akun Manager aktif');
+        }
+      }
+
+      sheet.deleteRow(targetRow);
+      delete cachedSheetData[CONFIG.SHEETS.USERS];
+      invalidateUserStatusCache(userId);
+
+      auditLog(session.userId, session.role, 'DELETE_USER', userId, `Hapus ${targetRole} ${targetName} (${userId})`);
+
+      return {
+        success: true,
+        message: `${targetRole} ${targetName} (${userId}) berhasil dihapus secara aman.`
+      };
+    } catch (error) {
+      if (error.message.includes("Unauthorized")) throw error;
+      return { success: false, message: error.message };
+    }
+  });
+}

@@ -331,6 +331,27 @@ function dispatchApiAction(action, params, method) {
         result = updateMemberStatus(params.token, params.memberId || params.member_id, params.status);
         break;
 
+      case 'delete_member':
+      case 'deletemember':
+        result = deleteMember(params.token, params.memberId || params.member_id);
+        break;
+
+      case 'reconcile_database':
+      case 'reconciledatabase':
+      case 'reconcile_conflicted_students':
+        result = typeof reconcileConflictedStudents === 'function' 
+          ? reconcileConflictedStudents(params.token)
+          : { success: false, message: 'ReconciliationService tidak tersedia' };
+        break;
+
+      case 'track_transactions':
+      case 'tracktransactions':
+      case 'track_misdirected_transactions':
+        result = typeof trackMisdirectedTransactions === 'function'
+          ? trackMisdirectedTransactions(params.token)
+          : { success: false, message: 'ReconciliationService tidak tersedia' };
+        break;
+
       // 11b. STAFF / USER MANAGEMENT (Kasir & Manager)
       case 'users':
       case 'get_users':
@@ -373,6 +394,12 @@ function dispatchApiAction(action, params, method) {
       case 'deactivate_user':
       case 'deactivateuser':
         result = deactivateUser(params.token, params.userId || params.user_id);
+        break;
+
+      case 'delete_user':
+      case 'deleteuser':
+      case 'delete_staff':
+        result = deleteUser(params.token, params.userId || params.user_id);
         break;
 
       // 12. WASTE PRICES

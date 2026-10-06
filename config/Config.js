@@ -208,11 +208,44 @@ function isDevAccount(obj) {
 
 function generateMemberId() {
   const year = new Date().getFullYear();
-  const sheet = getSheet(CONFIG.SHEETS.MEMBERS);
-  const lastRow = sheet.getLastRow();
-  // Simple sequence generation for MVP
-  const seq = String(lastRow > 0 ? lastRow : 1).padStart(3, '0');
-  return `KH-${year}-${seq}`;
+  const prefix = `KH-${year}-`;
+  
+  const members = (typeof getSheetData === 'function') ? (getSheetData(CONFIG.SHEETS.MEMBERS) || []) : [];
+  const users = (typeof getSheetData === 'function') ? (getSheetData(CONFIG.SHEETS.USERS) || []) : [];
+  const txs = (typeof getSheetData === 'function') ? (getSheetData(CONFIG.SHEETS.TRANSACTIONS) || []) : [];
+
+  let maxSeq = 0;
+  const inspectId = (rawId) => {
+    if (!rawId || typeof rawId !== 'string') return;
+    const clean = rawId.trim().toUpperCase();
+    if (clean.startsWith(prefix)) {
+      const num = parseInt(clean.substring(prefix.length), 10);
+      if (!isNaN(num) && num > maxSeq) maxSeq = num;
+    }
+  };
+
+  members.forEach(m => { inspectId(m.member_id); inspectId(m.user_id); });
+  users.forEach(u => inspectId(u.user_id));
+  txs.forEach(t => inspectId(t.member_id));
+
+  let nextSeq = maxSeq + 1;
+  let candidate = `${prefix}${String(nextSeq).padStart(3, '0')}`;
+
+  const existingSet = new Set();
+  members.forEach(m => { 
+    if (m.member_id) existingSet.add(String(m.member_id).toUpperCase().trim());
+    if (m.user_id) existingSet.add(String(m.user_id).toUpperCase().trim());
+  });
+  users.forEach(u => {
+    if (u.user_id) existingSet.add(String(u.user_id).toUpperCase().trim());
+  });
+
+  while (existingSet.has(candidate.toUpperCase())) {
+    nextSeq++;
+    candidate = `${prefix}${String(nextSeq).padStart(3, '0')}`;
+  }
+
+  return candidate;
 }
 
 function generateTransactionId() {

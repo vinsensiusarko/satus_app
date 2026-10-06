@@ -128,9 +128,11 @@ function updateMemberStatus(token, memberId, status) {
     const statusIdx = headers.indexOf('status');
     const userIdIdx = headers.indexOf('user_id');
     
+    let foundAny = false;
     for (let i = 1; i < data.length; i++) {
       if (data[i][idIdx] === memberId) {
         sheet.getRange(i + 1, statusIdx + 1).setValue(status);
+        foundAny = true;
         
         // Update user status as well
         const userId = data[i][userIdIdx];
@@ -143,16 +145,17 @@ function updateMemberStatus(token, memberId, status) {
           const rowUid = userData[j][uIdIdx];
           if((userId && rowUid === userId) || rowUid === memberId) {
             userSheet.getRange(j + 1, uStatusIdx + 1).setValue(status);
-            break;
           }
         }
-        
-        delete cachedSheetData[CONFIG.SHEETS.MEMBERS];
-        delete cachedSheetData[CONFIG.SHEETS.USERS];
-
-        auditLog(session.userId, session.role, 'UPDATE_MEMBER_STATUS', memberId, `Set status member ${memberId} ke ${status}`);
-        return { success: true, message: `Status member berhasil diubah menjadi ${status}` };
       }
+    }
+    
+    if (foundAny) {
+      delete cachedSheetData[CONFIG.SHEETS.MEMBERS];
+      delete cachedSheetData[CONFIG.SHEETS.USERS];
+
+      auditLog(session.userId, session.role, 'UPDATE_MEMBER_STATUS', memberId, `Set status member ${memberId} ke ${status}`);
+      return { success: true, message: `Status member berhasil diubah menjadi ${status}` };
     }
     throw new Error('Member tidak ditemukan');
   } catch (error) {
@@ -170,6 +173,91 @@ function deactivateMember(token, memberId) {
 
 function activateMember(token, memberId) {
   return updateMemberStatus(token, memberId, CONFIG.MEMBER_STATUS.AKTIF);
+}
+
+function deleteMember(token, memberId) {
+  return withScriptLock(function() {
+    try {
+      const session = requireRole(token, [CONFIG.ROLES.MANAGER]);
+      if (!memberId) throw new Error('Member ID harus diisi');
+
+      // 1. Validasi saldo aktif
+      const dual = calculateDualBalance(memberId);
+      if ((dual.tabungan || 0) > 0 || (dual.hijau || 0) > 0) {
+        return {
+          success: false,
+          error_code: 'ACTIVE_BALANCE_NOT_EMPTY',
+          message: `Tidak dapat menghapus siswa ${memberId} karena masih memiliki saldo aktif (Tabungan: Rp${(dual.tabungan||0).toLocaleString('id-ID')}, Hijau: Rp${(dual.hijau||0).toLocaleString('id-ID')}). Silakan lakukan penarikan saldo terlebih dahulu.`
+        };
+      }
+
+      const mSheet = getSheet(CONFIG.SHEETS.MEMBERS);
+      const mData = mSheet.getDataRange().getValues();
+      const mHeaders = mData[0];
+      const mIdCol = mHeaders.indexOf('member_id');
+      const mUidCol = mHeaders.indexOf('user_id');
+      const mNamaCol = mHeaders.indexOf('nama');
+
+      let foundMember = false;
+      let linkedUserId = '';
+      let memberName = '';
+
+      // Hapus dari Members sheet (mulai dari baris terbawah)
+      for (let i = mData.length - 1; i >= 1; i--) {
+        const rowMid = String(mData[i][mIdCol] || '').trim();
+        const rowUid = String(mData[i][mUidCol] || '').trim();
+        if (rowMid === memberId || rowUid === memberId) {
+          foundMember = true;
+          linkedUserId = rowUid || rowMid;
+          memberName = mData[i][mNamaCol] || memberName;
+          mSheet.deleteRow(i + 1);
+        }
+      }
+
+      // Hapus dari Users sheet
+      const uSheet = getSheet(CONFIG.SHEETS.USERS);
+      const uData = uSheet.getDataRange().getValues();
+      const uHeaders = uData[0];
+      const uIdCol = uHeaders.indexOf('user_id');
+      const uRoleCol = uHeaders.indexOf('role');
+
+      for (let j = uData.length - 1; j >= 1; j--) {
+        const rowUid = String(uData[j][uIdCol] || '').trim();
+        const rowRole = String(uData[j][uRoleCol] || '').trim();
+        if ((rowUid === memberId || (linkedUserId && rowUid === linkedUserId)) && rowRole === CONFIG.ROLES.SISWA) {
+          uSheet.deleteRow(j + 1);
+        }
+      }
+
+      // Hapus target terkait jika ada
+      try {
+        const tSheet = getSheet(CONFIG.SHEETS.TARGETS);
+        const tData = tSheet.getDataRange().getValues();
+        const tMidCol = tData[0].indexOf('member_id');
+        if (tMidCol !== -1) {
+          for (let k = tData.length - 1; k >= 1; k--) {
+            if (String(tData[k][tMidCol] || '').trim() === memberId) {
+              tSheet.deleteRow(k + 1);
+            }
+          }
+        }
+      } catch (e) {}
+
+      delete cachedSheetData[CONFIG.SHEETS.MEMBERS];
+      delete cachedSheetData[CONFIG.SHEETS.USERS];
+      delete cachedSheetData[CONFIG.SHEETS.TARGETS];
+
+      auditLog(session.userId, session.role, 'DELETE_MEMBER', memberId, `Hapus member ${memberId} (${memberName || 'Siswa'})`);
+
+      return {
+        success: true,
+        message: `Member ${memberName ? memberName + ' (' + memberId + ')' : memberId} berhasil dihapus secara aman.`
+      };
+    } catch (error) {
+      if (error.message.includes("Unauthorized")) throw error;
+      return { success: false, message: error.message };
+    }
+  });
 }
 
 function formatPhotoUrlHelper(url, name) {
@@ -212,12 +300,10 @@ function findMemberForUser(user, members) {
   return members.find(m => {
     const mUserId = String(m.user_id || '').trim();
     const mMemberId = String(m.member_id || '').trim();
-    const mName = String(m.nama || '').trim().toLowerCase();
     
-    if (uId && mUserId && mUserId === uId) return true;
+    if (uId && mUserId && mUserId.toLowerCase() === uId.toLowerCase()) return true;
     if (uId && mMemberId && mMemberId.toLowerCase() === uId.toLowerCase()) return true;
     if (uUname && mUserId && mUserId.toLowerCase() === uUname) return true;
-    if (uName && mName && mName === uName) return true;
     return false;
   }) || null;
 }

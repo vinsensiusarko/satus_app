@@ -102,6 +102,27 @@ function getSheet(sheetName) {
   return sheet;
 }
 
+function ensureUserStudentColumns() {
+  const sheet = getSheet(CONFIG.SHEETS.USERS);
+  const data = sheet.getDataRange().getValues();
+  if (data.length > 0) {
+    const headers = data[0];
+    let changed = false;
+    const requiredCols = ['nis', 'kelas', 'qr_data', 'photo_url'];
+    requiredCols.forEach(col => {
+      if (!headers.includes(col)) {
+        const nextCol = sheet.getLastColumn() + 1;
+        sheet.getRange(1, nextCol).setValue(col).setFontWeight('bold').setBackground('#e0e0e0');
+        headers.push(col);
+        changed = true;
+      }
+    });
+    if (changed) {
+      delete cachedSheetData[CONFIG.SHEETS.USERS];
+    }
+  }
+}
+
 const cachedSheetData = {};
 
 /**

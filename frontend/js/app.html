@@ -3986,6 +3986,7 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
           }
           let editBtn = `<button onclick="app.openEditSiswa('${m.member_id}')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-2.5 py-1 rounded-lg text-xs font-bold ml-1 shadow-sm">Edit</button>`;
           let printCardBtn = `<button onclick="app.openModalKartuSiswaByMemberId('${m.member_id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-lg text-xs font-bold ml-1 shadow-sm inline-flex items-center gap-1 active:scale-95" title="Cetak Kartu Siswa"><i data-lucide="printer" class="w-3 h-3"></i> Kartu</button>`;
+          let deleteBtn = `<button onclick="app.deleteMember('${m.member_id}', '${(m.nama || '').replace(/'/g, "\\'")}', ${m.saldoTabungan || m.balance || 0}, ${m.saldoHijau || 0})" class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-2.5 py-1 rounded-lg text-xs font-bold ml-1 shadow-sm inline-flex items-center gap-1 active:scale-95" title="Hapus Siswa"><i data-lucide="trash-2" class="w-3 h-3"></i> Hapus</button>`;
           
           html += `<tr>
             <td class="py-3 px-3.5 border-b font-mono font-bold text-slate-800">${m.member_id}</td>
@@ -3994,7 +3995,7 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
             <td class="py-3 px-3.5 border-b ${statusClass}">${m.status}</td>
             <td class="py-3 px-3.5 border-b font-black text-right text-green-700">Rp ${(m.saldoTabungan || m.balance || 0).toLocaleString('id-ID')}</td>
             <td class="py-3 px-3.5 border-b font-black text-right text-emerald-700">Rp ${(m.saldoHijau || 0).toLocaleString('id-ID')}</td>
-            <td class="py-3 px-3.5 border-b text-center whitespace-nowrap">${actionBtn}${editBtn}${printCardBtn}</td>
+            <td class="py-3 px-3.5 border-b text-center whitespace-nowrap">${actionBtn}${editBtn}${printCardBtn}${deleteBtn}</td>
           </tr>`;
         });
         tbody.innerHTML = html;
@@ -4043,6 +4044,9 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
             }
           }
           let editBtn = `<button onclick="app.openEditUser('${u.user_id}')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-2.5 py-1 rounded-lg text-xs font-bold ml-1 shadow-sm">Edit</button>`;
+          let deleteStaffBtn = u.role !== 'MANAGER' 
+            ? `<button onclick="app.deleteUser('${u.user_id}', '${(u.nama || '').replace(/'/g, "\\'")}', '${u.role}')" class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-2.5 py-1 rounded-lg text-xs font-bold ml-1 shadow-sm inline-flex items-center gap-1 active:scale-95" title="Hapus Staff"><i data-lucide="trash-2" class="w-3 h-3"></i> Hapus</button>` 
+            : '';
           
           html += `<tr>
             <td class="py-3 px-3.5 border-b font-mono font-bold text-slate-800">${u.user_id}</td>
@@ -4050,11 +4054,13 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
             <td class="py-3 px-3.5 border-b"><span class="bg-blue-50 text-blue-800 border border-blue-200 text-xs px-2.5 py-0.5 rounded-full font-extrabold">${u.role}</span></td>
             <td class="py-3 px-3.5 border-b font-mono text-slate-600">${u.username}</td>
             <td class="py-3 px-3.5 border-b ${statusClass}">${u.status}</td>
-            <td class="py-3 px-3.5 border-b text-center">${actionBtn}${editBtn}</td>
+            <td class="py-3 px-3.5 border-b text-center whitespace-nowrap">${actionBtn}${editBtn}${deleteStaffBtn}</td>
           </tr>`;
         });
         tbody.innerHTML = html;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
       })
+
       .withFailureHandler((err) => app.handleError(err))
       .getUserList(this.session.token);
   },
@@ -4230,6 +4236,74 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
       })
       .withFailureHandler((err) => app.handleError(err))
       .activateUser(this.session.token, userId);
+  },
+
+  deleteMember: function(memberId, nama, saldoTabungan, saldoHijau) {
+    const totalSaldo = (saldoTabungan || 0) + (saldoHijau || 0);
+    if (totalSaldo > 0) {
+      alert(`PERINGATAN PROTEKSI SALDO:\n\nSiswa ${nama} (${memberId}) masih memiliki saldo aktif:\n• Saldo Tabungan: Rp ${(saldoTabungan||0).toLocaleString('id-ID')}\n• Saldo Hijau: Rp ${(saldoHijau||0).toLocaleString('id-ID')}\n\nPenghapusan dibatalkan demi keamanan uang kas koperasi. Silakan lakukan penarikan/pengosongan saldo terlebih dahulu.`);
+      return;
+    }
+    if (!confirm(`Apakah Anda yakin ingin MENGHAPUS PERMANEN siswa ${nama} (${memberId})?\n\nTindakan ini aman karena siswa tidak memiliki saldo, namun akun login dan data siswa akan dihapus bersih.`)) return;
+
+    this.showLoading(true);
+    google.script.run
+      .withSuccessHandler((res) => {
+        if (res.success) {
+          this.showToast(res.message, 'success');
+          this.loadMemberList();
+        } else {
+          this.showLoading(false);
+          this.showToast(res.message, 'error');
+        }
+      })
+      .withFailureHandler((err) => app.handleError(err))
+      .deleteMember(this.session.token, memberId);
+  },
+
+  deleteUser: function(userId, nama, role) {
+    if (!confirm(`Apakah Anda yakin ingin MENGHAPUS PERMANEN staff ${nama} (${role})?\n\nAkun ini tidak akan bisa login lagi.`)) return;
+    this.showLoading(true);
+    google.script.run
+      .withSuccessHandler((res) => {
+        if (res.success) {
+          this.showToast(res.message, 'success');
+          this.loadMemberList();
+        } else {
+          this.showLoading(false);
+          this.showToast(res.message, 'error');
+        }
+      })
+      .withFailureHandler((err) => app.handleError(err))
+      .deleteUser(this.session.token, userId);
+  },
+
+  reconcileDatabase: function() {
+    if (!confirm('JALANKAN REKONSILIASI DATABASE?\n\nSistem akan mendeteksi tabrakan ID (Hamizan vs Muh, Rositaa vs Naura, Gilang vs Nevita), memberikan ID unik baru untuk siswa yang berkonflik, mengaktifkan statusnya, serta memindahkan transaksi yang salah sasaran.\n\nLanjutkan?')) return;
+    this.showLoading(true);
+    google.script.run
+      .withSuccessHandler((res) => {
+        this.showLoading(false);
+        if (res.success) {
+          let detail = (res.message || 'Rekonsiliasi berhasil!') + '\n\n';
+          if (res.allocations) {
+            detail += 'Alokasi ID Baru:\n';
+            if (res.allocations.muhSulthaan) detail += `• Muh Sulthaan: ${res.allocations.muhSulthaan.old} -> ${res.allocations.muhSulthaan.newId}\n`;
+            if (res.allocations.nauradisti) detail += `• Nauradisti: ${res.allocations.nauradisti.old} -> ${res.allocations.nauradisti.newId}\n`;
+            if (res.allocations.nevita) detail += `• Nevita: ${res.allocations.nevita.old} -> ${res.allocations.nevita.newId}\n`;
+          }
+          if (res.relinkedTransactions !== undefined) {
+            detail += `\nTransaksi Nyasar yang Dipindahkan: ${res.relinkedTransactions} mutasi.\n`;
+          }
+          alert(detail);
+          this.showToast('Rekonsiliasi database berhasil!', 'success');
+          this.loadMemberList();
+        } else {
+          this.showToast(res.message, 'error');
+        }
+      })
+      .withFailureHandler((err) => app.handleError(err))
+      .reconcileConflictedStudents(this.session.token);
   },
 
   submitSiswa: function(e) {
