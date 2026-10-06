@@ -370,13 +370,33 @@ function getMemberList(token) {
 
     const prodUsers = users.filter(u => typeof isDevAccount !== 'function' || !isDevAccount(u));
 
-    // Attach dual balances & profile photos
+    // Ambil data target tabungan aktif untuk setiap siswa
+    const allTargets = getSheetData(CONFIG.SHEETS.TARGETS);
+    const activeTargetsMap = {};
+    if (Array.isArray(allTargets)) {
+      allTargets.forEach(t => {
+        if (t && t.member_id && String(t.status || '').toUpperCase() === 'AKTIF') {
+          activeTargetsMap[String(t.member_id).trim()] = {
+            targetId: t.target_id,
+            targetName: t.target_name || '',
+            targetAmount: Number(t.target_amount) || 0
+          };
+        }
+      });
+    }
+
+    // Attach dual balances, profile photos & target tabungan
     const membersWithBalance = prodMembers.map(m => {
       const dual = calculateDualBalance(m.member_id);
       m.balance = dual.tabungan; // legacy compat
       m.saldoTabungan = dual.tabungan;
       m.saldoHijau = dual.hijau;
       m.dualBalance = dual;
+
+      const tgt = activeTargetsMap[String(m.member_id).trim()];
+      m.targetTabungan = tgt ? tgt.targetAmount : 0;
+      m.targetName = tgt ? tgt.targetName : '';
+      m.target = tgt || null;
 
       let user = prodUsers.find(u => u.user_id && m.user_id && String(u.user_id).trim() === String(m.user_id).trim());
       if (!user && m.member_id) {

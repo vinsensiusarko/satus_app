@@ -108,6 +108,38 @@
       }
       #modal-impact .no-print, #modal-impact .no-print * { display: none !important; visibility: hidden !important; }
 
+      #modal-kartu-siswa:not(.hidden), #modal-kartu-siswa:not(.hidden) * { visibility: visible; }
+      #modal-kartu-siswa:not(.hidden) { 
+        position: absolute !important; 
+        left: 0 !important; 
+        top: 0 !important; 
+        width: 100% !important; 
+        margin: 0 !important; 
+        padding: 30px 0 !important; 
+        background: #ffffff !important; 
+        display: flex !important;
+        justify-content: center !important;
+      }
+      #modal-kartu-siswa:not(.hidden) > div {
+        box-shadow: none !important;
+        border: none !important;
+        background: transparent !important;
+        max-width: 100% !important;
+        width: auto !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      #printable-card-siswa {
+        border: 2px dashed #94a3b8 !important;
+        border-radius: 16px !important;
+        box-shadow: none !important;
+        margin: 0 auto !important;
+        page-break-inside: avoid !important;
+        width: 300px !important;
+        max-width: 300px !important;
+      }
+      #modal-kartu-siswa .no-print, #modal-kartu-siswa .no-print * { display: none !important; visibility: hidden !important; }
+
       .no-print, .no-print * { display: none !important; visibility: hidden !important; }
     }
     
@@ -394,6 +426,71 @@
         <button type="button" onclick="app.proceedLogout()" class="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-md shadow-red-600/20 transition active:scale-95 flex items-center justify-center gap-1.5">
           <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
           Ya, Keluar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Kartu Siswa Digital (Cetak & Preview) -->
+  <div id="modal-kartu-siswa" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center z-[80] p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full shadow-2xl overflow-hidden border border-slate-200 animate-scale-in">
+      <!-- Modal Header (no-print) -->
+      <div class="no-print flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50">
+        <div class="flex items-center space-x-2">
+          <i data-lucide="qr-code" class="w-5 h-5 text-green-600"></i>
+          <h3 class="font-bold text-slate-800 text-sm">Kartu Siswa Digital</h3>
+        </div>
+        <button type="button" onclick="document.getElementById('modal-kartu-siswa').classList.add('hidden')" class="w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Printable Card Wrapper -->
+      <div class="p-6 flex flex-col items-center">
+        <!-- Physical Card Container (Standard ID-1 Proportion: 300px width) -->
+        <div id="printable-card-siswa" class="w-full bg-white rounded-2xl border-2 border-slate-200 p-5 shadow-sm flex flex-col items-center text-center relative overflow-hidden" style="max-width: 300px;">
+          <!-- Top Header Brand -->
+          <div class="w-full flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+            <div class="flex items-center space-x-2">
+              <img id="card-logo" src="" alt="SATUS" class="w-7 h-7 object-contain">
+              <div class="text-left">
+                <h4 class="font-black text-xs text-green-700 tracking-wider leading-none">SATUS DIGITAL</h4>
+                <p class="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">KARTU IDENTITAS SISWA</p>
+              </div>
+            </div>
+            <div class="bg-green-50 text-green-700 text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-green-200">
+              MEMBER
+            </div>
+          </div>
+
+          <!-- QR Code Container -->
+          <div id="card-qr-container" class="bg-white p-2 rounded-xl border border-slate-200 shadow-inner w-44 h-44 flex items-center justify-center mb-3">
+            <!-- QR Image injected dynamically -->
+          </div>
+
+          <!-- Student Name & ID/NIS (No Kelas) -->
+          <h3 id="card-nama" class="font-black text-sm text-slate-800 tracking-tight mb-0.5 line-clamp-1">Nama Siswa</h3>
+          <p id="card-id-nis" class="font-mono text-xs font-bold text-blue-600 mb-3">ID: -- | NIS: --</p>
+
+          <!-- Target Tabungan Badge -->
+          <div class="w-full bg-emerald-50 rounded-xl p-2.5 border border-emerald-200/80 flex items-center justify-center space-x-2">
+            <span class="text-base">🎯</span>
+            <div class="text-left">
+              <p class="text-[9px] font-bold text-emerald-800 uppercase tracking-wider leading-tight">Target Tabungan</p>
+              <p id="card-target-text" class="text-xs font-black text-emerald-700 leading-tight">Rp 0</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer (no-print) -->
+      <div class="no-print p-4 border-t border-slate-100 bg-slate-50 flex items-center gap-2">
+        <button type="button" onclick="document.getElementById('modal-kartu-siswa').classList.add('hidden')" class="flex-1 bg-white hover:bg-slate-100 text-slate-700 font-bold py-2.5 px-3 rounded-xl text-xs transition border border-slate-200 shadow-sm active:scale-95">
+          Tutup
+        </button>
+        <button type="button" onclick="app.printKartuSiswa()" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 px-3 rounded-xl text-xs transition shadow-sm flex items-center justify-center space-x-1.5 active:scale-95">
+          <i data-lucide="printer" class="w-4 h-4"></i>
+          <span>Cetak Kartu</span>
         </button>
       </div>
     </div>

@@ -3524,7 +3524,12 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
       .withSuccessHandler((res) => {
         if (res.success) {
           const d = res.data;
-          app.myMemberData = d.profile;
+          app.myMemberData = {
+            ...(d.profile || {}),
+            targetTabungan: d.target ? (d.target.target_amount || d.target.targetAmount || 0) : 0,
+            targetName: d.target ? (d.target.target_name || d.target.targetName || '') : '',
+            target: d.target
+          };
           app.siswaDualBalance = d.dualBalance || { tabungan: d.saldoTabungan || 0, hijau: d.saldoHijau || 0 };
           
           const p = d.profile || {};
@@ -3690,6 +3695,74 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
           </div>
         </div>
       </div>`;
+  },
+
+  openModalKartuSiswaByMemberId: function(memberId) {
+    if (!this.rawMembers || this.rawMembers.length === 0) return;
+    const member = this.rawMembers.find(m => String(m.member_id).trim() === String(memberId).trim());
+    if (member) {
+      this.openModalKartuSiswa(member);
+    } else {
+      this.showToast('Data siswa tidak ditemukan', 'error');
+    }
+  },
+
+  openModalKartuSiswa: function(memberData) {
+    if (!memberData) {
+      this.showToast('Data siswa tidak ditemukan', 'error');
+      return;
+    }
+    const modal = document.getElementById('modal-kartu-siswa');
+    if (!modal) return;
+
+    const mid = memberData.member_id || memberData.memberId || '-';
+    const nama = memberData.nama || memberData.name || 'Siswa';
+    const nis = memberData.nis || '-';
+    
+    // Set text elements
+    const logoEl = document.getElementById('card-logo');
+    if (logoEl) logoEl.src = this.getLogoSrc();
+
+    const namaEl = document.getElementById('card-nama');
+    if (namaEl) namaEl.innerText = nama;
+
+    const idNisEl = document.getElementById('card-id-nis');
+    if (idNisEl) idNisEl.innerText = `ID: ${mid} | NIS: ${nis}`;
+
+    // Target Tabungan Info (Tanpa Kelas)
+    const targetEl = document.getElementById('card-target-text');
+    if (targetEl) {
+      let tgtAmount = memberData.targetTabungan || (memberData.target ? (memberData.target.targetAmount || memberData.target.target_amount) : 0);
+      let tgtName = memberData.targetName || (memberData.target ? (memberData.target.targetName || memberData.target.target_name) : '');
+      if (tgtAmount && Number(tgtAmount) > 0) {
+        targetEl.innerText = tgtName ? `Rp ${Number(tgtAmount).toLocaleString('id-ID')} (${tgtName})` : `Rp ${Number(tgtAmount).toLocaleString('id-ID')}`;
+      } else {
+        targetEl.innerText = 'Belum diatur';
+      }
+    }
+
+    // Generate High-Res QR Code
+    const qrContainer = document.getElementById('card-qr-container');
+    if (qrContainer) {
+      const url = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&ecc=H&data=${encodeURIComponent(mid)}`;
+      const logoSrc = this.getLogoSrc();
+      qrContainer.innerHTML = `
+        <div class="relative w-full h-full flex items-center justify-center">
+          <img src="${url}" alt="QR" class="w-full h-full object-contain mix-blend-multiply">
+          <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div class="w-8 h-8 bg-white rounded-lg p-0.5 shadow-md border border-slate-200/80 flex items-center justify-center">
+              <img src="${logoSrc}" alt="SATUS" class="w-full h-full object-contain rounded">
+            </div>
+          </div>
+        </div>`;
+    }
+
+    modal.classList.remove('hidden');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  },
+
+  printKartuSiswa: function() {
+    window.print();
   },
 
   openModalTukarBibit: function() {
@@ -3912,6 +3985,7 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
             actionBtn = `<button onclick="app.activateMember('${m.member_id}')" class="bg-green-600 hover:bg-green-700 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm">Aktifkan</button>`;
           }
           let editBtn = `<button onclick="app.openEditSiswa('${m.member_id}')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-2.5 py-1 rounded-lg text-xs font-bold ml-1 shadow-sm">Edit</button>`;
+          let printCardBtn = `<button onclick="app.openModalKartuSiswaByMemberId('${m.member_id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-lg text-xs font-bold ml-1 shadow-sm inline-flex items-center gap-1 active:scale-95" title="Cetak Kartu Siswa"><i data-lucide="printer" class="w-3 h-3"></i> Kartu</button>`;
           
           html += `<tr>
             <td class="py-3 px-3.5 border-b font-mono font-bold text-slate-800">${m.member_id}</td>
@@ -3920,10 +3994,11 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
             <td class="py-3 px-3.5 border-b ${statusClass}">${m.status}</td>
             <td class="py-3 px-3.5 border-b font-black text-right text-green-700">Rp ${(m.saldoTabungan || m.balance || 0).toLocaleString('id-ID')}</td>
             <td class="py-3 px-3.5 border-b font-black text-right text-emerald-700">Rp ${(m.saldoHijau || 0).toLocaleString('id-ID')}</td>
-            <td class="py-3 px-3.5 border-b text-center">${actionBtn}${editBtn}</td>
+            <td class="py-3 px-3.5 border-b text-center whitespace-nowrap">${actionBtn}${editBtn}${printCardBtn}</td>
           </tr>`;
         });
         tbody.innerHTML = html;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
       })
       .withFailureHandler((err) => app.handleError(err))
       .getMemberList(this.session.token);
