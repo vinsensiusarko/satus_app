@@ -754,14 +754,13 @@ const app = {
           let actionCol = '';
 
           if (v.status === 'PENDING') {
-            actionCol = `<div class="flex gap-1 justify-center">
-              <button onclick="app.approveVoid('${v.void_id}')" class="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded-lg text-xs font-bold shadow-sm">Setujui</button>
-              <button onclick="app.rejectVoid('${v.void_id}')" class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded-lg text-xs font-bold shadow-sm">Tolak</button>
-            </div>`;
+            actionCol = `
+              <button type="button" onclick="app.approveVoid('${v.void_id}')" class="inline-flex items-center justify-center gap-1 bg-green-600 hover:bg-green-700 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm transition active:scale-95"><i data-lucide="check" class="w-3.5 h-3.5"></i><span>Setujui</span></button>
+              <button type="button" onclick="app.rejectVoid('${v.void_id}')" class="inline-flex items-center justify-center gap-1 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm transition active:scale-95"><i data-lucide="x" class="w-3.5 h-3.5"></i><span>Tolak</span></button>`;
           } else if (v.status === 'APPROVED') {
-            actionCol = '<span class="text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full font-bold">Disetujui</span>';
+            actionCol = '<span class="inline-flex items-center gap-1 text-green-700 bg-green-50 border border-green-200 px-2.5 py-0.5 rounded-full font-bold text-xs"><i data-lucide="check-circle" class="w-3 h-3 text-green-600"></i><span>Disetujui</span></span>';
           } else {
-            actionCol = `<span class="text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full font-bold" title="${v.reject_reason}">Ditolak</span>`;
+            actionCol = `<span class="inline-flex items-center gap-1 text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full font-bold text-xs" title="${v.reject_reason || ''}"><i data-lucide="x-circle" class="w-3 h-3 text-rose-600"></i><span>Ditolak</span></span>`;
           }
 
           html += `<tr>
@@ -771,11 +770,16 @@ const app = {
             <td class="py-3 px-3 font-mono">${v.cashier_id}</td>
             <td class="py-3 px-3 text-right font-black text-slate-800">Rp ${(v.amount || 0).toLocaleString('id-ID')}</td>
             <td class="py-3 px-3 text-slate-600 text-xs">${v.reason}</td>
-            <td class="py-3 px-3 text-center">${actionCol}</td>
+            <td class="py-3 px-3 text-center whitespace-nowrap">
+              <div class="inline-flex items-center justify-center gap-1.5 flex-wrap">
+                ${actionCol}
+              </div>
+            </td>
           </tr>`;
         });
 
         tbody.innerHTML = html;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
         const badge = document.getElementById('m-badge-pending-void');
         if (badge) badge.innerText = pendingCount;
       })
@@ -1222,13 +1226,15 @@ const app = {
                     <div class="text-[11px] text-slate-500 truncate">${s.body}</div>
                   </td>
                   <td class="py-2.5 px-3 text-center">${statusBadge}</td>
-                  <td class="py-2.5 px-3 text-right space-x-1">
-                    <button type="button" onclick="app.sendScheduledNotificationDirect('${s.schedule_id}')" title="Kirim Sekarang" class="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 transition">
-                      <i data-lucide="send" class="w-3.5 h-3.5 inline"></i>
-                    </button>
-                    <button type="button" onclick="app.deleteScheduledNotification('${s.schedule_id}')" title="Hapus Jadwal" class="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 transition">
-                      <i data-lucide="trash-2" class="w-3.5 h-3.5 inline"></i>
-                    </button>
+                  <td class="py-2.5 px-3 text-right whitespace-nowrap">
+                    <div class="inline-flex items-center justify-end gap-1.5">
+                      <button type="button" onclick="app.sendScheduledNotificationDirect('${s.schedule_id}')" title="Kirim Sekarang" class="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition active:scale-95 inline-flex items-center justify-center">
+                        <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button type="button" onclick="app.deleteScheduledNotification('${s.schedule_id}')" title="Hapus Jadwal" class="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition active:scale-95 inline-flex items-center justify-center">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               `;
@@ -2715,21 +2721,19 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
           let actionBtns = '';
 
           if (req.status === 'PENDING') {
-            statusBadge = '<span class="bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase"><i class="fas fa-clock mr-0.5"></i> Menunggu</span>';
+            statusBadge = '<span class="inline-flex items-center gap-1 bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase"><i data-lucide="clock" class="w-3 h-3 text-amber-600"></i> Menunggu</span>';
             actionBtns = `
-              <div class="flex space-x-1 justify-end">
-                <button onclick="app.approveBibit('${req.request_id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-xs font-bold shadow-sm" title="Setujui & Potong Saldo Hijau"><i class="fas fa-check"></i> Setujui</button>
-                <button onclick="app.rejectBibit('${req.request_id}')" class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs font-bold shadow-sm" title="Tolak Pengajuan"><i class="fas fa-times"></i> Tolak</button>
-              </div>`;
+              <button type="button" onclick="app.approveBibit('${req.request_id}')" class="inline-flex items-center justify-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm transition active:scale-95" title="Setujui & Potong Saldo Hijau"><i data-lucide="check" class="w-3.5 h-3.5"></i><span>Setujui</span></button>
+              <button type="button" onclick="app.rejectBibit('${req.request_id}')" class="inline-flex items-center justify-center gap-1 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm transition active:scale-95" title="Tolak Pengajuan"><i data-lucide="x" class="w-3.5 h-3.5"></i><span>Tolak</span></button>`;
           } else if (req.status === 'APPROVED') {
-            statusBadge = '<span class="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase"><i class="fas fa-thumbs-up mr-0.5"></i> Disetujui</span>';
-            actionBtns = `<button onclick="app.fulfillBibit('${req.request_id}')" class="bg-purple-600 hover:bg-purple-700 text-white px-2.5 py-1 rounded text-xs font-bold shadow-sm"><i class="fas fa-hand-holding-heart mr-0.5"></i> Serahkan Bibit</button>`;
+            statusBadge = '<span class="inline-flex items-center gap-1 bg-blue-50 text-blue-800 border border-blue-200 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase"><i data-lucide="thumbs-up" class="w-3 h-3 text-blue-600"></i> Disetujui</span>';
+            actionBtns = `<button type="button" onclick="app.fulfillBibit('${req.request_id}')" class="inline-flex items-center justify-center gap-1 bg-purple-600 hover:bg-purple-700 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm transition active:scale-95"><i data-lucide="gift" class="w-3.5 h-3.5"></i><span>Serahkan</span></button>`;
           } else if (req.status === 'FULFILLED') {
-            statusBadge = '<span class="bg-green-100 text-green-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase"><i class="fas fa-check-circle mr-0.5"></i> Terealisasi</span>';
-            actionBtns = '<span class="text-[11px] text-gray-400 italic">Selesai</span>';
+            statusBadge = '<span class="inline-flex items-center gap-1 bg-green-50 text-green-800 border border-green-200 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase"><i data-lucide="check-circle" class="w-3 h-3 text-green-600"></i> Terealisasi</span>';
+            actionBtns = '<span class="inline-flex items-center gap-1 bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded-full text-[11px] font-bold"><i data-lucide="check-circle" class="w-3 h-3 text-slate-400"></i> Selesai</span>';
           } else if (req.status === 'REJECTED') {
-            statusBadge = `<span class="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase" title="${req.reject_reason || ''}"><i class="fas fa-times-circle mr-0.5"></i> Ditolak</span>`;
-            actionBtns = `<span class="text-[11px] text-red-400" title="${req.reject_reason || ''}">Ditolak</span>`;
+            statusBadge = `<span class="inline-flex items-center gap-1 bg-rose-50 text-rose-800 border border-rose-200 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase" title="${req.reject_reason || ''}"><i data-lucide="x-circle" class="w-3 h-3 text-rose-600"></i> Ditolak</span>`;
+            actionBtns = `<span class="inline-flex items-center gap-1 bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-full text-[11px] font-bold" title="${req.reject_reason || ''}"><i data-lucide="x-circle" class="w-3 h-3 text-rose-500"></i> Ditolak</span>`;
           }
 
           html += `<tr>
@@ -2742,10 +2746,15 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
             <td class="p-3 border-b font-black text-gray-800">${req.quantity} Bibit</td>
             <td class="p-3 border-b font-bold text-emerald-700">Rp ${(req.total_value || 0).toLocaleString('id-ID')}</td>
             <td class="p-3 border-b">${statusBadge}</td>
-            <td class="p-3 border-b text-right">${actionBtns}</td>
+            <td class="p-3 border-b text-center whitespace-nowrap">
+              <div class="inline-flex items-center justify-center gap-1.5 flex-wrap">
+                ${actionBtns}
+              </div>
+            </td>
           </tr>`;
         });
         tbody.innerHTML = html;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
       })
       .withFailureHandler((err) => app.handleError(err))
       .getSeedRequests(this.session.token);
@@ -3871,10 +3880,10 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
         res.data.forEach(req => {
           const dateStr = new Date(req.requested_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
           let statusBadge = '';
-          if (req.status === 'PENDING') statusBadge = '<span class="bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded-full"><i class="fas fa-clock mr-0.5"></i> Menunggu Persetujuan</span>';
-          else if (req.status === 'APPROVED') statusBadge = '<span class="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full"><i class="fas fa-thumbs-up mr-0.5"></i> Disetujui (Siap Ambil)</span>';
-          else if (req.status === 'FULFILLED') statusBadge = '<span class="bg-green-100 text-green-800 text-[10px] font-bold px-2 py-0.5 rounded-full"><i class="fas fa-check-circle mr-0.5"></i> Diterima</span>';
-          else if (req.status === 'REJECTED') statusBadge = `<span class="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full"><i class="fas fa-times-circle mr-0.5"></i> Ditolak: ${req.reject_reason || '-'}</span>`;
+          if (req.status === 'PENDING') statusBadge = '<span class="inline-flex items-center gap-1 bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-full"><i data-lucide="clock" class="w-3 h-3 text-amber-600"></i> Menunggu Persetujuan</span>';
+          else if (req.status === 'APPROVED') statusBadge = '<span class="inline-flex items-center gap-1 bg-blue-50 text-blue-800 border border-blue-200 text-[10px] font-bold px-2 py-0.5 rounded-full"><i data-lucide="thumbs-up" class="w-3 h-3 text-blue-600"></i> Disetujui (Siap Ambil)</span>';
+          else if (req.status === 'FULFILLED') statusBadge = '<span class="inline-flex items-center gap-1 bg-green-50 text-green-800 border border-green-200 text-[10px] font-bold px-2 py-0.5 rounded-full"><i data-lucide="check-circle" class="w-3 h-3 text-green-600"></i> Diterima</span>';
+          else if (req.status === 'REJECTED') statusBadge = `<span class="inline-flex items-center gap-1 bg-rose-50 text-rose-800 border border-rose-200 text-[10px] font-bold px-2 py-0.5 rounded-full" title="${req.reject_reason || ''}"><i data-lucide="x-circle" class="w-3 h-3 text-rose-600"></i> Ditolak: ${req.reject_reason || '-'}</span>`;
 
           html += `<tr>
             <td class="p-3 border-b">${dateStr}</td>
@@ -3885,6 +3894,7 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
           </tr>`;
         });
         tbody.innerHTML = html;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
       })
       .withFailureHandler((err) => app.handleError(err))
       .getSiswaSeedRequests(this.session.token);
@@ -3978,15 +3988,15 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
           let statusClass = m.status === 'AKTIF' ? 'text-green-600 font-extrabold' : (m.status === 'MENUNGGU' ? 'text-yellow-600 font-extrabold' : 'text-red-600 font-extrabold');
           let actionBtn = '';
           if (m.status === 'MENUNGGU') {
-            actionBtn = `<button onclick="app.approveMember('${m.member_id}')" class="bg-green-600 hover:bg-green-700 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm">Setujui</button>`;
+            actionBtn = `<button type="button" onclick="app.approveMember('${m.member_id}')" class="inline-flex items-center justify-center gap-1 bg-green-600 hover:bg-green-700 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm transition active:scale-95" title="Setujui Siswa"><i data-lucide="check" class="w-3.5 h-3.5"></i><span>Setujui</span></button>`;
           } else if (m.status === 'AKTIF') {
-            actionBtn = `<button onclick="app.deactivateMember('${m.member_id}')" class="bg-red-500 hover:bg-red-600 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm">Nonaktifkan</button>`;
+            actionBtn = `<button type="button" onclick="app.deactivateMember('${m.member_id}')" class="inline-flex items-center justify-center gap-1 bg-slate-100 hover:bg-amber-50 text-slate-600 hover:text-amber-700 border border-slate-200 hover:border-amber-200 px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm transition active:scale-95" title="Nonaktifkan Siswa"><i data-lucide="user-x" class="w-3.5 h-3.5 text-amber-600"></i><span>Nonaktifkan</span></button>`;
           } else if (m.status === 'NONAKTIF') {
-            actionBtn = `<button onclick="app.activateMember('${m.member_id}')" class="bg-green-600 hover:bg-green-700 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm">Aktifkan</button>`;
+            actionBtn = `<button type="button" onclick="app.activateMember('${m.member_id}')" class="inline-flex items-center justify-center gap-1 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm transition active:scale-95" title="Aktifkan Siswa"><i data-lucide="user-check" class="w-3.5 h-3.5 text-green-600"></i><span>Aktifkan</span></button>`;
           }
-          let editBtn = `<button onclick="app.openEditSiswa('${m.member_id}')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-2.5 py-1 rounded-lg text-xs font-bold ml-1 shadow-sm">Edit</button>`;
-          let printCardBtn = `<button onclick="app.openModalKartuSiswaByMemberId('${m.member_id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-lg text-xs font-bold ml-1 shadow-sm inline-flex items-center gap-1 active:scale-95" title="Cetak Kartu Siswa"><i data-lucide="printer" class="w-3 h-3"></i> Kartu</button>`;
-          let deleteBtn = `<button onclick="app.deleteMember('${m.member_id}', '${(m.nama || '').replace(/'/g, "\\'")}', ${m.saldoTabungan || m.balance || 0}, ${m.saldoHijau || 0}, '${m.kelas || '-'}', '${m.nis || '-'}')" class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-2.5 py-1 rounded-lg text-xs font-bold ml-1 shadow-sm inline-flex items-center gap-1 active:scale-95" title="Hapus Siswa"><i data-lucide="trash-2" class="w-3 h-3"></i> Hapus</button>`;
+          let editBtn = `<button type="button" onclick="app.openEditSiswa('${m.member_id}')" class="inline-flex items-center justify-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm transition active:scale-95" title="Edit Data Siswa"><i data-lucide="pencil" class="w-3.5 h-3.5 text-amber-600"></i><span>Edit</span></button>`;
+          let printCardBtn = `<button type="button" onclick="app.openModalKartuSiswaByMemberId('${m.member_id}')" class="inline-flex items-center justify-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm transition active:scale-95" title="Cetak Kartu Siswa"><i data-lucide="printer" class="w-3.5 h-3.5 text-blue-600"></i><span>Kartu</span></button>`;
+          let deleteBtn = `<button type="button" onclick="app.deleteMember('${m.member_id}', '${(m.nama || '').replace(/'/g, "\\'")}', ${m.saldoTabungan || m.balance || 0}, ${m.saldoHijau || 0}, '${m.kelas || '-'}', '${m.nis || '-'}')" class="inline-flex items-center justify-center gap-1 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm transition active:scale-95" title="Hapus Siswa"><i data-lucide="trash-2" class="w-3.5 h-3.5 text-rose-600"></i><span>Hapus</span></button>`;
           
           html += `<tr>
             <td class="py-3 px-3.5 border-b font-mono font-bold text-slate-800">${m.member_id}</td>
@@ -3995,7 +4005,14 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
             <td class="py-3 px-3.5 border-b ${statusClass}">${m.status}</td>
             <td class="py-3 px-3.5 border-b font-black text-right text-green-700">Rp ${(m.saldoTabungan || m.balance || 0).toLocaleString('id-ID')}</td>
             <td class="py-3 px-3.5 border-b font-black text-right text-emerald-700">Rp ${(m.saldoHijau || 0).toLocaleString('id-ID')}</td>
-            <td class="py-3 px-3.5 border-b text-center whitespace-nowrap">${actionBtn}${editBtn}${printCardBtn}${deleteBtn}</td>
+            <td class="py-3 px-3.5 border-b text-center whitespace-nowrap">
+              <div class="inline-flex items-center justify-center gap-1.5 flex-wrap">
+                ${actionBtn}
+                ${editBtn}
+                ${printCardBtn}
+                ${deleteBtn}
+              </div>
+            </td>
           </tr>`;
         });
         tbody.innerHTML = html;
@@ -4038,14 +4055,14 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
           let actionBtn = '';
           if (u.role !== 'MANAGER') {
             if (u.status === 'AKTIF') {
-              actionBtn = `<button onclick="app.deactivateUser('${u.user_id}')" class="bg-red-500 hover:bg-red-600 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm">Nonaktifkan</button>`;
+              actionBtn = `<button type="button" onclick="app.deactivateUser('${u.user_id}')" class="inline-flex items-center justify-center gap-1 bg-slate-100 hover:bg-amber-50 text-slate-600 hover:text-amber-700 border border-slate-200 hover:border-amber-200 px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm transition active:scale-95" title="Nonaktifkan Staff"><i data-lucide="user-x" class="w-3.5 h-3.5 text-amber-600"></i><span>Nonaktifkan</span></button>`;
             } else if (u.status === 'NONAKTIF') {
-              actionBtn = `<button onclick="app.activateUser('${u.user_id}')" class="bg-green-600 hover:bg-green-700 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm">Aktifkan</button>`;
+              actionBtn = `<button type="button" onclick="app.activateUser('${u.user_id}')" class="inline-flex items-center justify-center gap-1 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm transition active:scale-95" title="Aktifkan Staff"><i data-lucide="user-check" class="w-3.5 h-3.5 text-green-600"></i><span>Aktifkan</span></button>`;
             }
           }
-          let editBtn = `<button onclick="app.openEditUser('${u.user_id}')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-2.5 py-1 rounded-lg text-xs font-bold ml-1 shadow-sm">Edit</button>`;
+          let editBtn = `<button type="button" onclick="app.openEditUser('${u.user_id}')" class="inline-flex items-center justify-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm transition active:scale-95" title="Edit Data Staff"><i data-lucide="pencil" class="w-3.5 h-3.5 text-amber-600"></i><span>Edit</span></button>`;
           let deleteStaffBtn = u.role !== 'MANAGER' 
-            ? `<button onclick="app.deleteUser('${u.user_id}', '${(u.nama || '').replace(/'/g, "\\'")}', '${u.role}', '${u.username || ''}')" class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-2.5 py-1 rounded-lg text-xs font-bold ml-1 shadow-sm inline-flex items-center gap-1 active:scale-95" title="Hapus Staff"><i data-lucide="trash-2" class="w-3 h-3"></i> Hapus</button>` 
+            ? `<button type="button" onclick="app.deleteUser('${u.user_id}', '${(u.nama || '').replace(/'/g, "\\'")}', '${u.role}', '${u.username || ''}')" class="inline-flex items-center justify-center gap-1 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm transition active:scale-95" title="Hapus Staff"><i data-lucide="trash-2" class="w-3.5 h-3.5 text-rose-600"></i><span>Hapus</span></button>` 
             : '';
           
           html += `<tr>
@@ -4054,7 +4071,13 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
             <td class="py-3 px-3.5 border-b"><span class="bg-blue-50 text-blue-800 border border-blue-200 text-xs px-2.5 py-0.5 rounded-full font-extrabold">${u.role}</span></td>
             <td class="py-3 px-3.5 border-b font-mono text-slate-600">${u.username}</td>
             <td class="py-3 px-3.5 border-b ${statusClass}">${u.status}</td>
-            <td class="py-3 px-3.5 border-b text-center whitespace-nowrap">${actionBtn}${editBtn}${deleteStaffBtn}</td>
+            <td class="py-3 px-3.5 border-b text-center whitespace-nowrap">
+              <div class="inline-flex items-center justify-center gap-1.5 flex-wrap">
+                ${actionBtn}
+                ${editBtn}
+                ${deleteStaffBtn}
+              </div>
+            </td>
           </tr>`;
         });
         tbody.innerHTML = html;
@@ -4502,12 +4525,18 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
             <td class="py-2.5 px-4 border-b font-bold">${p.waste_type}</td>
             <td class="py-2.5 px-4 border-b font-black text-gray-800">Rp ${(p.price || 0).toLocaleString('id-ID')} / ${p.unit}</td>
             <td class="py-2.5 px-4 border-b ${statusCls}">${p.status}</td>
-            <td class="py-2.5 px-4 border-b">
-              <button onclick="app.openEditWastePrice('${rowDateIso}')" class="bg-yellow-500 text-white px-2 py-1 rounded text-xs hover:bg-yellow-600">Edit</button>
+            <td class="py-2.5 px-4 border-b text-center whitespace-nowrap">
+              <div class="inline-flex items-center justify-center">
+                <button type="button" onclick="app.openEditWastePrice('${rowDateIso}')" class="inline-flex items-center justify-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm transition active:scale-95" title="Edit Harga Sampah">
+                  <i data-lucide="pencil" class="w-3.5 h-3.5 text-amber-600"></i>
+                  <span>Edit</span>
+                </button>
+              </div>
             </td>
           </tr>`;
         });
         tbody.innerHTML = html;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
       })
       .withFailureHandler((err) => app.handleError(err))
       .getAllWastePrices(this.session.token);
@@ -4624,12 +4653,18 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
             <td class="py-3 px-4 border-b font-black text-right text-green-700">Rp ${(p.price || 0).toLocaleString('id-ID')}</td>
             <td class="py-3 px-4 border-b font-black text-right text-emerald-800">Rp ${(p.green_price || p.price || 0).toLocaleString('id-ID')}</td>
             <td class="py-3 px-4 border-b font-extrabold text-center text-slate-700">${p.stock}</td>
-            <td class="py-3 px-4 border-b text-center">
-              <button onclick="app.openEditProduct('${p.product_id}')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm">Edit</button>
+            <td class="py-3 px-4 border-b text-center whitespace-nowrap">
+              <div class="inline-flex items-center justify-center">
+                <button type="button" onclick="app.openEditProduct('${p.product_id}')" class="inline-flex items-center justify-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm transition active:scale-95" title="Edit Produk">
+                  <i data-lucide="pencil" class="w-3.5 h-3.5 text-amber-600"></i>
+                  <span>Edit</span>
+                </button>
+              </div>
             </td>
           </tr>`;
         });
         tbody.innerHTML = html;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
       })
       .withFailureHandler((err) => app.handleError(err))
       .getProductList(this.session.token);
