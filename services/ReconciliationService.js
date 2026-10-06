@@ -152,22 +152,22 @@ function reconcileConflictedStudents(token) {
 
       const studentFixMap = [
         {
-          targetNamePart: 'muh',
-          targetFullName: 'Muh Sulthaan',
+          targetNamePart: 'sulthaan',
+          targetFullName: "Muh Sulthaan Nuril 'Ilmin",
           oldId: 'KH-2026-025',
           newId: newIdMuh,
           originalPartner: 'Hamizan'
         },
         {
           targetNamePart: 'naura',
-          targetFullName: 'Nauradisti',
+          targetFullName: "Nauradisti Latifa Nur'aini",
           oldId: 'KH-2026-026',
           newId: newIdNaura,
-          originalPartner: 'Rositaa'
+          originalPartner: 'Rosita'
         },
         {
           targetNamePart: 'nevita',
-          targetFullName: 'Nevita',
+          targetFullName: 'Nevita Putri Aulia',
           oldId: 'KH-2026-027',
           newId: newIdNevita,
           originalPartner: 'Gilang'
@@ -179,13 +179,13 @@ function reconcileConflictedStudents(token) {
       // 2. Perbaiki sheet USERS
       studentFixMap.forEach(item => {
         let userUpdated = false;
-        // Cari user yang namanya cocok dengan targetNamePart
+        // Cari user yang namanya cocok dengan targetNamePart dan oldId
         for (let u = 1; u < userData.length; u++) {
           const uName = getCleanString(userData[u][uNameIdx]).toLowerCase();
           const uId = getCleanString(userData[u][uIdIdx]);
           const uRole = getCleanString(userData[u][uRoleIdx]);
 
-          if (uRole === CONFIG.ROLES.SISWA && uName.includes(item.targetNamePart)) {
+          if (uRole === CONFIG.ROLES.SISWA && (uId === item.oldId || uId === '') && uName.includes(item.targetNamePart)) {
             userSheet.getRange(u + 1, uIdIdx + 1).setValue(item.newId);
             userSheet.getRange(u + 1, uStatusIdx + 1).setValue('AKTIF');
             userUpdated = true;
@@ -203,7 +203,7 @@ function reconcileConflictedStudents(token) {
           const mName = getCleanString(memberData[m][mNameIdx]).toLowerCase();
           const mId = getCleanString(memberData[m][mIdIdx]);
 
-          if (mName.includes(item.targetNamePart)) {
+          if ((mId === item.oldId || mId === '') && mName.includes(item.targetNamePart)) {
             memberSheet.getRange(m + 1, mIdIdx + 1).setValue(item.newId);
             memberSheet.getRange(m + 1, mUidIdx + 1).setValue(item.newId);
             memberSheet.getRange(m + 1, mStatusIdx + 1).setValue('AKTIF');
