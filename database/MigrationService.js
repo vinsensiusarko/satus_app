@@ -120,3 +120,160 @@ function runMigrationToV2() {
     return { success: false, message: 'Gagal migrasi: ' + err.message };
   }
 }
+
+/**
+ * Migrasi Menyeluruh ke Single Master Table Users:
+ * 1. Menjamin kolom kesiswaan ('nis', 'kelas', 'qr_data', 'tanggal_daftar', 'photo_url') di sheet Users
+ * 2. Membuat cadangan fisik sheet Members menjadi 'Backup_Members_YYYYMMDD' sebagai safety net
+ * 3. Menyalin/menyelaraskan semua NIS, Kelas, Tanggal Daftar dari Members ke Users
+ * 4. Memastikan tidak ada siswa di Members yang tertinggal (membuat baris di Users jika belum ada)
+ * 5. Menghapus sheet Members dari spreadsheet Google Sheets
+ * 6. Membersihkan cache dan mencatat Audit Log
+ */
+function migrateToSingleMasterUsers(token) {
+  return withScriptLock(function() {
+    try {
+      const session = requireRole(token, [CONFIG.ROLES.MANAGER]);
+      const ss = getSpreadsheet();
+      const mSheet = ss.getSheetByName(CONFIG.SHEETS.MEMBERS);
+
+      if (!mSheet) {
+        return {
+          success: true,
+          message: 'Sheet Members sudah tidak ada di spreadsheet (sudah bermigrasi ke Single Master Table Users).',
+          alreadyMigrated: true
+        };
+      }
+
+      // 1. Pastikan kolom kesiswaan ada di Users
+      ensureUserStudentColumns();
+      const uSheet = getSheet(CONFIG.SHEETS.USERS);
+      const uData = uSheet.getDataRange().getValues();
+      const uHeaders = uData[0];
+      const uIdIdx = uHeaders.indexOf('user_id');
+      const uNameIdx = uHeaders.indexOf('nama');
+      const uNisIdx = uHeaders.indexOf('nis');
+      const uKelasIdx = uHeaders.indexOf('kelas');
+      const uQrIdx = uHeaders.indexOf('qr_data');
+      const uTglIdx = uHeaders.indexOf('tanggal_daftar');
+      const uStatusIdx = uHeaders.indexOf('status');
+
+      // 2. Baca seluruh data dari Members
+      const mData = mSheet.getDataRange().getValues();
+      const mHeaders = mData[0];
+      const mIdIdx = mHeaders.indexOf('member_id');
+      const mUidIdx = mHeaders.indexOf('user_id');
+      const mNamaIdx = mHeaders.indexOf('nama');
+      const mNisIdx = mHeaders.indexOf('nis');
+      const mKelasIdx = mHeaders.indexOf('kelas');
+      const mTglIdx = mHeaders.indexOf('tanggal_daftar');
+      const mStatusIdx = mHeaders.indexOf('status');
+      const mQrIdx = mHeaders.indexOf('qr_data');
+
+      // 3. Buat backup sheet aman: Backup_Members_YYYYMMDD
+      const dateStr = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyyMMdd');
+      const backupSheetName = 'Backup_Members_' + dateStr;
+      let backupSheet = ss.getSheetByName(backupSheetName);
+      if (!backupSheet) {
+        backupSheet = ss.insertSheet(backupSheetName);
+        const sourceRange = mSheet.getDataRange();
+        const targetRange = backupSheet.getRange(1, 1, mData.length, mHeaders.length);
+        targetRange.setValues(sourceRange.getValues());
+        backupSheet.setFrozenRows(1);
+        try {
+          backupSheet.getRange(1, 1, 1, mHeaders.length).setFontWeight('bold').setBackground('#d1fae5');
+        } catch(e) {}
+      }
+
+      // 4. Backfill data dari Members ke Users
+      let updatedCount = 0;
+      let insertedCount = 0;
+      const reportLogs = [];
+
+      for (let m = 1; m < mData.length; m++) {
+        const mId = String(mData[m][mIdIdx] || '').trim();
+        const mUid = String(mData[m][mUidIdx] || '').trim();
+        const mNama = String(mData[m][mNamaIdx] || '').trim();
+        const mNis = mNisIdx !== -1 ? mData[m][mNisIdx] : '';
+        const mKelas = mKelasIdx !== -1 ? mData[m][mKelasIdx] : '';
+        const mTgl = mTglIdx !== -1 ? mData[m][mTglIdx] : new Date();
+        const mStatus = mStatusIdx !== -1 ? mData[m][mStatusIdx] : 'AKTIF';
+        const mQr = mQrIdx !== -1 ? mData[m][mQrIdx] : mId;
+
+        if (!mId && !mNama) continue;
+
+        // Cari di Users
+        let matchedUserRow = -1;
+        for (let u = 1; u < uData.length; u++) {
+          const rowUid = String(uData[u][uIdIdx] || '').trim();
+          const rowNama = String(uData[u][uNameIdx] || '').trim().toLowerCase();
+          if ((mId && rowUid === mId) || (mUid && rowUid === mUid) || (mNama && rowNama === mNama.toLowerCase())) {
+            matchedUserRow = u + 1; // 1-indexed row in sheet
+            break;
+          }
+        }
+
+        if (matchedUserRow !== -1) {
+          // Update data di Users jika kosong
+          if (uNisIdx !== -1 && mNis) uSheet.getRange(matchedUserRow, uNisIdx + 1).setValue(mNis);
+          if (uKelasIdx !== -1 && mKelas) uSheet.getRange(matchedUserRow, uKelasIdx + 1).setValue(mKelas);
+          if (uQrIdx !== -1 && mQr) uSheet.getRange(matchedUserRow, uQrIdx + 1).setValue(mQr);
+          if (uTglIdx !== -1 && mTgl) uSheet.getRange(matchedUserRow, uTglIdx + 1).setValue(mTgl);
+          if (mStatus === 'AKTIF' && uStatusIdx !== -1) {
+            uSheet.getRange(matchedUserRow, uStatusIdx + 1).setValue('AKTIF');
+          }
+          updatedCount++;
+          reportLogs.push(`Users: Synced data siswa ${mNama} (${mId})`);
+        } else {
+          // Buat record baru di Users jika siswa belum ada di Users
+          const newUserId = mId || mUid || generateMemberId();
+          const username = mId.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const placeholderPhoto = `https://ui-avatars.com/api/?name=${encodeURIComponent(mNama)}&background=10b981&color=fff&bold=true&format=png`;
+          appendRow(CONFIG.SHEETS.USERS, [
+            newUserId,
+            username,
+            hashPassword('siswa123'),
+            CONFIG.ROLES.SISWA,
+            mNama,
+            mStatus || 'AKTIF',
+            mTgl || new Date(),
+            placeholderPhoto,
+            mNis || '-',
+            mKelas || '-',
+            mQr || newUserId,
+            mTgl || new Date()
+          ]);
+          insertedCount++;
+          reportLogs.push(`Users: Inserted missing student ${mNama} (${newUserId})`);
+        }
+      }
+
+      // 5. Hapus sheet fisik Members dari spreadsheet
+      ss.deleteSheet(mSheet);
+      delete cachedSheets[CONFIG.SHEETS.MEMBERS];
+      delete cachedSheetData[CONFIG.SHEETS.MEMBERS];
+      delete cachedSheetData[CONFIG.SHEETS.USERS];
+
+      // 6. Catat Audit Log
+      auditLog(
+        session.userId,
+        session.role,
+        'MIGRATE_SINGLE_MASTER',
+        'SYSTEM_CONSOLIDATION',
+        `Migrasi Single Master selesai. Backup: ${backupSheetName}. Synced: ${updatedCount}, Inserted: ${insertedCount}. Sheet Members berhasil dihapus.`
+      );
+
+      return {
+        success: true,
+        message: `Migrasi ke Single Master Table Users sukses! Sheet Members telah di-backup ke ${backupSheetName} dan sheet Members asli telah dihapus.`,
+        backupSheet: backupSheetName,
+        syncedCount: updatedCount,
+        insertedCount: insertedCount,
+        logs: reportLogs
+      };
+    } catch (err) {
+      if (err.message.includes("Unauthorized")) throw err;
+      return { success: false, message: 'Gagal migrasi: ' + err.message };
+    }
+  });
+}

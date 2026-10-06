@@ -156,33 +156,30 @@ function apiLogin(params) {
 
     ensureUserPhotoColumn();
     const users = getSheetData(CONFIG.SHEETS.USERS);
-    const members = getSheetData(CONFIG.SHEETS.MEMBERS);
 
     let user = null;
     let member = null;
 
-    // 1. Direct match on Users sheet (username or user_id)
+    // 1. Direct match on Users sheet (username, user_id, or NIS)
     user = users.find(u => 
       u.username.toLowerCase() === identifier.toLowerCase() || 
-      u.user_id.toLowerCase() === identifier.toLowerCase()
+      u.user_id.toLowerCase() === identifier.toLowerCase() ||
+      (u.nis && String(u.nis).trim().toLowerCase() === identifier.toLowerCase())
     );
 
-    // 2. If not found in Users directly, search Members sheet (by member_id or NIS)
-    if (!user) {
-      member = members.find(m => 
-        (m.member_id && m.member_id.toLowerCase() === identifier.toLowerCase()) ||
-        (m.nis && String(m.nis).trim() === identifier)
-      );
-      if (member) {
-        user = users.find(u => u.user_id === member.user_id || u.user_id === member.member_id);
-      }
-    } else if (user.role === CONFIG.ROLES.SISWA) {
-      member = (typeof findMemberForUser === 'function')
-        ? findMemberForUser(user, members)
-        : members.find(m => m.user_id === user.user_id || m.member_id === user.user_id);
-      if (!member && typeof ensureMemberForStudentUser === 'function') {
-        member = ensureMemberForStudentUser(user);
-      }
+    if (user && user.role === CONFIG.ROLES.SISWA) {
+      member = (typeof getMemberById === 'function')
+        ? getMemberById(user.user_id)
+        : {
+            member_id: user.user_id,
+            user_id: user.user_id,
+            nama: user.nama,
+            nis: user.nis || '-',
+            kelas: user.kelas || '-',
+            status: user.status,
+            qr_data: user.qr_data || user.user_id,
+            photo_url: user.photo_url || ''
+          };
     }
 
     if (!user) {
@@ -394,13 +391,18 @@ function apiVerifyToken(params) {
 
     let profile = null;
     if (user.role === CONFIG.ROLES.SISWA) {
-      const members = getSheetData(CONFIG.SHEETS.MEMBERS);
-      let member = (typeof findMemberForUser === 'function')
-        ? findMemberForUser(user, members)
-        : members.find(m => m.user_id === user.user_id || m.member_id === user.user_id);
-      if (!member && typeof ensureMemberForStudentUser === 'function') {
-        member = ensureMemberForStudentUser(user);
-      }
+      let member = (typeof getMemberById === 'function')
+        ? getMemberById(user.user_id)
+        : {
+            member_id: user.user_id,
+            user_id: user.user_id,
+            nama: user.nama,
+            nis: user.nis || '-',
+            kelas: user.kelas || '-',
+            status: user.status,
+            qr_data: user.qr_data || user.user_id,
+            photo_url: user.photo_url || ''
+          };
       profile = buildStudentProfileData(user, member);
     } else if (user.role === CONFIG.ROLES.KASIR) {
       profile = buildKasirProfileData(user);

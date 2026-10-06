@@ -24,17 +24,21 @@ function getDashboardData(token) {
         });
       }
 
-      let members = getSheetData(CONFIG.SHEETS.MEMBERS);
-      let member = (typeof findMemberForUser === 'function') 
-        ? findMemberForUser(session, members) 
-        : members.find(m => m.user_id === session.userId || m.member_id === session.userId);
-      
+      let member = (typeof getMemberById === 'function') ? getMemberById(session.userId) : null;
       if (!member) {
-        // Auto-heal: sinkronisasi jika user ada di sheet Users
+        // Auto-heal: cari jika user ada di sheet Users
         const users = getSheetData(CONFIG.SHEETS.USERS);
         const user = users.find(u => u.user_id === session.userId || u.username === session.username);
-        if (user && typeof ensureMemberForStudentUser === 'function') {
-          member = ensureMemberForStudentUser(user);
+        if (user) {
+          member = {
+            member_id: user.user_id,
+            user_id: user.user_id,
+            nama: user.nama || user.username || 'Siswa',
+            nis: user.nis || '-',
+            kelas: user.kelas || '-',
+            status: user.status || CONFIG.MEMBER_STATUS.MENUNGGU,
+            qr_data: user.qr_data || user.user_id
+          };
         }
       }
 
@@ -58,12 +62,11 @@ function getDashboardData(token) {
 }
 
 function getManagerDashboard() {
-  const allMembers = getSheetData(CONFIG.SHEETS.MEMBERS);
   const allUsers = getSheetData(CONFIG.SHEETS.USERS);
   
   // Filter akun dev agar statistik dashboard produksi murni 100% data nyata
-  const members = allMembers.filter(m => typeof isDevAccount !== 'function' || !isDevAccount(m));
   const users = allUsers.filter(u => typeof isDevAccount !== 'function' || !isDevAccount(u));
+  const members = users.filter(u => String(u.role).toUpperCase() === CONFIG.ROLES.SISWA);
 
   const transactions = getSheetData(CONFIG.SHEETS.TRANSACTIONS)
     .filter(t => t.status === 'COMPLETED' && (typeof isDevAccount !== 'function' || !isDevAccount({ member_id: t.member_id })));
@@ -260,8 +263,7 @@ function getSiswaDashboard(memberId, fallbackMember) {
     };
   }
 
-  const members = getSheetData(CONFIG.SHEETS.MEMBERS);
-  let member = members.find(m => m.member_id === memberId || m.user_id === memberId);
+  let member = (typeof getMemberById === 'function') ? getMemberById(memberId) : null;
   if (!member && fallbackMember) member = fallbackMember;
 
   const users = getSheetData(CONFIG.SHEETS.USERS);
@@ -361,8 +363,8 @@ function getLaporanManager(token, period) {
       startDate = new Date(y, m, 1);
     }
 
-    const allMembers = getSheetData(CONFIG.SHEETS.MEMBERS);
-    const members = allMembers.filter(m => typeof isDevAccount !== 'function' || !isDevAccount(m));
+    const allUsers = getSheetData(CONFIG.SHEETS.USERS);
+    const members = allUsers.filter(u => String(u.role).toUpperCase() === CONFIG.ROLES.SISWA && (typeof isDevAccount !== 'function' || !isDevAccount(u)));
     const transactions = getSheetData(CONFIG.SHEETS.TRANSACTIONS)
       .filter(t => t.status === 'COMPLETED' && (typeof isDevAccount !== 'function' || !isDevAccount({ member_id: t.member_id })));
     const wastes = getSheetData(CONFIG.SHEETS.WASTE_TRANSACTIONS)

@@ -113,8 +113,8 @@ function reconcileConflictedStudents(token) {
       const uRoleIdx = uHeaders.indexOf('role');
 
       const memberSheet = getSheet(CONFIG.SHEETS.MEMBERS);
-      const memberData = memberSheet.getDataRange().getValues();
-      const mHeaders = memberData[0];
+      const memberData = memberSheet ? memberSheet.getDataRange().getValues() : [];
+      const mHeaders = memberData[0] || [];
       const mIdIdx = mHeaders.indexOf('member_id');
       const mUidIdx = mHeaders.indexOf('user_id');
       const mNameIdx = mHeaders.indexOf('nama');
@@ -131,9 +131,11 @@ function reconcileConflictedStudents(token) {
       };
 
       for (let i = 1; i < userData.length; i++) inspectSeq(userData[i][uIdIdx]);
-      for (let j = 1; j < memberData.length; j++) {
-        inspectSeq(memberData[j][mIdIdx]);
-        inspectSeq(memberData[j][mUidIdx]);
+      if (memberData.length > 1) {
+        for (let j = 1; j < memberData.length; j++) {
+          inspectSeq(memberData[j][mIdIdx]);
+          inspectSeq(memberData[j][mUidIdx]);
+        }
       }
 
       // Pastikan sequence minimal 27
@@ -196,27 +198,29 @@ function reconcileConflictedStudents(token) {
         item.userUpdated = userUpdated;
       });
 
-      // 3. Perbaiki sheet MEMBERS
-      studentFixMap.forEach(item => {
-        let memberUpdated = false;
-        for (let m = 1; m < memberData.length; m++) {
-          const mName = getCleanString(memberData[m][mNameIdx]).toLowerCase();
-          const mId = getCleanString(memberData[m][mIdIdx]);
+      // 3. Perbaiki sheet MEMBERS jika masih ada
+      if (memberSheet && memberData.length > 1) {
+        studentFixMap.forEach(item => {
+          let memberUpdated = false;
+          for (let m = 1; m < memberData.length; m++) {
+            const mName = getCleanString(memberData[m][mNameIdx]).toLowerCase();
+            const mId = getCleanString(memberData[m][mIdIdx]);
 
-          if ((mId === item.oldId || mId === '') && mName.includes(item.targetNamePart)) {
-            memberSheet.getRange(m + 1, mIdIdx + 1).setValue(item.newId);
-            memberSheet.getRange(m + 1, mUidIdx + 1).setValue(item.newId);
-            memberSheet.getRange(m + 1, mStatusIdx + 1).setValue('AKTIF');
-            if (mQrIdx !== -1) {
-              memberSheet.getRange(m + 1, mQrIdx + 1).setValue(item.newId);
+            if ((mId === item.oldId || mId === '') && mName.includes(item.targetNamePart)) {
+              memberSheet.getRange(m + 1, mIdIdx + 1).setValue(item.newId);
+              memberSheet.getRange(m + 1, mUidIdx + 1).setValue(item.newId);
+              memberSheet.getRange(m + 1, mStatusIdx + 1).setValue('AKTIF');
+              if (mQrIdx !== -1) {
+                memberSheet.getRange(m + 1, mQrIdx + 1).setValue(item.newId);
+              }
+              memberUpdated = true;
+              reportLogs.push(`Members: Update ${memberData[m][mNameIdx]} dari ${mId} -> ${item.newId} (Status: AKTIF)`);
+              break;
             }
-            memberUpdated = true;
-            reportLogs.push(`Members: Update ${memberData[m][mNameIdx]} dari ${mId} -> ${item.newId} (Status: AKTIF)`);
-            break;
           }
-        }
-        item.memberUpdated = memberUpdated;
-      });
+          item.memberUpdated = memberUpdated;
+        });
+      }
 
       // 4. Pastikan pasangan lama (Hamizan, Rositaa, Gilang) tetap memegang status AKTIF di ID aslinya
       const originalPartners = [

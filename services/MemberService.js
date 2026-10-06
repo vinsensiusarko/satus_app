@@ -15,28 +15,41 @@ function registerMember(token, data) {
 
     const memberId = generateMemberId();
     const qrData = memberId; 
-    const userId = memberId; // Use same ID for User record so it shows as KH-
+    const userId = memberId; // 1 ID untuk 1 Siswa
     const hash = hashPassword(data.password);
     
-    // Sesuai perencanaan: setiap siswa yang baru didaftarkan statusnya selalu MENUNGGU konfirmasi Manager
+    // Status awal siswa baru selalu MENUNGGU
     const initialStatus = CONFIG.MEMBER_STATUS.MENUNGGU;
+    const now = new Date();
 
-    appendRow(CONFIG.SHEETS.MEMBERS, [
-      memberId, 
-      userId, 
-      data.nama, 
-      data.nis, 
-      data.kelas, 
-      new Date(), 
-      initialStatus, 
-      qrData
-    ]);
-
-    ensureUserPhotoColumn();
+    ensureUserStudentColumns();
     const placeholderPhoto = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.nama)}&background=10b981&color=fff&bold=true&format=png`;
+
+    // 1. Simpan ke Single Master Table USERS
     appendRow(CONFIG.SHEETS.USERS, [
-      userId, data.username, hash, CONFIG.ROLES.SISWA, data.nama, initialStatus, new Date(), placeholderPhoto
+      userId, 
+      data.username, 
+      hash, 
+      CONFIG.ROLES.SISWA, 
+      data.nama, 
+      initialStatus, 
+      now, 
+      placeholderPhoto,
+      data.nis || '',
+      data.kelas || '',
+      qrData,
+      now
     ]);
+
+    // 2. Transisi: Jika sheet Members fisik masih ada di spreadsheet, sync baris untuk backup
+    try {
+      const ss = getSpreadsheet();
+      const mSheet = ss.getSheetByName(CONFIG.SHEETS.MEMBERS);
+      if (mSheet) {
+        mSheet.appendRow([memberId, userId, data.nama, data.nis || '', data.kelas || '', now, initialStatus, qrData]);
+        delete cachedSheetData[CONFIG.SHEETS.MEMBERS];
+      }
+    } catch (e) {}
 
     auditLog(session.userId, session.role, 'REGISTER_MEMBER', memberId, `Register member: ${data.nama}`);
     return { success: true, message: 'Pendaftaran berhasil, akun berstatus MENUNGGU persetujuan Manager.', memberId: memberId };
@@ -48,69 +61,66 @@ function registerMember(token, data) {
 function updateMember(token, memberId, dataUpdate) {
   try {
     const session = requireRole(token, [CONFIG.ROLES.MANAGER]);
-    const sheet = getSheet(CONFIG.SHEETS.MEMBERS);
-    const data = sheet.getDataRange().getValues();
-    const headers = data[0];
+    ensureUserStudentColumns();
+
+    const userSheet = getSheet(CONFIG.SHEETS.USERS);
+    const userData = userSheet.getDataRange().getValues();
+    const headers = userData[0];
     
-    // Find member
-    let memberRow = -1;
-    let userId = '';
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][headers.indexOf('member_id')] === memberId) {
-        memberRow = i;
-        userId = data[i][headers.indexOf('user_id')];
+    const uIdIdx = headers.indexOf('user_id');
+    const uNameIdx = headers.indexOf('username');
+    const namaIdx = headers.indexOf('nama');
+    const nisIdx = headers.indexOf('nis');
+    const kelasIdx = headers.indexOf('kelas');
+    const pwdIdx = headers.indexOf('password_hash');
+    const statusIdx = headers.indexOf('status');
+
+    // Find student in Users
+    let userRow = -1;
+    for (let i = 1; i < userData.length; i++) {
+      if (userData[i][uIdIdx] === memberId) {
+        userRow = i;
         break;
       }
     }
-    if (memberRow === -1) throw new Error('Member tidak ditemukan');
-    
-    // Update Member Data
-    if (dataUpdate.nama) sheet.getRange(memberRow + 1, headers.indexOf('nama') + 1).setValue(dataUpdate.nama);
-    if (dataUpdate.nis) sheet.getRange(memberRow + 1, headers.indexOf('nis') + 1).setValue(dataUpdate.nis);
-    if (dataUpdate.kelas) sheet.getRange(memberRow + 1, headers.indexOf('kelas') + 1).setValue(dataUpdate.kelas);
-    
-    // Handle User Data
-    if (dataUpdate.username || dataUpdate.password) {
-      if (!dataUpdate.username) throw new Error('Username wajib diisi jika ingin mengupdate login');
-      
-      const userSheet = getSheet(CONFIG.SHEETS.USERS);
-      const userData = userSheet.getDataRange().getValues();
-      const uHeaders = userData[0];
-      
-      // Check if username used
-      const existing = getSheetData(CONFIG.SHEETS.USERS).find(u => u.username === dataUpdate.username && u.user_id !== userId);
-      if (existing) throw new Error('Username sudah digunakan');
+    if (userRow === -1) throw new Error('Member tidak ditemukan');
 
-      if (userId) {
-        // Update existing user
-        for(let j = 1; j < userData.length; j++) {
-          if (userData[j][uHeaders.indexOf('user_id')] === userId) {
-            if (dataUpdate.nama) userSheet.getRange(j + 1, uHeaders.indexOf('nama') + 1).setValue(dataUpdate.nama);
-            if (dataUpdate.username) userSheet.getRange(j + 1, uHeaders.indexOf('username') + 1).setValue(dataUpdate.username);
-            if (dataUpdate.password) {
-              userSheet.getRange(j + 1, uHeaders.indexOf('password_hash') + 1).setValue(hashPassword(dataUpdate.password));
-            }
+    // Check unique username if updated
+    if (dataUpdate.username) {
+      const existing = userData.find((row, idx) => idx > 0 && idx !== userRow && row[uNameIdx] === dataUpdate.username);
+      if (existing) throw new Error('Username sudah digunakan');
+      if (uNameIdx !== -1) userSheet.getRange(userRow + 1, uNameIdx + 1).setValue(dataUpdate.username);
+    }
+
+    if (dataUpdate.nama && namaIdx !== -1) userSheet.getRange(userRow + 1, namaIdx + 1).setValue(dataUpdate.nama);
+    if (dataUpdate.nis && nisIdx !== -1) userSheet.getRange(userRow + 1, nisIdx + 1).setValue(dataUpdate.nis);
+    if (dataUpdate.kelas && kelasIdx !== -1) userSheet.getRange(userRow + 1, kelasIdx + 1).setValue(dataUpdate.kelas);
+    if (dataUpdate.password && pwdIdx !== -1) userSheet.getRange(userRow + 1, pwdIdx + 1).setValue(hashPassword(dataUpdate.password));
+    if (dataUpdate.status && statusIdx !== -1) userSheet.getRange(userRow + 1, statusIdx + 1).setValue(dataUpdate.status);
+
+    delete cachedSheetData[CONFIG.SHEETS.USERS];
+
+    // Transisi: Update sheet Members jika masih ada
+    try {
+      const ss = getSpreadsheet();
+      const mSheet = ss.getSheetByName(CONFIG.SHEETS.MEMBERS);
+      if (mSheet) {
+        const mData = mSheet.getDataRange().getValues();
+        const mH = mData[0];
+        const mIdIdx = mH.indexOf('member_id');
+        for (let m = 1; m < mData.length; m++) {
+          if (mData[m][mIdIdx] === memberId) {
+            if (dataUpdate.nama && mH.indexOf('nama') !== -1) mSheet.getRange(m + 1, mH.indexOf('nama') + 1).setValue(dataUpdate.nama);
+            if (dataUpdate.nis && mH.indexOf('nis') !== -1) mSheet.getRange(m + 1, mH.indexOf('nis') + 1).setValue(dataUpdate.nis);
+            if (dataUpdate.kelas && mH.indexOf('kelas') !== -1) mSheet.getRange(m + 1, mH.indexOf('kelas') + 1).setValue(dataUpdate.kelas);
+            if (dataUpdate.status && mH.indexOf('status') !== -1) mSheet.getRange(m + 1, mH.indexOf('status') + 1).setValue(dataUpdate.status);
             break;
           }
         }
-      } else {
-        // Create new user for legacy member
-        if (!dataUpdate.password) throw new Error('Password wajib diisi untuk membuat login baru');
-        const newUserId = memberId; // Use KH- ID
-        const hash = hashPassword(dataUpdate.password);
-        const status = data[memberRow][headers.indexOf('status')];
-        
-        appendRow(CONFIG.SHEETS.USERS, [
-          newUserId, dataUpdate.username, hash, CONFIG.ROLES.SISWA, 
-          dataUpdate.nama || data[memberRow][headers.indexOf('nama')], 
-          status, new Date()
-        ]);
-        
-        // Link new user to member
-        sheet.getRange(memberRow + 1, headers.indexOf('user_id') + 1).setValue(newUserId);
+        delete cachedSheetData[CONFIG.SHEETS.MEMBERS];
       }
-    }
-    
+    } catch (e) {}
+
     auditLog(session.userId, session.role, 'UPDATE_MEMBER', memberId, `Update data member ${memberId}`);
     return { success: true, message: `Data member berhasil diupdate` };
   } catch (error) {
@@ -121,39 +131,41 @@ function updateMember(token, memberId, dataUpdate) {
 function updateMemberStatus(token, memberId, status) {
   try {
     const session = requireRole(token, [CONFIG.ROLES.MANAGER]);
-    const sheet = getSheet(CONFIG.SHEETS.MEMBERS);
-    const data = sheet.getDataRange().getValues();
-    const headers = data[0];
-    const idIdx = headers.indexOf('member_id');
-    const statusIdx = headers.indexOf('status');
-    const userIdIdx = headers.indexOf('user_id');
-    
+    const userSheet = getSheet(CONFIG.SHEETS.USERS);
+    const userData = userSheet.getDataRange().getValues();
+    const uHeaders = userData[0];
+    const uIdIdx = uHeaders.indexOf('user_id');
+    const uStatusIdx = uHeaders.indexOf('status');
+
     let foundAny = false;
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][idIdx] === memberId) {
-        sheet.getRange(i + 1, statusIdx + 1).setValue(status);
+    for (let j = 1; j < userData.length; j++) {
+      const rowUid = userData[j][uIdIdx];
+      if (rowUid === memberId) {
+        userSheet.getRange(j + 1, uStatusIdx + 1).setValue(status);
         foundAny = true;
-        
-        // Update user status as well
-        const userId = data[i][userIdIdx];
-        const userSheet = getSheet(CONFIG.SHEETS.USERS);
-        const userData = userSheet.getDataRange().getValues();
-        const uHeaders = userData[0];
-        const uIdIdx = uHeaders.indexOf('user_id');
-        const uStatusIdx = uHeaders.indexOf('status');
-        for(let j=1; j < userData.length; j++) {
-          const rowUid = userData[j][uIdIdx];
-          if((userId && rowUid === userId) || rowUid === memberId) {
-            userSheet.getRange(j + 1, uStatusIdx + 1).setValue(status);
-          }
-        }
       }
     }
-    
-    if (foundAny) {
-      delete cachedSheetData[CONFIG.SHEETS.MEMBERS];
-      delete cachedSheetData[CONFIG.SHEETS.USERS];
 
+    // Transisi: Update sheet Members jika masih ada
+    try {
+      const ss = getSpreadsheet();
+      const mSheet = ss.getSheetByName(CONFIG.SHEETS.MEMBERS);
+      if (mSheet) {
+        const mData = mSheet.getDataRange().getValues();
+        const mIdIdx = mData[0].indexOf('member_id');
+        const mStatusIdx = mData[0].indexOf('status');
+        for (let i = 1; i < mData.length; i++) {
+          if (mData[i][mIdIdx] === memberId) {
+            mSheet.getRange(i + 1, mStatusIdx + 1).setValue(status);
+            foundAny = true;
+          }
+        }
+        delete cachedSheetData[CONFIG.SHEETS.MEMBERS];
+      }
+    } catch (e) {}
+
+    if (foundAny) {
+      delete cachedSheetData[CONFIG.SHEETS.USERS];
       auditLog(session.userId, session.role, 'UPDATE_MEMBER_STATUS', memberId, `Set status member ${memberId} ke ${status}`);
       return { success: true, message: `Status member berhasil diubah menjadi ${status}` };
     }
@@ -191,45 +203,41 @@ function deleteMember(token, memberId) {
         };
       }
 
-      const mSheet = getSheet(CONFIG.SHEETS.MEMBERS);
-      const mData = mSheet.getDataRange().getValues();
-      const mHeaders = mData[0];
-      const mIdCol = mHeaders.indexOf('member_id');
-      const mUidCol = mHeaders.indexOf('user_id');
-      const mNamaCol = mHeaders.indexOf('nama');
-
-      let foundMember = false;
-      let linkedUserId = '';
-      let memberName = '';
-
-      // Hapus dari Members sheet (mulai dari baris terbawah)
-      for (let i = mData.length - 1; i >= 1; i--) {
-        const rowMid = String(mData[i][mIdCol] || '').trim();
-        const rowUid = String(mData[i][mUidCol] || '').trim();
-        if (rowMid === memberId || rowUid === memberId) {
-          foundMember = true;
-          linkedUserId = rowUid || rowMid;
-          memberName = mData[i][mNamaCol] || memberName;
-          mSheet.deleteRow(i + 1);
-        }
-      }
-
-      // Hapus dari Users sheet
+      // 2. Hapus dari Users sheet (Single Master Table)
       const uSheet = getSheet(CONFIG.SHEETS.USERS);
       const uData = uSheet.getDataRange().getValues();
       const uHeaders = uData[0];
       const uIdCol = uHeaders.indexOf('user_id');
       const uRoleCol = uHeaders.indexOf('role');
+      const uNamaCol = uHeaders.indexOf('nama');
 
+      let memberName = '';
       for (let j = uData.length - 1; j >= 1; j--) {
         const rowUid = String(uData[j][uIdCol] || '').trim();
         const rowRole = String(uData[j][uRoleCol] || '').trim();
-        if ((rowUid === memberId || (linkedUserId && rowUid === linkedUserId)) && rowRole === CONFIG.ROLES.SISWA) {
+        if (rowUid === memberId && rowRole === CONFIG.ROLES.SISWA) {
+          memberName = uData[j][uNamaCol] || memberName;
           uSheet.deleteRow(j + 1);
         }
       }
 
-      // Hapus target terkait jika ada
+      // Transisi: Hapus dari Members sheet jika masih ada
+      try {
+        const ss = getSpreadsheet();
+        const mSheet = ss.getSheetByName(CONFIG.SHEETS.MEMBERS);
+        if (mSheet) {
+          const mData = mSheet.getDataRange().getValues();
+          const mIdCol = mData[0].indexOf('member_id');
+          for (let i = mData.length - 1; i >= 1; i--) {
+            if (String(mData[i][mIdCol] || '').trim() === memberId) {
+              mSheet.deleteRow(i + 1);
+            }
+          }
+          delete cachedSheetData[CONFIG.SHEETS.MEMBERS];
+        }
+      } catch (e) {}
+
+      // 3. Hapus target terkait jika ada
       try {
         const tSheet = getSheet(CONFIG.SHEETS.TARGETS);
         const tData = tSheet.getDataRange().getValues();
@@ -243,7 +251,6 @@ function deleteMember(token, memberId) {
         }
       } catch (e) {}
 
-      delete cachedSheetData[CONFIG.SHEETS.MEMBERS];
       delete cachedSheetData[CONFIG.SHEETS.USERS];
       delete cachedSheetData[CONFIG.SHEETS.TARGETS];
 
@@ -413,48 +420,17 @@ function syncStudentMembers() {
 function getMemberList(token) {
   try {
     requireRole(token, [CONFIG.ROLES.MANAGER, CONFIG.ROLES.KASIR]);
-    ensureUserPhotoColumn();
-    
-    // Auto-heal: sinkronisasi siswa dari tabel Users jika belum ada di tabel Members (dan purge dev)
-    syncStudentMembers();
+    ensureUserStudentColumns();
 
-    const members = getSheetData(CONFIG.SHEETS.MEMBERS);
     const users = getSheetData(CONFIG.SHEETS.USERS);
     
-    // Kumpulkan seluruh identifier akun dev dari dev config & tabel users untuk filter silang
-    const devIdMap = {};
-    const devNames = {};
-    if (CONFIG.DEV_CONFIG && CONFIG.DEV_CONFIG.ACCOUNTS) {
-      Object.keys(CONFIG.DEV_CONFIG.ACCOUNTS).forEach(k => {
-        const a = CONFIG.DEV_CONFIG.ACCOUNTS[k];
-        if (a.username) devIdMap[String(a.username).toLowerCase().trim()] = true;
-        if (a.userId) devIdMap[String(a.userId).toLowerCase().trim()] = true;
-        if (a.memberId) devIdMap[String(a.memberId).toLowerCase().trim()] = true;
-        if (a.nama) devNames[String(a.nama).toLowerCase().trim()] = true;
-      });
-    }
-    users.forEach(u => {
-      if (typeof isDevAccount === 'function' && isDevAccount(u)) {
-        if (u.user_id) devIdMap[String(u.user_id).toLowerCase().trim()] = true;
-        if (u.username) devIdMap[String(u.username).toLowerCase().trim()] = true;
-        if (u.nama) devNames[String(u.nama).toLowerCase().trim()] = true;
-      }
-    });
-
-    // Filter akun dev agar tabel anggota siswa produksi tetap bersih 100%
-    const prodMembers = members.filter(m => {
-      if (!m) return false;
-      if (typeof isDevAccount === 'function' && isDevAccount(m)) return false;
-      const mUserId = String(m.user_id || '').toLowerCase().trim();
-      const mMemberId = String(m.member_id || '').toLowerCase().trim();
-      const mName = String(m.nama || '').toLowerCase().trim();
-      if (mUserId && devIdMap[mUserId]) return false;
-      if (mMemberId && devIdMap[mMemberId]) return false;
-      if (mName && devNames[mName]) return false;
+    // Filter akun dev dan ambil hanya role SISWA
+    const prodStudents = users.filter(u => {
+      if (!u) return false;
+      if (String(u.role).toUpperCase() !== CONFIG.ROLES.SISWA) return false;
+      if (typeof isDevAccount === 'function' && isDevAccount(u)) return false;
       return true;
     });
-
-    const prodUsers = users.filter(u => typeof isDevAccount !== 'function' || !isDevAccount(u));
 
     // Ambil data target tabungan aktif untuk setiap siswa
     const allTargets = getSheetData(CONFIG.SHEETS.TARGETS);
@@ -472,32 +448,34 @@ function getMemberList(token) {
     }
 
     // Attach dual balances, profile photos & target tabungan
-    const membersWithBalance = prodMembers.map(m => {
-      const dual = calculateDualBalance(m.member_id);
-      m.balance = dual.tabungan; // legacy compat
-      m.saldoTabungan = dual.tabungan;
-      m.saldoHijau = dual.hijau;
-      m.dualBalance = dual;
+    const membersWithBalance = prodStudents.map(u => {
+      const memberId = String(u.user_id || '').trim();
+      const dual = calculateDualBalance(memberId);
+      const tgt = activeTargetsMap[memberId];
+      const photo = formatPhotoUrlHelper(u.photo_url, u.nama);
 
-      const tgt = activeTargetsMap[String(m.member_id).trim()];
-      m.targetTabungan = tgt ? tgt.targetAmount : 0;
-      m.targetName = tgt ? tgt.targetName : '';
-      m.target = tgt || null;
-
-      let user = prodUsers.find(u => u.user_id && m.user_id && String(u.user_id).trim() === String(m.user_id).trim());
-      if (!user && m.member_id) {
-        user = prodUsers.find(u => u.user_id && String(u.user_id).trim().toLowerCase() === String(m.member_id).trim().toLowerCase());
-      }
-      if (!user && m.nama) {
-        user = prodUsers.find(u => u.nama && String(u.nama).trim().toLowerCase() === String(m.nama).trim().toLowerCase());
-      }
-
-      const rawPhoto = getMemberProp(m, 'photo_url') || getMemberProp(user, 'photo_url');
-      m.photoUrl = formatPhotoUrlHelper(rawPhoto, m.nama);
-      m.photo_url = m.photoUrl;
-      return m;
+      return {
+        member_id: memberId,
+        user_id: memberId,
+        nama: u.nama,
+        username: u.username || '',
+        nis: u.nis || '',
+        kelas: u.kelas || '',
+        tanggal_daftar: u.tanggal_daftar || u.created_at || '',
+        status: u.status || 'AKTIF',
+        qr_data: u.qr_data || memberId,
+        balance: dual.tabungan,
+        saldoTabungan: dual.tabungan,
+        saldoHijau: dual.hijau,
+        dualBalance: dual,
+        targetTabungan: tgt ? tgt.targetAmount : 0,
+        targetName: tgt ? tgt.targetName : '',
+        target: tgt || null,
+        photoUrl: photo,
+        photo_url: photo
+      };
     });
-    
+
     return { success: true, data: membersWithBalance };
   } catch (error) {
     if (error.message.includes("Unauthorized")) throw error; return { success: false, message: error.message };
@@ -505,7 +483,7 @@ function getMemberList(token) {
 }
 
 function getMemberById(memberId) {
-  if (typeof isDevAccount === 'function' && isDevAccount({ member_id: memberId })) {
+  if (typeof isDevAccount === 'function' && isDevAccount({ member_id: memberId, user_id: memberId })) {
     const dev = CONFIG.DEV_CONFIG && CONFIG.DEV_CONFIG.ACCOUNTS && CONFIG.DEV_CONFIG.ACCOUNTS['siswa-dev'];
     if (dev) {
       return {
@@ -519,75 +497,76 @@ function getMemberById(memberId) {
       };
     }
   }
-  const members = getSheetData(CONFIG.SHEETS.MEMBERS);
-  return members.find(m => m.member_id === memberId) || null;
+  const users = getSheetData(CONFIG.SHEETS.USERS);
+  const cleanId = String(memberId || '').trim();
+  const u = users.find(user => 
+    (String(user.user_id).trim() === cleanId || String(user.username || '').trim() === cleanId) &&
+    String(user.role).toUpperCase() === CONFIG.ROLES.SISWA
+  );
+  if (!u) return null;
+
+  return {
+    member_id: u.user_id,
+    user_id: u.user_id,
+    nama: u.nama,
+    username: u.username || '',
+    nis: u.nis || '',
+    kelas: u.kelas || '',
+    status: u.status,
+    qr_data: u.qr_data || u.user_id,
+    tanggal_daftar: u.tanggal_daftar || u.created_at,
+    photo_url: u.photo_url || ''
+  };
 }
 
 function findMember(token, query) {
   try {
     requireRole(token, [CONFIG.ROLES.MANAGER, CONFIG.ROLES.KASIR]);
-    ensureUserPhotoColumn();
-    const members = getSheetData(CONFIG.SHEETS.MEMBERS);
+    ensureUserStudentColumns();
     const users = getSheetData(CONFIG.SHEETS.USERS);
     const q = String(query || '').trim().toLowerCase();
     
     if (!q) return { success: false, message: 'Harap masukkan kata kunci pencarian' };
 
-    // Saring akun dev terlebih dahulu
-    const prodMembers = members.filter(m => typeof isDevAccount !== 'function' || !isDevAccount(m));
-    const prodUsers = users.filter(u => typeof isDevAccount !== 'function' || !isDevAccount(u));
-
-    // 1. Search in members sheet: Member ID, NIS, or Nama (exact or partial)
-    let found = prodMembers.find(m => 
-      String(m.member_id || '').trim().toLowerCase() === q || 
-      String(m.nis || '').trim().toLowerCase() === q
+    const prodStudents = users.filter(u => 
+      String(u.role).toUpperCase() === CONFIG.ROLES.SISWA &&
+      (typeof isDevAccount !== 'function' || !isDevAccount(u))
     );
+
+    const found = prodStudents.find(u => 
+      String(u.user_id || '').toLowerCase() === q || 
+      String(u.nis || '').toLowerCase() === q ||
+      String(u.username || '').toLowerCase() === q ||
+      String(u.nama || '').toLowerCase() === q ||
+      String(u.nama || '').toLowerCase().includes(q)
+    );
+
     if (!found) {
-      found = prodMembers.find(m => String(m.nama || '').trim().toLowerCase() === q);
-    }
-    if (!found) {
-      found = prodMembers.find(m => String(m.nama || '').trim().toLowerCase().includes(q));
-    }
-    // Also fallback: search user record by username / name, then find member
-    if (!found) {
-      const uFound = prodUsers.find(u => 
-        String(u.username || '').trim().toLowerCase() === q || 
-        String(u.nama || '').trim().toLowerCase() === q ||
-        String(u.nama || '').trim().toLowerCase().includes(q)
-      );
-      if (uFound) {
-        found = findMemberForUser(uFound, prodMembers);
-        if (!found && uFound.role === CONFIG.ROLES.SISWA) {
-          found = ensureMemberForStudentUser(uFound);
-        }
-      }
-    }
-    
-    if (!found || (typeof isDevAccount === 'function' && isDevAccount(found))) {
       return { success: false, message: 'Anggota tidak ditemukan' };
     }
-    
-    // 2. Find matching user record to extract photo
-    let user = prodUsers.find(u => u.user_id && found.user_id && String(u.user_id).trim() === String(found.user_id).trim());
-    if (!user && found.member_id) {
-      user = prodUsers.find(u => u.user_id && String(u.user_id).trim().toLowerCase() === String(found.member_id).trim().toLowerCase());
-    }
-    if (!user && found.nama) {
-      user = prodUsers.find(u => u.nama && String(u.nama).trim().toLowerCase() === String(found.nama).trim().toLowerCase());
-    }
 
-    // 3. Resolve Photo URL
-    const rawPhoto = getMemberProp(found, 'photo_url') || getMemberProp(user, 'photo_url');
-    const photo = formatPhotoUrlHelper(rawPhoto, found.nama);
-    found.photoUrl = photo;
-    found.photo_url = photo;
+    const memberId = found.user_id;
+    const photo = formatPhotoUrlHelper(found.photo_url, found.nama);
+    const dual = calculateDualBalance(memberId);
 
-    const dual = calculateDualBalance(found.member_id);
-    found.balance = dual.tabungan; // legacy compat
-    found.saldoTabungan = dual.tabungan;
-    found.saldoHijau = dual.hijau;
-    found.dualBalance = dual;
-    return { success: true, data: found };
+    const result = {
+      member_id: memberId,
+      user_id: memberId,
+      nama: found.nama,
+      username: found.username || '',
+      nis: found.nis || '',
+      kelas: found.kelas || '',
+      status: found.status,
+      qr_data: found.qr_data || memberId,
+      photoUrl: photo,
+      photo_url: photo,
+      balance: dual.tabungan,
+      saldoTabungan: dual.tabungan,
+      saldoHijau: dual.hijau,
+      dualBalance: dual
+    };
+
+    return { success: true, data: result };
   } catch (error) {
     if (error.message.includes("Unauthorized")) throw error; return { success: false, message: error.message };
   }
@@ -596,9 +575,8 @@ function findMember(token, query) {
 function getMyProfile(token) {
   try {
     const session = requireRole(token, [CONFIG.ROLES.SISWA]);
-    ensureUserPhotoColumn();
+    ensureUserStudentColumns();
 
-    // Jika sesi adalah akun dev, return profil dev tanpa query sheet
     if (session.isDev || (typeof isDevAccount === 'function' && isDevAccount(session))) {
       return {
         success: true,
@@ -619,33 +597,35 @@ function getMyProfile(token) {
       };
     }
 
-    let members = getSheetData(CONFIG.SHEETS.MEMBERS);
-    
-    // Find member by user_id
-    let found = findMemberForUser(session, members);
-    if (!found) {
-      const users = getSheetData(CONFIG.SHEETS.USERS);
-      const user = users.find(u => u.user_id === session.userId || u.username === session.username);
-      if (user) {
-        found = ensureMemberForStudentUser(user);
-      }
-    }
-    if (!found) throw new Error('Data member tidak ditemukan');
-
     const users = getSheetData(CONFIG.SHEETS.USERS);
-    let user = users.find(u => u.user_id === session.userId || u.user_id === found.member_id || (u.nama && String(u.nama).toLowerCase() === String(found.nama).toLowerCase()));
-    
-    const rawPhoto = getMemberProp(found, 'photo_url') || getMemberProp(user, 'photo_url') || session.photoUrl || '';
-    const photo = formatPhotoUrlHelper(rawPhoto, found.nama);
-    found.photoUrl = photo;
-    found.photo_url = photo;
-    
-    const dual = calculateDualBalance(found.member_id);
-    found.balance = dual.tabungan; // legacy compat
-    found.saldoTabungan = dual.tabungan;
-    found.saldoHijau = dual.hijau;
-    found.dualBalance = dual;
-    return { success: true, data: found };
+    const u = users.find(user => 
+      (user.user_id === session.userId || user.username === session.username) &&
+      String(user.role).toUpperCase() === CONFIG.ROLES.SISWA
+    );
+    if (!u) throw new Error('Data member tidak ditemukan');
+
+    const memberId = u.user_id;
+    const photo = formatPhotoUrlHelper(u.photo_url || session.photoUrl, u.nama);
+    const dual = calculateDualBalance(memberId);
+
+    const profileData = {
+      member_id: memberId,
+      user_id: memberId,
+      nama: u.nama,
+      username: u.username || '',
+      nis: u.nis || '',
+      kelas: u.kelas || '',
+      status: u.status,
+      qr_data: u.qr_data || memberId,
+      photoUrl: photo,
+      photo_url: photo,
+      balance: dual.tabungan,
+      saldoTabungan: dual.tabungan,
+      saldoHijau: dual.hijau,
+      dualBalance: dual
+    };
+
+    return { success: true, data: profileData };
   } catch (error) {
     if (error.message.includes("Unauthorized")) throw error; return { success: false, message: error.message };
   }
@@ -656,10 +636,7 @@ function setTarget(token, name, amount) {
     const session = verifyToken(token);
     if(session.role !== CONFIG.ROLES.SISWA) throw new Error('Hanya siswa yang dapat mengubah target.');
     
-    const members = getSheetData(CONFIG.SHEETS.MEMBERS);
-    const member = members.find(m => m.user_id === session.userId);
-    if(!member) throw new Error('Data member tidak ditemukan.');
-    
+    const memberId = session.userId;
     const sheet = getSheet(CONFIG.SHEETS.TARGETS);
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
@@ -667,14 +644,14 @@ function setTarget(token, name, amount) {
     const statusIdx = headers.indexOf('status');
     
     for (let i = 1; i < data.length; i++) {
-      if(data[i][memberIdx] === member.member_id && data[i][statusIdx] === 'AKTIF') {
+      if(data[i][memberIdx] === memberId && data[i][statusIdx] === 'AKTIF') {
         sheet.getRange(i + 1, statusIdx + 1).setValue('NONAKTIF');
       }
     }
     
     const targetId = 'TGT-' + Date.now();
     appendRow(CONFIG.SHEETS.TARGETS, [
-      targetId, member.member_id, name, amount, 'AKTIF', new Date()
+      targetId, memberId, name, amount, 'AKTIF', new Date()
     ]);
     
     auditLog(session.userId, session.role, 'SET_TARGET', targetId, `Set target: ${name} (Rp${amount})`);

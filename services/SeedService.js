@@ -63,8 +63,7 @@ function updateSeed(token, seedId, dataUpdate) {
 function requestSeedConversion(token, seedId, quantity) {
   try {
     const session = requireRole(token, [CONFIG.ROLES.SISWA]);
-    const members = getSheetData(CONFIG.SHEETS.MEMBERS);
-    const member = members.find(m => m.user_id === session.userId);
+    const member = (typeof getMemberById === 'function') ? getMemberById(session.userId) : null;
     
     if (!member || member.status !== CONFIG.MEMBER_STATUS.AKTIF) {
       throw new Error('Akun siswa belum aktif atau tidak ditemukan');
@@ -143,11 +142,11 @@ function getSeedRequests(token) {
   try {
     const session = requireRole(token, [CONFIG.ROLES.MANAGER, CONFIG.ROLES.KASIR]);
     const requests = getSheetData(CONFIG.SHEETS.SEED_REQUESTS);
-    const members = getSheetData(CONFIG.SHEETS.MEMBERS);
+    const users = getSheetData(CONFIG.SHEETS.USERS);
     const seeds = getSheetData(CONFIG.SHEETS.SEEDS);
     
     const populated = requests.map(req => {
-      const m = members.find(mem => mem.member_id === req.member_id) || {};
+      const m = users.find(u => u.user_id === req.member_id) || {};
       const s = seeds.find(sd => sd.seed_id === req.seed_id) || {};
       const currentHijau = calculateHijau(req.member_id);
       return {
@@ -173,8 +172,7 @@ function getSeedRequests(token) {
 function getSiswaSeedRequests(token) {
   try {
     const session = requireRole(token, [CONFIG.ROLES.SISWA]);
-    const members = getSheetData(CONFIG.SHEETS.MEMBERS);
-    const member = members.find(m => m.user_id === session.userId);
+    const member = (typeof getMemberById === 'function') ? getMemberById(session.userId) : null;
     if (!member) throw new Error('Profil siswa tidak ditemukan');
     
     const requests = getSheetData(CONFIG.SHEETS.SEED_REQUESTS).filter(r => r.member_id === member.member_id);

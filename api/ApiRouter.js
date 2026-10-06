@@ -352,6 +352,14 @@ function dispatchApiAction(action, params, method) {
           : { success: false, message: 'ReconciliationService tidak tersedia' };
         break;
 
+      case 'migrate_to_single_master':
+      case 'migrate_single_master':
+      case 'migratesinglemaster':
+        result = typeof migrateToSingleMasterUsers === 'function'
+          ? migrateToSingleMasterUsers(params.token)
+          : { success: false, message: 'MigrationService tidak tersedia' };
+        break;
+
       // 11b. STAFF / USER MANAGEMENT (Kasir & Manager)
       case 'users':
       case 'get_users':

@@ -70,8 +70,7 @@ function getCurrentSession(token) {
     let photoUrl = (user && user.photo_url) ? user.photo_url : '';
     if (!photoUrl && session.role === CONFIG.ROLES.SISWA) {
       try {
-        const members = getSheetData(CONFIG.SHEETS.MEMBERS);
-        const member = members.find(m => m.user_id === session.userId || m.member_id === session.userId || (m.nama && session.nama && m.nama.toLowerCase().trim() === session.nama.toLowerCase().trim()));
+        const member = (typeof getMemberById === 'function') ? getMemberById(session.userId) : null;
         if (member && member.photo_url) photoUrl = member.photo_url;
       } catch(e) {}
     }
@@ -159,8 +158,7 @@ function login(username, password) {
     let photoUrl = user.photo_url;
     if (!photoUrl && user.role === CONFIG.ROLES.SISWA) {
       try {
-        const members = getSheetData(CONFIG.SHEETS.MEMBERS);
-        const member = members.find(m => m.user_id === user.user_id || m.member_id === user.user_id || (m.nama && user.nama && m.nama.toLowerCase().trim() === user.nama.toLowerCase().trim()));
+        const member = (typeof getMemberById === 'function') ? getMemberById(user.user_id) : null;
         if (member && member.photo_url) photoUrl = member.photo_url;
       } catch(e) {}
     }
@@ -424,26 +422,31 @@ function updateMyProfile(token, dataUpdate) {
         
         delete cachedSheetData[CONFIG.SHEETS.USERS];
         
-        // If user is Siswa, also update name & photo in Members sheet if changed
+        // If user is Siswa, also update name & photo in Members sheet if still present
         if (session.role === CONFIG.ROLES.SISWA) {
-          const mSheet = getSheet(CONFIG.SHEETS.MEMBERS);
-          const mData = mSheet.getDataRange().getValues();
-          const mHeaders = mData[0];
-          const mUIdIdx = mHeaders.indexOf('user_id');
-          const mNamaIdx = mHeaders.indexOf('nama');
-          const mPhotoIdx = mHeaders.indexOf('photo_url');
-          for (let j = 1; j < mData.length; j++) {
-            if (mData[j][mUIdIdx] === session.userId) {
-              if (dataUpdate.nama && mNamaIdx !== -1) {
-                mSheet.getRange(j + 1, mNamaIdx + 1).setValue(dataUpdate.nama);
+          try {
+            const ss = getSpreadsheet();
+            const mSheet = ss.getSheetByName(CONFIG.SHEETS.MEMBERS);
+            if (mSheet) {
+              const mData = mSheet.getDataRange().getValues();
+              const mHeaders = mData[0];
+              const mUIdIdx = mHeaders.indexOf('user_id');
+              const mNamaIdx = mHeaders.indexOf('nama');
+              const mPhotoIdx = mHeaders.indexOf('photo_url');
+              for (let j = 1; j < mData.length; j++) {
+                if (mData[j][mUIdIdx] === session.userId) {
+                  if (dataUpdate.nama && mNamaIdx !== -1) {
+                    mSheet.getRange(j + 1, mNamaIdx + 1).setValue(dataUpdate.nama);
+                  }
+                  if (dataUpdate.photo_url !== undefined && mPhotoIdx !== -1) {
+                    mSheet.getRange(j + 1, mPhotoIdx + 1).setValue(dataUpdate.photo_url);
+                  }
+                  delete cachedSheetData[CONFIG.SHEETS.MEMBERS];
+                  break;
+                }
               }
-              if (dataUpdate.photo_url !== undefined && mPhotoIdx !== -1) {
-                mSheet.getRange(j + 1, mPhotoIdx + 1).setValue(dataUpdate.photo_url);
-              }
-              delete cachedSheetData[CONFIG.SHEETS.MEMBERS];
-              break;
             }
-          }
+          } catch(e) {}
         }
         
         const photoUrl = dataUpdate.photo_url || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(session.nama) + '&background=10b981&color=fff&bold=true&format=png');
@@ -548,24 +551,37 @@ function registerUser(token, data) {
     const hash = hashPassword(data.password);
     const placeholderPhoto = data.photo_url || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(data.nama) + '&background=10b981&color=fff&bold=true&format=png');
     const userStatus = isSiswa ? CONFIG.MEMBER_STATUS.MENUNGGU : 'AKTIF';
+    const now = new Date();
     
-    appendRow(CONFIG.SHEETS.USERS, [
-      userId, data.username, hash, data.role, data.nama, userStatus, new Date(), placeholderPhoto
-    ]);
-
-    // Jika role SISWA, otomatis buat record di tabel Members agar muncul di data anggota dengan status MENUNGGU
     if (isSiswa) {
-      appendRow(CONFIG.SHEETS.MEMBERS, [
-        userId,
-        userId,
-        data.nama,
-        data.nis || '-',
-        data.kelas || '-',
-        new Date(),
-        CONFIG.MEMBER_STATUS.MENUNGGU,
-        userId
+      ensureUserStudentColumns();
+      appendRow(CONFIG.SHEETS.USERS, [
+        userId, data.username, hash, data.role, data.nama, userStatus, now, placeholderPhoto,
+        data.nis || '-', data.kelas || '-', userId, now
       ]);
-      delete cachedSheetData[CONFIG.SHEETS.MEMBERS];
+
+      // Transisi: Jika sheet Members masih ada, tulis juga
+      try {
+        const ss = getSpreadsheet();
+        const mSheet = ss.getSheetByName(CONFIG.SHEETS.MEMBERS);
+        if (mSheet) {
+          mSheet.appendRow([
+            userId,
+            userId,
+            data.nama,
+            data.nis || '-',
+            data.kelas || '-',
+            now,
+            CONFIG.MEMBER_STATUS.MENUNGGU,
+            userId
+          ]);
+          delete cachedSheetData[CONFIG.SHEETS.MEMBERS];
+        }
+      } catch(e) {}
+    } else {
+      appendRow(CONFIG.SHEETS.USERS, [
+        userId, data.username, hash, data.role, data.nama, userStatus, now, placeholderPhoto
+      ]);
     }
     
     auditLog(session.userId, session.role, 'ADD_USER', userId, 'Tambah ' + data.role + ': ' + data.nama);
@@ -596,22 +612,24 @@ function deactivateUser(token, userId) {
         sheet.getRange(i + 1, statusIdx + 1).setValue('NONAKTIF');
         delete cachedSheetData[CONFIG.SHEETS.USERS];
 
-        // Jika SISWA, nonaktifkan juga di sheet Members
+        // Jika SISWA, nonaktifkan juga di sheet Members jika masih ada
         if (data[i][roleIdx] === CONFIG.ROLES.SISWA) {
           try {
             const mSheet = getSheet(CONFIG.SHEETS.MEMBERS);
-            const mData = mSheet.getDataRange().getValues();
-            const mHeaders = mData[0];
-            const mUid = mHeaders.indexOf('user_id');
-            const mMid = mHeaders.indexOf('member_id');
-            const mSt = mHeaders.indexOf('status');
-            for (let m = 1; m < mData.length; m++) {
-              if (mData[m][mUid] === userId || mData[m][mMid] === userId) {
-                mSheet.getRange(m + 1, mSt + 1).setValue('NONAKTIF');
-                break;
+            if (mSheet) {
+              const mData = mSheet.getDataRange().getValues();
+              const mHeaders = mData[0];
+              const mUid = mHeaders.indexOf('user_id');
+              const mMid = mHeaders.indexOf('member_id');
+              const mSt = mHeaders.indexOf('status');
+              for (let m = 1; m < mData.length; m++) {
+                if (mData[m][mUid] === userId || mData[m][mMid] === userId) {
+                  mSheet.getRange(m + 1, mSt + 1).setValue('NONAKTIF');
+                  break;
+                }
               }
+              delete cachedSheetData[CONFIG.SHEETS.MEMBERS];
             }
-            delete cachedSheetData[CONFIG.SHEETS.MEMBERS];
           } catch(e) {}
         }
 
@@ -640,22 +658,24 @@ function activateUser(token, userId) {
         sheet.getRange(i + 1, statusIdx + 1).setValue('AKTIF');
         delete cachedSheetData[CONFIG.SHEETS.USERS];
 
-        // Jika SISWA, aktifkan juga di sheet Members
+        // Jika SISWA, aktifkan juga di sheet Members jika masih ada
         if (data[i][roleIdx] === CONFIG.ROLES.SISWA) {
           try {
             const mSheet = getSheet(CONFIG.SHEETS.MEMBERS);
-            const mData = mSheet.getDataRange().getValues();
-            const mHeaders = mData[0];
-            const mUid = mHeaders.indexOf('user_id');
-            const mMid = mHeaders.indexOf('member_id');
-            const mSt = mHeaders.indexOf('status');
-            for (let m = 1; m < mData.length; m++) {
-              if (mData[m][mUid] === userId || mData[m][mMid] === userId) {
-                mSheet.getRange(m + 1, mSt + 1).setValue('AKTIF');
-                break;
+            if (mSheet) {
+              const mData = mSheet.getDataRange().getValues();
+              const mHeaders = mData[0];
+              const mUid = mHeaders.indexOf('user_id');
+              const mMid = mHeaders.indexOf('member_id');
+              const mSt = mHeaders.indexOf('status');
+              for (let m = 1; m < mData.length; m++) {
+                if (mData[m][mUid] === userId || mData[m][mMid] === userId) {
+                  mSheet.getRange(m + 1, mSt + 1).setValue('AKTIF');
+                  break;
+                }
               }
+              delete cachedSheetData[CONFIG.SHEETS.MEMBERS];
             }
-            delete cachedSheetData[CONFIG.SHEETS.MEMBERS];
           } catch(e) {}
         }
 
@@ -704,18 +724,20 @@ function updateUser(token, userId, dataUpdate) {
         if (currentRole === CONFIG.ROLES.SISWA && dataUpdate.nama) {
           try {
             const mSheet = getSheet(CONFIG.SHEETS.MEMBERS);
-            const mData = mSheet.getDataRange().getValues();
-            const mHeaders = mData[0];
-            const mUid = mHeaders.indexOf('user_id');
-            const mMid = mHeaders.indexOf('member_id');
-            const mNama = mHeaders.indexOf('nama');
-            for (let m = 1; m < mData.length; m++) {
-              if (mData[m][mUid] === userId || mData[m][mMid] === userId) {
-                mSheet.getRange(m + 1, mNama + 1).setValue(dataUpdate.nama);
-                break;
+            if (mSheet) {
+              const mData = mSheet.getDataRange().getValues();
+              const mHeaders = mData[0];
+              const mUid = mHeaders.indexOf('user_id');
+              const mMid = mHeaders.indexOf('member_id');
+              const mNama = mHeaders.indexOf('nama');
+              for (let m = 1; m < mData.length; m++) {
+                if (mData[m][mUid] === userId || mData[m][mMid] === userId) {
+                  mSheet.getRange(m + 1, mNama + 1).setValue(dataUpdate.nama);
+                  break;
+                }
               }
+              delete cachedSheetData[CONFIG.SHEETS.MEMBERS];
             }
-            delete cachedSheetData[CONFIG.SHEETS.MEMBERS];
           } catch(e) {}
         }
 

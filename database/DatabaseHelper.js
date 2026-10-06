@@ -14,7 +14,7 @@ function getSpreadsheet() {
 }
 
 const DATABASE_SCHEMAS = {
-  'Users': ['user_id','username','password_hash','role','nama','status','created_at','photo_url'],
+  'Users': ['user_id','username','password_hash','role','nama','status','created_at','photo_url','nis','kelas','qr_data','tanggal_daftar'],
   'Members': ['member_id','user_id','nama','nis','kelas','tanggal_daftar','status','qr_data'],
   'Transactions': ['transaction_id','timestamp','member_id','type','wallet_type','credit','debit','amount','cashier_id','description','status'],
   'Waste_Transactions': ['waste_id','transaction_id','member_id','waste_type','quantity','unit','unit_price','total_value','cashier_id','timestamp'],
@@ -95,6 +95,9 @@ function getSheet(sheetName) {
   const ss = getSpreadsheet();
   let sheet = ss.getSheetByName(sheetName);
   if (!sheet) {
+    if (sheetName === CONFIG.SHEETS.MEMBERS) {
+      return null;
+    }
     sheet = ss.insertSheet(sheetName);
   }
   ensureSheetHeaders(sheet, sheetName);
@@ -104,11 +107,12 @@ function getSheet(sheetName) {
 
 function ensureUserStudentColumns() {
   const sheet = getSheet(CONFIG.SHEETS.USERS);
+  if (!sheet) return;
   const data = sheet.getDataRange().getValues();
   if (data.length > 0) {
     const headers = data[0];
     let changed = false;
-    const requiredCols = ['nis', 'kelas', 'qr_data', 'photo_url'];
+    const requiredCols = ['nis', 'kelas', 'qr_data', 'tanggal_daftar', 'photo_url'];
     requiredCols.forEach(col => {
       if (!headers.includes(col)) {
         const nextCol = sheet.getLastColumn() + 1;
@@ -224,7 +228,35 @@ function withScriptLock(callback, options) {
 function getSheetData(sheetName) {
   if (cachedSheetData[sheetName]) return cachedSheetData[sheetName];
   
+  // Adapter Kompatibilitas Tunggal: Jika meminta 'Members' tetapi sheet Members sudah di-drop / dimigrasikan
+  if (sheetName === CONFIG.SHEETS.MEMBERS) {
+    const ss = getSpreadsheet();
+    const mSheet = ss.getSheetByName(CONFIG.SHEETS.MEMBERS);
+    if (!mSheet) {
+      // Baca langsung dari Users dengan filter role SISWA
+      const users = getSheetData(CONFIG.SHEETS.USERS);
+      const studentMembers = users.filter(u => String(u.role).toUpperCase() === CONFIG.ROLES.SISWA).map(u => ({
+        member_id: u.user_id,
+        user_id: u.user_id,
+        nama: u.nama,
+        username: u.username || '',
+        nis: u.nis || '',
+        kelas: u.kelas || '',
+        tanggal_daftar: u.tanggal_daftar || u.created_at,
+        status: u.status,
+        qr_data: u.qr_data || u.user_id,
+        photo_url: u.photo_url || ''
+      }));
+      cachedSheetData[sheetName] = studentMembers;
+      return studentMembers;
+    }
+  }
+
   const sheet = getSheet(sheetName);
+  if (!sheet) {
+    cachedSheetData[sheetName] = [];
+    return [];
+  }
   const allValues = sheet.getDataRange().getValues();
   if (!allValues || allValues.length <= 1) {
     cachedSheetData[sheetName] = [];
