@@ -19,19 +19,20 @@ function ensureUserPhotoColumn() {
 }
 
 function getAuthSecret() {
+  const STATIC_SECRET = 'satus-auth-secret-hmac-sha256-super-key-v2-2026';
   try {
     const props = PropertiesService.getScriptProperties();
-    let secret = props ? props.getProperty('SATUS_AUTH_SECRET') : null;
+    if (!props) return STATIC_SECRET;
+    let secret = props.getProperty('SATUS_AUTH_SECRET');
     if (!secret) {
-      secret = Utilities.getUuid() + '-' + Utilities.getUuid() + '-satus-auth-secret-2026';
-      if (props) {
+      secret = STATIC_SECRET;
+      try {
         props.setProperty('SATUS_AUTH_SECRET', secret);
-      }
+      } catch (pe) {}
     }
-    return secret;
+    return secret || STATIC_SECRET;
   } catch (e) {
-    console.warn('PropertiesService access warning, using static salt:', e);
-    return 'satus-auth-secret-fallback-key-2026';
+    return STATIC_SECRET;
   }
 }
 
@@ -41,7 +42,6 @@ function generateSignedToken(sessionData) {
     username: sessionData.username,
     role: sessionData.role,
     nama: sessionData.nama,
-    photoUrl: sessionData.photoUrl || '',
     isDev: !!sessionData.isDev,
     iat: Date.now(),
     exp: Date.now() + (14 * 24 * 60 * 60 * 1000) // 14 days expiration
@@ -65,7 +65,10 @@ function getCurrentSession(token) {
 
     ensureUserPhotoColumn();
     const users = getSheetData(CONFIG.SHEETS.USERS);
-    const user = users.find(u => u.user_id === session.userId);
+    const user = users.find(u => 
+      (session.userId && String(u.user_id) === String(session.userId)) ||
+      (session.username && String(u.username || '').toLowerCase() === String(session.username).toLowerCase())
+    );
     
     let photoUrl = (user && user.photo_url) ? user.photo_url : '';
     if (!photoUrl && session.role === CONFIG.ROLES.SISWA) {
@@ -77,11 +80,14 @@ function getCurrentSession(token) {
     
     const defaultAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(session.nama || session.username) + '&background=10b981&color=fff&bold=true&format=png';
     session.photoUrl = photoUrl || defaultAvatar;
+    session.photo_url = session.photoUrl;
     session.token = token; // Guarantee token is preserved
     
     try {
-      const cache = CacheService.getScriptCache();
-      cache.put(token, JSON.stringify(session), 21600);
+      if (token && token.length <= 250) {
+        const cache = CacheService.getScriptCache();
+        if (cache) cache.put(token, JSON.stringify(session), 21600);
+      }
     } catch(e) {}
     
     return { success: true, data: session };
@@ -130,8 +136,10 @@ function login(username, password) {
       sessionData.token = token;
 
       try {
-        const cache = CacheService.getScriptCache();
-        cache.put(token, JSON.stringify(sessionData), 21600); // 6 hours cache
+        if (token && token.length <= 250) {
+          const cache = CacheService.getScriptCache();
+          if (cache) cache.put(token, JSON.stringify(sessionData), 21600); // 6 hours cache
+        }
       } catch (e) {}
 
       return { 
@@ -176,8 +184,10 @@ function login(username, password) {
     sessionData.token = token;
 
     try {
-      const cache = CacheService.getScriptCache();
-      cache.put(token, JSON.stringify(sessionData), 21600); // 6 hours cache
+      if (token && token.length <= 250) {
+        const cache = CacheService.getScriptCache();
+        if (cache) cache.put(token, JSON.stringify(sessionData), 21600); // 6 hours cache
+      }
     } catch (e) {}
 
     auditLog(user.user_id, user.role, 'LOGIN', '', 'User login');
@@ -261,11 +271,16 @@ function verifyToken(token) {
 
           if (!dbUser) {
             const users = getSheetData(CONFIG.SHEETS.USERS);
-            const found = users.find(u => u.user_id === session.userId);
+            const found = users.find(u => 
+              (session.userId && String(u.user_id) === String(session.userId)) ||
+              (session.username && String(u.username || '').toLowerCase() === String(session.username).toLowerCase())
+            );
             if (!found || (found.status !== 'AKTIF' && !(found.role === 'SISWA' && found.status === 'MENUNGGU'))) {
               return null;
             }
             dbUser = {
+              userId: found.user_id,
+              username: found.username,
               role: found.role,
               nama: found.nama || session.nama,
               photo_url: found.photo_url || ''
@@ -273,15 +288,19 @@ function verifyToken(token) {
             try {
               const cache = CacheService.getScriptCache();
               if (cache) {
-                cache.put('auth_user_status_' + session.userId, JSON.stringify(dbUser), 600); // 10 menit
+                const cacheKey = ('auth_user_status_' + (session.userId || session.username)).slice(0, 240);
+                cache.put(cacheKey, JSON.stringify(dbUser), 600); // 10 menit
               }
             } catch(e) {}
           }
           
+          session.userId = dbUser.userId || session.userId;
+          session.username = dbUser.username || session.username;
           session.role = dbUser.role;
           session.nama = dbUser.nama || session.nama;
           if (dbUser.photo_url) {
             session.photoUrl = dbUser.photo_url;
+            session.photo_url = dbUser.photo_url;
           }
           session.token = token;
           return session;
@@ -346,7 +365,12 @@ function verifyToken(token) {
 function requireRole(token, allowedRoles) {
   const session = verifyToken(token);
   if (!session) throw new Error('Unauthorized: Session expired or invalid');
-  if (!allowedRoles.includes(session.role)) throw new Error('Forbidden: Insufficient role');
+  const role = String(session.role || '').toUpperCase();
+  const effectiveAllowed = allowedRoles.map(r => String(r).toUpperCase());
+  if (effectiveAllowed.includes('MANAGER') && !effectiveAllowed.includes('ADMIN')) {
+    effectiveAllowed.push('ADMIN');
+  }
+  if (!effectiveAllowed.includes(role)) throw new Error('Forbidden: Insufficient role');
   return session;
 }
 

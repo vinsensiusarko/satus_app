@@ -5,11 +5,12 @@ function getDashboardData(token) {
     const session = verifyToken(token);
     if (!session) throw new Error('Unauthorized');
     
-    if (session.role === CONFIG.ROLES.MANAGER) {
+    const role = String(session.role || '').toUpperCase();
+    if (role === CONFIG.ROLES.MANAGER || role === 'ADMIN') {
       return getManagerDashboard();
-    } else if (session.role === CONFIG.ROLES.KASIR) {
+    } else if (role === CONFIG.ROLES.KASIR) {
       return getKasirDashboard();
-    } else if (session.role === CONFIG.ROLES.SISWA) {
+    } else if (role === CONFIG.ROLES.SISWA) {
       if (session.isDev || (typeof isDevAccount === 'function' && isDevAccount(session))) {
         return getSiswaDashboard(session.userId || 'DEV-SIS-001', {
           member_id: 'DEV-SIS-001',
@@ -56,6 +57,7 @@ function getDashboardData(token) {
       }
       return getSiswaDashboard(member.member_id, member);
     }
+    return getManagerDashboard();
   } catch (error) {
     if (error.message.includes("Unauthorized")) throw error; return { success: false, message: error.message };
   }

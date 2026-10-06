@@ -2222,9 +2222,24 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
     }
   },
 
+  loadingSafetyTimer: null,
+
   showLoading: function(show) {
     const el = document.getElementById('loading');
     if (el) el.classList.toggle('hidden', !show);
+    if (this.loadingSafetyTimer) {
+      clearTimeout(this.loadingSafetyTimer);
+      this.loadingSafetyTimer = null;
+    }
+    if (show) {
+      this.loadingSafetyTimer = setTimeout(() => {
+        const loadingEl = document.getElementById('loading');
+        if (loadingEl && !loadingEl.classList.contains('hidden')) {
+          loadingEl.classList.add('hidden');
+          console.warn('Safety auto-dismiss: loading overlay dismissed after timeout');
+        }
+      }, 12000);
+    }
   },
 
   showToast: function(message, type = 'info') {
@@ -2249,12 +2264,12 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
         this.renderUserProfileCards();
         const role = String(this.session.role || '').toUpperCase();
         
-        if (role === 'MANAGER') this.renderPage('tpl-dashboard-manager');
+        if (role === 'MANAGER' || role === 'ADMIN') this.renderPage('tpl-dashboard-manager');
         else if (role === 'KASIR') this.renderPage('tpl-dashboard-kasir');
         else if (role === 'SISWA') this.renderPage('tpl-dashboard-siswa');
         else {
           this.logout();
-          this.showToast('Role tidak valid', 'error');
+          this.showToast('Role tidak valid: ' + role, 'error');
         }
       }
     } catch (routeErr) {
@@ -2264,30 +2279,36 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
   },
 
   renderPage: function(templateId) {
-    if (this.html5QrcodeScanner) {
-      try {
-        this.html5QrcodeScanner.clear().catch(e => console.log(e));
-      } catch(e) {}
-      this.html5QrcodeScanner = null;
-    }
-    const content = document.getElementById('app-content');
-    const template = document.getElementById(templateId);
-    if(template) {
-      content.innerHTML = template.innerHTML;
-      this.renderUserProfileCards();
-      if (typeof lucide !== 'undefined') lucide.createIcons();
-      if(templateId === 'tpl-dashboard-manager') {
-        this.syncAppVersionBadge();
-        this.loadManagerDashboard();
+    try {
+      if (this.html5QrcodeScanner) {
+        try {
+          this.html5QrcodeScanner.clear().catch(e => console.log(e));
+        } catch(e) {}
+        this.html5QrcodeScanner = null;
       }
-      if(templateId === 'tpl-dashboard-kasir') this.loadKasirDashboard();
-      if(templateId === 'tpl-dashboard-siswa') this.loadSiswaDashboard();
-      if(templateId === 'tpl-member-list') this.loadMemberList();
-      if(templateId === 'tpl-waste-price') this.loadWastePrice();
-      if(templateId === 'tpl-product-list') this.loadProductList();
-      if(templateId === 'tpl-audit-log') this.loadAuditLog();
-    } else {
-      content.innerHTML = '<div class="text-center text-red-500 mt-10">404 - Template not found</div>';
+      const content = document.getElementById('app-content');
+      const template = document.getElementById(templateId);
+      if(template) {
+        content.innerHTML = template.innerHTML;
+        this.renderUserProfileCards();
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        if(templateId === 'tpl-dashboard-manager') {
+          this.syncAppVersionBadge();
+          this.loadManagerDashboard();
+        }
+        if(templateId === 'tpl-dashboard-kasir') this.loadKasirDashboard();
+        if(templateId === 'tpl-dashboard-siswa') this.loadSiswaDashboard();
+        if(templateId === 'tpl-member-list') this.loadMemberList();
+        if(templateId === 'tpl-waste-price') this.loadWastePrice();
+        if(templateId === 'tpl-product-list') this.loadProductList();
+        if(templateId === 'tpl-audit-log') this.loadAuditLog();
+      } else {
+        content.innerHTML = '<div class="text-center text-red-500 mt-10">404 - Template not found</div>';
+      }
+    } catch (renderErr) {
+      console.error('Error rendering page ' + templateId + ':', renderErr);
+      this.showLoading(false);
+      this.showToast('Gagal memuat halaman: ' + (renderErr ? renderErr.message : 'Unknown error'), 'error');
     }
   },
 
@@ -3996,7 +4017,7 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
           }
           let editBtn = `<button type="button" onclick="app.openEditSiswa('${m.member_id}')" class="inline-flex items-center justify-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm transition active:scale-95" title="Edit Data Siswa"><i data-lucide="pencil" class="w-3.5 h-3.5 text-amber-600"></i><span>Edit</span></button>`;
           let printCardBtn = `<button type="button" onclick="app.openModalKartuSiswaByMemberId('${m.member_id}')" class="inline-flex items-center justify-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm transition active:scale-95" title="Cetak Kartu Siswa"><i data-lucide="printer" class="w-3.5 h-3.5 text-blue-600"></i><span>Kartu</span></button>`;
-          let deleteBtn = `<button type="button" onclick="app.deleteMember('${m.member_id}', '${(m.nama || '').replace(/'/g, "\\'")}', ${m.saldoTabungan || m.balance || 0}, ${m.saldoHijau || 0}, '${m.kelas || '-'}', '${m.nis || '-'}')" class="inline-flex items-center justify-center gap-1 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm transition active:scale-95" title="Hapus Siswa"><i data-lucide="trash-2" class="w-3.5 h-3.5 text-rose-600"></i><span>Hapus</span></button>`;
+          let deleteBtn = `<button type="button" onclick="app.deleteMember('${m.member_id}')" class="inline-flex items-center justify-center gap-1 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm transition active:scale-95" title="Hapus Siswa"><i data-lucide="trash-2" class="w-3.5 h-3.5 text-rose-600"></i><span>Hapus</span></button>`;
           
           html += `<tr>
             <td class="py-3 px-3.5 border-b font-mono font-bold text-slate-800">${m.member_id}</td>
@@ -4062,7 +4083,7 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
           }
           let editBtn = `<button type="button" onclick="app.openEditUser('${u.user_id}')" class="inline-flex items-center justify-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm transition active:scale-95" title="Edit Data Staff"><i data-lucide="pencil" class="w-3.5 h-3.5 text-amber-600"></i><span>Edit</span></button>`;
           let deleteStaffBtn = u.role !== 'MANAGER' 
-            ? `<button type="button" onclick="app.deleteUser('${u.user_id}', '${(u.nama || '').replace(/'/g, "\\'")}', '${u.role}', '${u.username || ''}')" class="inline-flex items-center justify-center gap-1 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm transition active:scale-95" title="Hapus Staff"><i data-lucide="trash-2" class="w-3.5 h-3.5 text-rose-600"></i><span>Hapus</span></button>` 
+            ? `<button type="button" onclick="app.deleteUser('${u.user_id}')" class="inline-flex items-center justify-center gap-1 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm transition active:scale-95" title="Hapus Staff"><i data-lucide="trash-2" class="w-3.5 h-3.5 text-rose-600"></i><span>Hapus</span></button>` 
             : '';
           
           html += `<tr>
@@ -4262,6 +4283,16 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
   },
 
   deleteMember: function(memberId, nama, saldoTabungan, saldoHijau, kelas, nis) {
+    if ((!nama || typeof nama === 'undefined') && app.rawMembers) {
+      const found = app.rawMembers.find(m => m.member_id === memberId || m.user_id === memberId);
+      if (found) {
+        nama = found.nama || '';
+        saldoTabungan = found.saldoTabungan || found.balance || 0;
+        saldoHijau = found.saldoHijau || 0;
+        kelas = found.kelas || '-';
+        nis = found.nis || '-';
+      }
+    }
     const totalSaldo = (Number(saldoTabungan) || 0) + (Number(saldoHijau) || 0);
     const modal = document.getElementById('modal-delete-confirm');
     if (!modal) {
@@ -4325,6 +4356,14 @@ ${(d.newBalance !== undefined && d.newBalance !== null) ? `📊 *Saldo Akhir:* R
   },
 
   deleteUser: function(userId, nama, role, username) {
+    if ((!nama || typeof nama === 'undefined') && app.rawUsers) {
+      const found = app.rawUsers.find(u => u.user_id === userId);
+      if (found) {
+        nama = found.nama || '';
+        role = found.role || 'STAFF';
+        username = found.username || '';
+      }
+    }
     const modal = document.getElementById('modal-delete-confirm');
     if (!modal) {
       if (!confirm(`Apakah Anda yakin ingin menghapus staff ${nama} (${role})?`)) return;
